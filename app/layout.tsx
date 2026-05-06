@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { IconContext } from "@phosphor-icons/react";
 import { QueryProvider } from "@/providers/query-provider";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -26,14 +27,16 @@ export default function RootLayout({
       className={`${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background">
-        <QueryProvider>
-          <SidebarProvider>
-            <AppSidebar />
-            <SidebarInset className="overflow-x-hidden">
-              {children}
-            </SidebarInset>
-          </SidebarProvider>
-        </QueryProvider>
+        <IconContext value={{ weight: "duotone" }}>
+          <QueryProvider>
+            <SidebarProvider>
+              <AppSidebar />
+              <SidebarInset className="overflow-x-hidden">
+                {children}
+              </SidebarInset>
+            </SidebarProvider>
+          </QueryProvider>
+        </IconContext>
       </body>
     </html>
   );

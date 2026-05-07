@@ -1,33 +1,47 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
-import LayoutWrapper from "../components/Layout/LayoutWrapper";
-import { DataTable } from "../components/table/DataTable";
-import { Member } from "./types";
-import { Checkbox } from "@/components/ui/checkbox";
-import SearchBox from "../components/input/SearchBox";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuthMe } from "@/hooks/api/useAuth";
+import { useTenantMembers } from "@/hooks/api/useTenantMembers";
+import { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
+import SearchBox from "../components/input/SearchBox";
 import DynamicTabs from "../components/Layout/DynamicTabs";
+import LayoutWrapper from "../components/Layout/LayoutWrapper";
+import { DataTable } from "../components/table/DataTable";
+import { Member } from "./types";
 
 const Members = () => {
-  const data: Member[] = Array.from({ length: 10 }).map((_, i) => ({
-    id: `${i}`,
-    name: "Darrell Steward",
-    email: "debbie.baker@example.com",
-    role: i === 0 ? "Admin" : "Developers",
-    space: i === 0 ? "All spaces" : "2 spaces",
-    status: i > 5 ? "Pending" : "Active",
-    joined: "21 Sep, 2020"
+  const { data: authMe, isLoading: isAuthLoading } = useAuthMe();
+  const tenantId = authMe?.tenants?.[0]?.tenant?.id ?? "";
+  const { data: members = [], isLoading: isMembersLoading } =
+    useTenantMembers(tenantId);
+
+  const isLoading = isAuthLoading || isMembersLoading;
+
+  const data: Member[] = (members as Record<string, any>[]).map((m) => ({
+    id: m.id ?? m.userId ?? "",
+    name: m.fullName ?? m.name ?? m.username ?? "",
+    email: m.email ?? "",
+    role: m.role?.name ?? m.role ?? "",
+    space: m.spaceAccess ?? "-",
+    status: m.status === "active" ? "Active" : "Pending",
+    joined: m.joinedAt
+      ? new Date(m.joinedAt).toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric"
+        })
+      : "-"
   }));
 
   const memberColumns: ColumnDef<Member>[] = [
@@ -140,15 +154,19 @@ const Members = () => {
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="border rounded-xl p-4">
           <p className="text-sm text-muted-foreground">Total Members</p>
-          <h2 className="text-2xl font-bold">14</h2>
+          <h2 className="text-2xl font-bold">{data.length}</h2>
         </div>
         <div className="border rounded-xl p-4">
           <p className="text-sm text-muted-foreground">Active</p>
-          <h2 className="text-2xl font-bold text-green-600">10</h2>
+          <h2 className="text-2xl font-bold text-green-600">
+            {data.filter((m) => m.status === "Active").length}
+          </h2>
         </div>
         <div className="border rounded-xl p-4">
           <p className="text-sm text-muted-foreground">Pending</p>
-          <h2 className="text-2xl font-bold text-yellow-600">04</h2>
+          <h2 className="text-2xl font-bold text-yellow-600">
+            {data.filter((m) => m.status === "Pending").length}
+          </h2>
         </div>
       </div>
 

@@ -2,13 +2,73 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { useAuthMe } from "@/hooks/api/useAuth";
 import LayoutWrapper from "../components/Layout/LayoutWrapper";
 import { RoleListPanel } from "./components/RoleListPanel";
 import { PermissionTablePanel } from "./components/PermissionTablePanel";
 import { HowItWorksPanel } from "./components/HowItWorksPanel";
 
 export default function RoleAccessPage() {
+  const { data: authMe, isLoading: isAuthLoading, isFetched } = useAuthMe();
+  const tenantId = authMe?.tenants?.[0]?.tenant?.id ?? "";
+  const activeTenant =
+    authMe?.tenants?.find((tenant) => tenant.tenant?.id === tenantId) ??
+    authMe?.tenants?.[0];
+  const tenantPermissions = (activeTenant?.permissions ?? []).map(
+    (permission: unknown) => {
+      if (typeof permission === "string") {
+        return permission.toLowerCase();
+      }
+
+      const permissionName =
+        typeof permission === "object" &&
+        permission !== null &&
+        "name" in permission &&
+        typeof (permission as { name?: unknown }).name === "string"
+          ? (permission as { name: string }).name
+          : "";
+
+      return permissionName.toLowerCase();
+    }
+  );
+  const canEditRolePermissions =
+    tenantPermissions.includes("rbac.manage") ||
+    tenantPermissions.includes("rbac.edit");
+
+  console.log("tenantId:", authMe);
+  const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
+
+  if (isAuthLoading && !isFetched) {
+    return (
+      <LayoutWrapper
+        title="Role Management & Access Control"
+        description="Loading your workspace..."
+      >
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-brand-blue" />
+        </div>
+      </LayoutWrapper>
+    );
+  }
+
+  if (!tenantId && !isAuthLoading && isFetched) {
+    return (
+      <LayoutWrapper
+        title="Role Management & Access Control"
+        description="Workspace not found"
+      >
+        <div className="flex flex-col items-center justify-center py-20 gap-4">
+          <p className="text-slate-500">
+            We couldn't find an active workspace for your account.
+          </p>
+          <Button onClick={() => window.location.reload()}>Retry</Button>
+        </div>
+      </LayoutWrapper>
+    );
+  }
+
   return (
     <LayoutWrapper
       title={`Role Management & Access Control`}
@@ -31,11 +91,19 @@ export default function RoleAccessPage() {
       }
     >
       <div className="flex flex-row gap-6">
-        <RoleListPanel />
+        <RoleListPanel
+          tenantId={tenantId}
+          selectedRoleId={selectedRoleId}
+          onSelectRole={setSelectedRoleId}
+        />
 
         <div className="flex flex-col lg:flex-row gap-6 w-full">
           <div className="flex-1 flex flex-col gap-4">
-            <PermissionTablePanel />
+            <PermissionTablePanel
+              tenantId={tenantId}
+              roleId={selectedRoleId}
+              canEditPermissions={canEditRolePermissions}
+            />
             <HowItWorksPanel />
           </div>
         </div>
@@ -43,4 +111,3 @@ export default function RoleAccessPage() {
     </LayoutWrapper>
   );
 }
-

@@ -1,15 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import apiClient from "@/lib/apiClient";
-import { Tenant } from "@/types/api";
-
-export const fetchTenants = async (): Promise<Tenant[]> => {
-  const { data } = await apiClient.get("/api/tenants");
-  return data;
-};
+import { unwrapApiArrayData } from "@/types/api";
+import { Tenant, TenantsEnvelope } from "@/types/type-tenants";
 
 export const useTenants = () => {
   return useQuery({
     queryKey: ["tenants"],
-    queryFn: fetchTenants,
+    queryFn: async (): Promise<Tenant[]> => {
+      const { data } = await apiClient.get<TenantsEnvelope>("/api/tenants");
+      return unwrapApiArrayData(data);
+    },
   });
 };

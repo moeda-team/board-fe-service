@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { SessionProvider } from "@/providers/session-provider";
 import { PhosphorProvider } from "@/providers/phosphor-provider";
 import { QueryProvider } from "@/providers/query-provider";
+import { ApiAuthProvider } from "@/providers/api-auth-provider";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import "./globals.css";
@@ -24,16 +26,20 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-background">
-        <PhosphorProvider>
-          <QueryProvider>
-            <SidebarProvider>
-              <AppSidebar />
-              <SidebarInset className="overflow-x-hidden">
-                {children}
-              </SidebarInset>
-            </SidebarProvider>
-          </QueryProvider>
-        </PhosphorProvider>
+        <SessionProvider>
+          <PhosphorProvider>
+            <QueryProvider>
+              <ApiAuthProvider>
+                <SidebarProvider>
+                  <AppSidebar />
+                  <SidebarInset className="overflow-x-hidden">
+                    {children}
+                  </SidebarInset>
+                </SidebarProvider>
+              </ApiAuthProvider>
+            </QueryProvider>
+          </PhosphorProvider>
+        </SessionProvider>
       </body>
     </html>
   );

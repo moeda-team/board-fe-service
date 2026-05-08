@@ -17,7 +17,7 @@ export const useLoginGoogle = () => {
         typeof window !== "undefined" &&
         (window.location.hostname === "localhost" ||
           window.location.hostname === "127.0.0.1");
-      const client = isLocal ? "local" : "dev";
+      const client = isLocal ? "dev" : "dev";
       const { data } = await apiClient.get<AuthGoogleEnvelope>(`/api/auth/google?client=${client}`);
       return unwrapApiData(data);
     },

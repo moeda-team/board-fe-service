@@ -13,7 +13,12 @@ export const useLoginGoogle = () => {
   return useQuery({
     queryKey: ["auth", "google"],
     queryFn: async (): Promise<AuthGoogleResponse> => {
-      const { data } = await apiClient.get<AuthGoogleEnvelope>("/api/auth/google?client=local");
+      const isLocal =
+        typeof window !== "undefined" &&
+        (window.location.hostname === "localhost" ||
+          window.location.hostname === "127.0.0.1");
+      const client = isLocal ? "local" : "dev";
+      const { data } = await apiClient.get<AuthGoogleEnvelope>(`/api/auth/google?client=${client}`);
       return unwrapApiData(data);
     },
   });

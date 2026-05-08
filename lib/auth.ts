@@ -1,38 +1,45 @@
+import { signOut } from "next-auth/react";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export const authService = {
     /**
      * Redirects the user to the backend Google OAuth login endpoint.
      * The backend handles the Google redirect and returns a JWT.
-     *
-     * Endpoint: GET /api/auth/google
      */
     loginWithGoogle: () => {
-        window.location.href = `${API_BASE_URL}/auth/google?client=local`;
+        window.location.href = `${API_BASE_URL}/api/auth/google?client=local`;
     },
 
     /**
-     * Saves the JWT token to localStorage.
+     * Deprecated: token is now stored securely in an HTTP-only cookie by NextAuth.
+     * Use `signIn("backend-jwt", { token })` instead.
      */
-    saveToken: (token: string) => {
-        localStorage.setItem("access_token", token);
+    saveToken: (_token: string) => {
+        console.warn(
+            "saveToken is deprecated. Token is managed securely by NextAuth."
+        );
     },
 
     /**
-     * Retrieves the JWT token from localStorage.
+     * Deprecated: token is stored in an HTTP-only cookie and cannot be read from JS.
+     * Use `useSession()` from "next-auth/react" instead.
      */
     getToken: (): string | null => {
-        return localStorage.getItem("access_token");
+        return null;
     },
 
     /**
-     * Removes the JWT token (logout).
+     * Signs the user out via NextAuth and clears the secure session cookie.
      */
-    logout: () => {
-        localStorage.removeItem("access_token");
+    logout: async () => {
+        await signOut({ callbackUrl: "/login" });
     },
 
+    /**
+     * Deprecated: use `useSession()` or server-side `auth()` instead.
+     */
     isAuthenticated: (): boolean => {
-        return !!localStorage.getItem("access_token");
+        return false;
     },
 };

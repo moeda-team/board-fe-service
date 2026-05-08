@@ -1,12 +1,22 @@
 "use client";
 
 import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { useEffect } from "react";
 import { authService } from "@/lib/auth";
 
 function LoginForm() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const { status } = useSession();
   const error = searchParams.get("error");
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.replace("/dashboard");
+    }
+  }, [status, router]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-50">

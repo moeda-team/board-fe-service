@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
-import { authService } from "@/lib/auth";
+import { signIn } from "next-auth/react";
 
 /**
  * Handles the redirect from the backend after Google OAuth completes.
@@ -14,7 +14,7 @@ import { authService } from "@/lib/auth";
  *   3. Google redirects to backend GET /api/auth/google/callback
  *   4. Backend exchanges code for token, then redirects here:
  *      /auth/callback?token=<JWT>
- *   5. This page saves the JWT and redirects to /dashboard
+ *   5. This page exchanges the JWT for a secure NextAuth session and redirects to /dashboard
  */
 function CallbackHandler() {
   const router = useRouter();
@@ -24,8 +24,16 @@ function CallbackHandler() {
     const token = searchParams.get("token");
 
     if (token) {
-      authService.saveToken(token);
-      router.replace("/dashboard");
+      signIn("backend-jwt", {
+        token,
+        redirect: false
+      }).then((result) => {
+        if (result?.ok) {
+          router.replace("/dashboard");
+        } else {
+          router.replace("/login?error=oauth_failed");
+        }
+      });
     } else {
       router.replace("/login?error=oauth_failed");
     }

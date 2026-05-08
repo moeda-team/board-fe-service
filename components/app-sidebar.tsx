@@ -7,7 +7,9 @@ import {
   BarChart3,
   Layers,
   ShieldCheck,
-  Users
+  Users,
+  LogOut,
+  ChevronsUpDown
 } from "lucide-react";
 import {
   Sidebar,
@@ -22,6 +24,14 @@ import {
   SidebarMenuItem
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import { useAuthMe } from "@/hooks/api/useAuth";
+import { authService } from "@/lib/auth";
 
 const mainNavItems = [
   {
@@ -56,6 +66,16 @@ const securityNavItems = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { data: authMe } = useAuthMe();
+
+  const user = authMe?.user;
+  const initials =
+    user?.fullName
+      ?.split(" ")
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() ?? "";
 
   return (
     <Sidebar
@@ -132,20 +152,44 @@ export function AppSidebar() {
 
       {/* Footer — User */}
       <SidebarFooter className="border-t border-sidebar-border px-4 py-3">
-        <div className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center">
-          <Avatar className="size-8">
-            <AvatarImage src="" alt="Darrell Steward" />
-            <AvatarFallback className="bg-brand-soft-blue text-brand-blue text-xs font-medium">
-              DS
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-            <span className="text-sm font-medium leading-tight">
-              Darrell Steward
-            </span>
-            <span className="text-xs text-muted-foreground">Admin</span>
-          </div>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="w-full rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <div className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center">
+              <Avatar className="size-8">
+                <AvatarImage
+                  src={user?.avatarUrl ?? ""}
+                  alt={user?.fullName ?? ""}
+                />
+                <AvatarFallback className="bg-brand-soft-blue text-brand-blue text-xs font-medium">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-1 flex-col items-start group-data-[collapsible=icon]:hidden">
+                <span className="text-sm font-medium leading-tight">
+                  {user?.fullName ?? "User"}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {user?.email ?? ""}
+                </span>
+              </div>
+              <ChevronsUpDown className="ml-auto size-4 text-muted-foreground group-data-[collapsible=icon]:hidden" />
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            side="top"
+            align="start"
+            sideOffset={8}
+            className="w-56"
+          >
+            <DropdownMenuItem
+              className="cursor-pointer"
+              onClick={() => authService.logout()}
+            >
+              <LogOut className="size-4" />
+              <span>Log out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </SidebarFooter>
     </Sidebar>
   );

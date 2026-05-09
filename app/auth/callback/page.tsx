@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { signIn } from "next-auth/react";
 
@@ -17,7 +17,6 @@ import { signIn } from "next-auth/react";
  *   5. This page exchanges the JWT for a secure NextAuth session and redirects to /dashboard
  */
 function CallbackHandler() {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -29,15 +28,15 @@ function CallbackHandler() {
         redirect: false
       }).then((result) => {
         if (result?.ok) {
-          router.replace("/dashboard");
+          window.location.href = "/dashboard";
         } else {
-          router.replace("/login?error=oauth_failed");
+          window.location.href = "/login?error=oauth_failed";
         }
       });
     } else {
-      router.replace("/login?error=oauth_failed");
+      window.location.href = "/login?error=oauth_failed";
     }
-  }, [router, searchParams]);
+  }, [searchParams]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">

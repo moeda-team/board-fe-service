@@ -19,6 +19,7 @@ export const useWorkspaces = (tenantId: string) => useQuery<Workspace[]>({
 });
 
 export const useCreateWorkspace = () => useMutation({
+  meta: { successMessage: "Workspace created", errorMessage: "Failed to create workspace" },
   mutationFn: async ({ tenantId, dto }: CreateWorkspaceParams): Promise<Workspace> => {
     const { data } = await apiClient.post<WorkspaceEnvelope>(`/api/tenants/${tenantId}/workspaces`, dto);
     return unwrapApiData(data);
@@ -26,6 +27,7 @@ export const useCreateWorkspace = () => useMutation({
 });
 
 export const useUpdateWorkspace = () => useMutation({
+  meta: { successMessage: "Workspace updated", errorMessage: "Failed to update workspace" },
   mutationFn: async ({ tenantId, workspaceId, dto }: UpdateWorkspaceParams): Promise<Workspace> => {
     const { data } = await apiClient.patch<WorkspaceEnvelope>(`/api/tenants/${tenantId}/workspaces/${workspaceId}`, dto);
     return unwrapApiData(data);
@@ -33,6 +35,7 @@ export const useUpdateWorkspace = () => useMutation({
 });
 
 export const useDeleteWorkspace = () => useMutation({
+  meta: { successMessage: "Workspace deleted", errorMessage: "Failed to delete workspace" },
   mutationFn: async ({ tenantId, workspaceId }: DeleteWorkspaceParams): Promise<void> => {
     await apiClient.delete(`/api/tenants/${tenantId}/workspaces/${workspaceId}`);
   }

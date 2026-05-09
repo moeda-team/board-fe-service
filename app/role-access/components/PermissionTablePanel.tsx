@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -10,19 +11,31 @@ import {
   ShieldCheck,
   Users,
   Loader2,
-  Lock
+  Lock,
+  Plus,
+  Trash2
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRoleDetail, useUpdateRole } from "@/hooks/api/useTenantRoles";
+import {
+  useCreateRole,
+  useDeleteRole,
+  useRoleDetail,
+  useRoles,
+  useUpdateRole
+} from "@/hooks/api/useTenantRoles";
 import { usePermissions } from "@/hooks/api/useMasterData";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
 
 interface PermissionTablePanelProps {
   tenantId: string;
   roleId: string | null;
   canEditPermissions: boolean;
+  canCreateRole: boolean;
+  canDeleteRole: boolean;
+  onSelectRole: (roleId: string | null) => void;
 }
 
 const moduleOrder = [
@@ -77,18 +90,99 @@ interface PermissionTableRow {
 export function PermissionTablePanel({
   tenantId,
   roleId,
-  canEditPermissions
+  canEditPermissions,
+  canCreateRole,
+  canDeleteRole,
+  onSelectRole
 }: PermissionTablePanelProps) {
   const queryClient = useQueryClient();
+  const { data: roles = [] } = useRoles(tenantId);
   const { data: role, isLoading } = useRoleDetail(tenantId, roleId || "");
   const { data: permissions = [] } = usePermissions();
   const { mutate: updateRole, isPending: isUpdatingRole } = useUpdateRole();
+  const { mutate: createRole, isPending: isCreatingRole } = useCreateRole();
+  const { mutate: deleteRole, isPending: isDeletingRole } = useDeleteRole();
   const isSystem =
     role?.isDefault ||
     ["admin", "manager", "developer", "stakeholder"].includes(
       (role?.name as string)?.toLowerCase()
     );
   const canUpdatePermissions = canEditPermissions;
+
+  const handleCreateRole = () => {
+    if (!tenantId || !canUpdatePermissions || isCreatingRole) {
+      return;
+    }
+
+    const roleName = window.prompt("Enter role name");
+    const trimmedRoleName = roleName?.trim();
+
+    if (!trimmedRoleName) {
+      return;
+    }
+
+    createRole(
+      {
+        tenantId,
+        dto: {
+          name: trimmedRoleName,
+          permissionIds: []
+        }
+      },
+      {
+        onSuccess: async (createdRole) => {
+          await queryClient.invalidateQueries({
+            queryKey: ["roles", tenantId]
+          });
+
+          if (createdRole?.id) {
+            onSelectRole(createdRole.id as string);
+          }
+        }
+      }
+    );
+  };
+
+  const handleDeleteRole = () => {
+    if (
+      !tenantId ||
+      !roleId ||
+      !role ||
+      isSystem ||
+      !canUpdatePermissions ||
+      isDeletingRole
+    ) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete role \"${role.name as string}\"? This action cannot be undone.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    deleteRole(
+      {
+        tenantId,
+        roleId
+      },
+      {
+        onSuccess: async () => {
+          const nextRole = (roles as Array<{ id?: string }>).find(
+            (item) => item.id && item.id !== roleId
+          );
+
+          onSelectRole(nextRole?.id ?? null);
+
+          await queryClient.invalidateQueries({
+            queryKey: ["roles", tenantId]
+          });
+        }
+      }
+    );
+  };
 
   const permissionCatalog = useMemo(() => {
     const catalog: Record<string, Record<string, string>> = {};
@@ -181,6 +275,11 @@ export function PermissionTablePanel({
     action: string,
     checked: boolean
   ) => {
+    if (!canEditPermissions) {
+      toast.error("You don't have permission to edit role access.");
+      return;
+    }
+
     const permissionId = permissionCatalog[module]?.[action];
 
     if (!permissionId || isUpdatingRole) {
@@ -201,6 +300,11 @@ export function PermissionTablePanel({
   };
 
   const handleAllAccessToggle = (module: string, checked: boolean) => {
+    if (!canEditPermissions) {
+      toast.error("You don't have permission to edit role access.");
+      return;
+    }
+
     if (isUpdatingRole) {
       return;
     }
@@ -481,6 +585,34 @@ export function PermissionTablePanel({
           </div>
         </div>
         <div className="flex flex-col items-end">
+          <div className="flex items-center gap-2 mb-2">
+            {canCreateRole && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 px-2"
+                onClick={handleCreateRole}
+                disabled={isCreatingRole}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                New Role
+              </Button>
+            )}
+            {canDeleteRole && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                onClick={handleDeleteRole}
+                disabled={!roleId || isSystem || isDeletingRole}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete
+              </Button>
+            )}
+          </div>
           <span className="font-bold text-slate-900 text-base">
             {role?.totalMember ?? (role as any)?._count?.members ?? 0}
           </span>

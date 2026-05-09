@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "next-themes";
 import { SessionProvider } from "@/providers/session-provider";
 import { PhosphorProvider } from "@/providers/phosphor-provider";
 import { QueryProvider } from "@/providers/query-provider";
@@ -36,6 +38,7 @@ export default function RootLayout({
                     {children}
                   </SidebarInset>
                 </SidebarProvider>
+                <Toaster />
               </ApiAuthProvider>
             </QueryProvider>
           </PhosphorProvider>

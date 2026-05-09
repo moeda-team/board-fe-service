@@ -19,6 +19,7 @@ export const useFolders = (tenantId: string, workspaceId: string) => useQuery({
 });
 
 export const useCreateFolder = () => useMutation({
+  meta: { successMessage: "Folder created", errorMessage: "Failed to create folder" },
   mutationFn: async ({ tenantId, workspaceId, dto }: CreateFolderParams): Promise<Folder> => {
     const { data } = await apiClient.post<FolderEnvelope>(`/api/tenants/${tenantId}/workspaces/${workspaceId}/folders`, dto);
     return unwrapApiData(data);
@@ -26,6 +27,7 @@ export const useCreateFolder = () => useMutation({
 });
 
 export const useUpdateFolder = () => useMutation({
+  meta: { successMessage: "Folder updated", errorMessage: "Failed to update folder" },
   mutationFn: async ({ tenantId, workspaceId, folderId, dto }: UpdateFolderParams): Promise<Folder> => {
     const { data } = await apiClient.patch<FolderEnvelope>(`/api/tenants/${tenantId}/workspaces/${workspaceId}/folders/${folderId}`, dto);
     return unwrapApiData(data);
@@ -33,6 +35,7 @@ export const useUpdateFolder = () => useMutation({
 });
 
 export const useDeleteFolder = () => useMutation({
+  meta: { successMessage: "Folder deleted", errorMessage: "Failed to delete folder" },
   mutationFn: async ({ tenantId, workspaceId, folderId }: DeleteFolderParams): Promise<void> => {
     await apiClient.delete(`/api/tenants/${tenantId}/workspaces/${workspaceId}/folders/${folderId}`);
   }

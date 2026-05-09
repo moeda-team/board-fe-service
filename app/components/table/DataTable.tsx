@@ -5,6 +5,7 @@ import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
+  getPaginationRowModel,
   useReactTable,
   RowSelectionState
 } from "@tanstack/react-table";
@@ -14,12 +15,22 @@ type DataTableProps<TData> = {
   data: TData[];
   columns: ColumnDef<TData, any>[];
   showPagination?: boolean;
+  pageSize?: number;
+  manualPagination?: boolean;
+  pageCount?: number;
+  pageIndex?: number;
+  onPageChange?: (pageIndex: number) => void;
 };
 
 export function DataTable<TData>({
   data,
   columns,
-  showPagination = true
+  showPagination = true,
+  pageSize = 10,
+  manualPagination = false,
+  pageCount,
+  pageIndex,
+  onPageChange
 }: DataTableProps<TData>) {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
@@ -27,11 +38,46 @@ export function DataTable<TData>({
     data,
     columns,
     state: {
-      rowSelection
+      rowSelection,
+      ...(manualPagination && pageIndex !== undefined
+        ? { pagination: { pageIndex, pageSize } }
+        : {})
     },
+    initialState: {
+      pagination: {
+        pageSize
+      }
+    },
+    manualPagination,
+    pageCount,
     onRowSelectionChange: setRowSelection,
-    getCoreRowModel: getCoreRowModel()
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel()
   });
+
+  const handlePreviousPage = () => {
+    if (manualPagination && onPageChange && pageIndex !== undefined) {
+      onPageChange(pageIndex - 1);
+    } else {
+      table.previousPage();
+    }
+  };
+
+  const handleNextPage = () => {
+    if (manualPagination && onPageChange && pageIndex !== undefined) {
+      onPageChange(pageIndex + 1);
+    } else {
+      table.nextPage();
+    }
+  };
+
+  const handlePageIndexChange = (idx: number) => {
+    if (manualPagination && onPageChange) {
+      onPageChange(idx);
+    } else {
+      table.setPageIndex(idx);
+    }
+  };
 
   return (
     <div className="rounded-lg overflow-hidden bg-white shadow-xs">
@@ -83,24 +129,40 @@ export function DataTable<TData>({
       {showPagination && (
         <div className="flex items-center justify-between p-4 border-t">
           <span className="text-sm text-muted-foreground">
-            {Object.keys(rowSelection).length} of {data.length} row(s) selected.
+            {Object.keys(rowSelection).length} of {table.getFilteredRowModel().rows.length} row(s) selected.
           </span>
 
           <div className="flex gap-2 items-center">
-            <Button variant="ghost" size="sm">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={handlePreviousPage}
+              disabled={!table.getCanPreviousPage()}
+            >
               Previous
             </Button>
-            <Button size="sm">1</Button>
-            <Button variant="outline" size="sm">
-              2
-            </Button>
-            <Button variant="outline" size="sm">
-              3
-            </Button>
-            <Button variant="outline" size="sm">
-              4
-            </Button>
-            <Button variant="ghost" size="sm">
+            
+            {Array.from({ length: table.getPageCount() }, (_, i) => {
+              // Show max 5 pages logic could be added, but keeping it simple for now
+              const isCurrent = table.getState().pagination.pageIndex === i;
+              return (
+                <Button 
+                  key={i}
+                  variant={isCurrent ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => handlePageIndexChange(i)}
+                >
+                  {i + 1}
+                </Button>
+              );
+            })}
+
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={handleNextPage}
+              disabled={!table.getCanNextPage()}
+            >
               Next
             </Button>
           </div>

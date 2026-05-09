@@ -51,6 +51,12 @@ export interface TenantMembersData {
   activeMembers: ActiveTenantMember[];
   pendingInvites: PendingTenantInvite[];
   archivedMembers?: ActiveTenantMember[];
+  meta?: {
+    total: number;
+    page: number;
+    limit: number;
+    lastPage: number;
+  };
 }
 
 export interface InviteMemberDto {

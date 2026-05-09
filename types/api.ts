@@ -38,8 +38,17 @@ export type CreateRoleDto = Record<string, unknown>;
 export type UpdateRoleDto = Record<string, unknown>;
 export type InviteMemberDto = Record<string, unknown>;
 export type UpdateMemberRoleDto = Record<string, unknown>;
-export type CreateWorkspaceDto = Record<string, unknown>;
-export type UpdateWorkspaceDto = Record<string, unknown>;
+export interface CreateWorkspaceDto {
+    name: string;
+    description?: string;
+    color?: string;
+}
+
+export interface UpdateWorkspaceDto {
+    name?: string;
+    description?: string;
+    color?: string;
+}
 export type AddWorkspaceMemberDto = Record<string, unknown>;
 export type CreateFolderDto = Record<string, unknown>;
 export type UpdateFolderDto = Record<string, unknown>;
@@ -138,6 +147,14 @@ export interface Workspace {
     tenantId?: string;
     name?: string;
     description?: string | null;
+    color?: string | null;
+    imageUrl?: string | null;
+    createdBy?: string | null;
+    updatedBy?: string | null;
+    deletedBy?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
+    deletedAt?: string | null;
     [key: string]: unknown;
 }
 

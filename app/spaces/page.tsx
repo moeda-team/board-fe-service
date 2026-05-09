@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 
 function useImageFallback() {
   const [error, setError] = useState(false);
@@ -46,11 +47,21 @@ function WorkspaceCard({
   onDelete: (workspace: Workspace) => void;
   isDeleting: boolean;
 }) {
+  const router = useRouter();
   const { error: imgError, onError } = useImageFallback();
+
+  const handleCardClick = () => {
+    if (workspace.id) {
+      router.push(`/spaces/${workspace.id}`);
+    }
+  };
   const showImage = workspace.imageUrl && !imgError;
 
   return (
-    <div className="group relative overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10 transition-shadow hover:shadow-md">
+    <div
+      onClick={handleCardClick}
+      className="group relative overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10 transition-shadow hover:shadow-md cursor-pointer"
+    >
       <div className="aspect-[16/10] w-full overflow-hidden">
         {showImage ? (
           <img
@@ -86,19 +97,28 @@ function WorkspaceCard({
         <DropdownMenu>
           <DropdownMenuTrigger
             disabled={isDeleting}
+            onClick={(e) => e.stopPropagation()}
             className="inline-flex items-center justify-center rounded-lg text-muted-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 size-7"
           >
             <MoreHorizontal className="h-4 w-4" />
             <span className="sr-only">Actions</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onEdit(workspace)}>
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(workspace);
+              }}
+            >
               <Pencil className="h-4 w-4" />
               Edit
             </DropdownMenuItem>
             <DropdownMenuItem
               variant="destructive"
-              onClick={() => onDelete(workspace)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(workspace);
+              }}
             >
               <Trash2 className="h-4 w-4" />
               Delete

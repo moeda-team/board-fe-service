@@ -58,6 +58,11 @@ export type CreateColumnDto = Record<string, unknown>;
 export type ColumnOrderDto = Record<string, unknown>;
 export type ReorderColumnsDto = Record<string, unknown>;
 export type UpdateColumnDto = Record<string, unknown>;
+export type CreateDocumentDto = Record<string, unknown>;
+export type UpdateDocumentDto = Record<string, unknown>;
+export type CreateTaskDto = Record<string, unknown>;
+export type UpdateTaskDto = Record<string, unknown>;
+export type MoveTaskDto = Record<string, unknown>;
 
 // Auth Me
 export interface AuthMeUser {
@@ -177,5 +182,34 @@ export interface Column {
     boardId?: string;
     name?: string;
     order?: number;
+    [key: string]: unknown;
+}
+
+export interface Document {
+    id: string;
+    folderId?: string;
+    workspaceId?: string;
+    name?: string;
+    order?: number;
+    createdAt?: string;
+    updatedAt?: string;
+    [key: string]: unknown;
+}
+
+export interface Task {
+    id: string;
+    boardId?: string;
+    columnId?: string;
+    title?: string;
+    description?: string | null;
+    priority?: string | null;
+    assigneeIds?: string[];
+    subtaskCount?: number;
+    completedSubtaskCount?: number;
+    tags?: string[];
+    dueDate?: string | null;
+    order?: number;
+    createdAt?: string;
+    updatedAt?: string;
     [key: string]: unknown;
 }

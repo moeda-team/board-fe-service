@@ -16,7 +16,8 @@ export const useKanbanColumns = (tenantId: string, workspaceId: string, boardId:
   queryFn: async () => {
     const { data } = await apiClient.get<ColumnsEnvelope>(`/api/tenants/${tenantId}/workspaces/${workspaceId}/boards/${boardId}/columns`);
     return unwrapApiArrayData(data);
-  }
+  },
+  enabled: !!tenantId && !!workspaceId && !!boardId
 });
 
 export const useCreateColumn = () => useMutation({

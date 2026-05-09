@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/apiClient";
 import { unwrapApiArrayData, unwrapApiData } from "@/types/api";
 import {
@@ -10,33 +10,58 @@ import {
   UpdateWorkspaceParams
 } from "@/types/type-workspaces";
 
+export const workspacesQueryKey = (tenantId: string) =>
+  ["workspaces", tenantId] as const;
+
 export const useWorkspaces = (tenantId: string) => useQuery<Workspace[]>({
-  queryKey: ["workspaces", tenantId],
+  queryKey: workspacesQueryKey(tenantId),
   queryFn: async () => {
     const { data } = await apiClient.get<WorkspacesEnvelope>(`/api/tenants/${tenantId}/workspaces`);
     return unwrapApiArrayData(data);
-  }
+  },
+  enabled: !!tenantId && tenantId !== "undefined" && tenantId !== "null"
 });
 
-export const useCreateWorkspace = () => useMutation({
-  meta: { successMessage: "Workspace created", errorMessage: "Failed to create workspace" },
-  mutationFn: async ({ tenantId, dto }: CreateWorkspaceParams): Promise<Workspace> => {
-    const { data } = await apiClient.post<WorkspaceEnvelope>(`/api/tenants/${tenantId}/workspaces`, dto);
-    return unwrapApiData(data);
-  }
-});
+export const useCreateWorkspace = () => {
+  const queryClient = useQueryClient();
 
-export const useUpdateWorkspace = () => useMutation({
-  meta: { successMessage: "Workspace updated", errorMessage: "Failed to update workspace" },
-  mutationFn: async ({ tenantId, workspaceId, dto }: UpdateWorkspaceParams): Promise<Workspace> => {
-    const { data } = await apiClient.patch<WorkspaceEnvelope>(`/api/tenants/${tenantId}/workspaces/${workspaceId}`, dto);
-    return unwrapApiData(data);
-  }
-});
+  return useMutation({
+    meta: { successMessage: "Workspace created", errorMessage: "Failed to create workspace" },
+    mutationFn: async ({ tenantId, dto }: CreateWorkspaceParams): Promise<Workspace> => {
+      const { data } = await apiClient.post<WorkspaceEnvelope>(`/api/tenants/${tenantId}/workspaces`, dto);
+      return unwrapApiData(data);
+    },
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: workspacesQueryKey(variables.tenantId) });
+    }
+  });
+};
 
-export const useDeleteWorkspace = () => useMutation({
-  meta: { successMessage: "Workspace deleted", errorMessage: "Failed to delete workspace" },
-  mutationFn: async ({ tenantId, workspaceId }: DeleteWorkspaceParams): Promise<void> => {
-    await apiClient.delete(`/api/tenants/${tenantId}/workspaces/${workspaceId}`);
-  }
-});
+export const useUpdateWorkspace = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    meta: { successMessage: "Workspace updated", errorMessage: "Failed to update workspace" },
+    mutationFn: async ({ tenantId, workspaceId, dto }: UpdateWorkspaceParams): Promise<Workspace> => {
+      const { data } = await apiClient.patch<WorkspaceEnvelope>(`/api/tenants/${tenantId}/workspaces/${workspaceId}`, dto);
+      return unwrapApiData(data);
+    },
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: workspacesQueryKey(variables.tenantId) });
+    }
+  });
+};
+
+export const useDeleteWorkspace = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    meta: { successMessage: "Workspace deleted", errorMessage: "Failed to delete workspace" },
+    mutationFn: async ({ tenantId, workspaceId }: DeleteWorkspaceParams): Promise<void> => {
+      await apiClient.delete(`/api/tenants/${tenantId}/workspaces/${workspaceId}`);
+    },
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: workspacesQueryKey(variables.tenantId) });
+    }
+  });
+};

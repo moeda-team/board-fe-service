@@ -54,7 +54,7 @@ function WorkspaceCard({
       <div className="aspect-[16/10] w-full overflow-hidden">
         {showImage ? (
           <img
-            src={workspace.imageUrl}
+            src={workspace?.imageUrl || ""}
             alt={workspace.name}
             className="h-full w-full object-cover"
             onError={onError}

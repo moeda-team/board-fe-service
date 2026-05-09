@@ -8,12 +8,7 @@ function useImageFallback() {
 }
 import { Loader2, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { useAuthMe } from "@/hooks/api/useAuth";
-import {
-  useWorkspaces,
-  useCreateWorkspace,
-  useUpdateWorkspace,
-  useDeleteWorkspace
-} from "@/hooks/api/useWorkspaces";
+import { useWorkspaces, useCreateWorkspace, useUpdateWorkspace, useDeleteWorkspace } from "@/hooks/api/useWorkspaces";
 import type { Workspace } from "@/types/type-workspaces";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,16 +17,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import LayoutWrapper from "../components/Layout/LayoutWrapper";
 import SearchBox from "../components/input/SearchBox";
 
@@ -39,7 +27,7 @@ function WorkspaceCard({
   workspace,
   onEdit,
   onDelete,
-  isDeleting
+  isDeleting,
 }: {
   workspace: Workspace;
   onEdit: (workspace: Workspace) => void;
@@ -54,7 +42,7 @@ function WorkspaceCard({
       <div className="aspect-[16/10] w-full overflow-hidden">
         {showImage ? (
           <img
-            src={workspace.imageUrl}
+            src={workspace.imageUrl!}
             alt={workspace.name}
             className="h-full w-full object-cover"
             onError={onError}
@@ -65,18 +53,14 @@ function WorkspaceCard({
             style={{
               background: workspace.color
                 ? `linear-gradient(135deg, ${workspace.color} 0%, ${workspace.color}dd 40%, ${workspace.color}bb 100%)`
-                : "linear-gradient(135deg, #227bfe 0%, #662ef8 100%)"
+                : "linear-gradient(135deg, #227bfe 0%, #662ef8 100%)",
             }}
           >
             <div className="flex flex-col items-center gap-2">
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm shadow-lg">
-                <span className="text-3xl font-bold text-white">
-                  {workspace.name?.charAt(0).toUpperCase()}
-                </span>
+                <span className="text-3xl font-bold text-white">{workspace.name?.charAt(0).toUpperCase()}</span>
               </div>
-              <span className="max-w-[80%] truncate text-xs font-medium text-white/90">
-                {workspace.name}
-              </span>
+              <span className="max-w-[80%] truncate text-xs font-medium text-white/90">{workspace.name}</span>
             </div>
           </div>
         )}
@@ -96,10 +80,7 @@ function WorkspaceCard({
               <Pencil className="h-4 w-4" />
               Edit
             </DropdownMenuItem>
-            <DropdownMenuItem
-              variant="destructive"
-              onClick={() => onDelete(workspace)}
-            >
+            <DropdownMenuItem variant="destructive" onClick={() => onDelete(workspace)}>
               <Trash2 className="h-4 w-4" />
               Delete
             </DropdownMenuItem>
@@ -126,21 +107,15 @@ export default function SpacesPage() {
   const { data: authMe, isLoading: isAuthLoading, isFetched } = useAuthMe();
   const tenantId = authMe?.tenants?.[0]?.tenant?.id ?? "";
 
-  const { data: workspaces = [], isLoading: isWorkspacesLoading } =
-    useWorkspaces(tenantId);
+  const { data: workspaces = [], isLoading: isWorkspacesLoading } = useWorkspaces(tenantId);
 
-  const { mutate: createWorkspace, isPending: isCreating } =
-    useCreateWorkspace();
-  const { mutate: updateWorkspace, isPending: isUpdating } =
-    useUpdateWorkspace();
-  const { mutate: deleteWorkspace, isPending: isDeleting } =
-    useDeleteWorkspace();
+  const { mutate: createWorkspace, isPending: isCreating } = useCreateWorkspace();
+  const { mutate: updateWorkspace, isPending: isUpdating } = useUpdateWorkspace();
+  const { mutate: deleteWorkspace, isPending: isDeleting } = useDeleteWorkspace();
 
   const [search, setSearch] = useState("");
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(
-    null
-  );
+  const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState("");
@@ -150,9 +125,7 @@ export default function SpacesPage() {
   const filteredWorkspaces = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return workspaces;
-    return workspaces.filter((w) =>
-      (w.name ?? "").toLowerCase().includes(query)
-    );
+    return workspaces.filter((w) => (w.name ?? "").toLowerCase().includes(query));
   }, [search, workspaces]);
 
   const openCreate = () => {
@@ -173,9 +146,7 @@ export default function SpacesPage() {
 
   const handleDelete = (workspace: Workspace) => {
     if (!tenantId || !workspace.id || isMutating) return;
-    const confirmed = window.confirm(
-      `Delete workspace "${workspace.name}"? This action cannot be undone.`
-    );
+    const confirmed = window.confirm(`Delete workspace "${workspace.name}"? This action cannot be undone.`);
     if (!confirmed) return;
     deleteWorkspace({ tenantId, workspaceId: workspace.id });
   };
@@ -187,7 +158,7 @@ export default function SpacesPage() {
     const dto = {
       name: name.trim(),
       description: description.trim() || undefined,
-      color: color.trim() || undefined
+      color: color.trim() || undefined,
     };
 
     if (editingWorkspace?.id) {
@@ -200,8 +171,8 @@ export default function SpacesPage() {
             setName("");
             setDescription("");
             setColor("");
-          }
-        }
+          },
+        },
       );
     } else {
       createWorkspace(
@@ -212,8 +183,8 @@ export default function SpacesPage() {
             setName("");
             setDescription("");
             setColor("");
-          }
-        }
+          },
+        },
       );
     }
   };
@@ -222,10 +193,7 @@ export default function SpacesPage() {
 
   if (isAuthLoading && !isFetched) {
     return (
-      <LayoutWrapper
-        title="Create your spaces"
-        description="Manage workspaces for better projects"
-      >
+      <LayoutWrapper title="Create your spaces" description="Manage workspaces for better projects">
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-8 w-8 animate-spin text-brand-blue" />
         </div>
@@ -235,14 +203,9 @@ export default function SpacesPage() {
 
   if (!tenantId && !isAuthLoading && isFetched) {
     return (
-      <LayoutWrapper
-        title="Create your spaces"
-        description="Manage workspaces for better projects"
-      >
+      <LayoutWrapper title="Create your spaces" description="Manage workspaces for better projects">
         <div className="flex flex-col items-center justify-center py-20 gap-4">
-          <p className="text-slate-500">
-            We couldn&apos;t find an active workspace for your account.
-          </p>
+          <p className="text-slate-500">We couldn&apos;t find an active workspace for your account.</p>
           <Button onClick={() => window.location.reload()}>Retry</Button>
         </div>
       </LayoutWrapper>
@@ -255,12 +218,7 @@ export default function SpacesPage() {
       description="Manage workspaces for better projects"
       actions={
         <div className="flex items-center gap-2">
-          <SearchBox
-            value={search}
-            onChange={setSearch}
-            placeholder="Search"
-            resultCount={filteredWorkspaces.length}
-          />
+          <SearchBox value={search} onChange={setSearch} placeholder="Search" resultCount={filteredWorkspaces.length} />
           <Button type="button" onClick={openCreate} disabled={isMutating}>
             <Plus className="h-4 w-4" />
             Create New Space
@@ -306,13 +264,9 @@ export default function SpacesPage() {
         <SheetContent className="w-full sm:max-w-md">
           <form onSubmit={handleSubmit} className="flex h-full flex-col">
             <SheetHeader>
-              <SheetTitle>
-                {editingWorkspace ? "Edit Space" : "Create New Space"}
-              </SheetTitle>
+              <SheetTitle>{editingWorkspace ? "Edit Space" : "Create New Space"}</SheetTitle>
               <SheetDescription>
-                {editingWorkspace
-                  ? "Update your workspace details."
-                  : "Add a new workspace to organize your projects."}
+                {editingWorkspace ? "Update your workspace details." : "Add a new workspace to organize your projects."}
               </SheetDescription>
             </SheetHeader>
             <div className="flex flex-1 flex-col gap-4 px-4 py-2">
@@ -329,10 +283,7 @@ export default function SpacesPage() {
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <label
-                  className="text-sm font-medium"
-                  htmlFor="space-description"
-                >
+                <label className="text-sm font-medium" htmlFor="space-description">
                   Description
                 </label>
                 <Textarea

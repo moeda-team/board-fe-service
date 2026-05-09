@@ -15,7 +15,8 @@ export const useFolders = (tenantId: string, workspaceId: string) => useQuery({
   queryFn: async () => {
     const { data } = await apiClient.get<FoldersEnvelope>(`/api/tenants/${tenantId}/workspaces/${workspaceId}/folders`);
     return unwrapApiArrayData(data);
-  }
+  },
+  enabled: !!tenantId && !!workspaceId
 });
 
 export const useCreateFolder = () => useMutation({

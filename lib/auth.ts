@@ -8,7 +8,12 @@ export const authService = {
      * The backend handles the Google redirect and returns a JWT.
      */
     loginWithGoogle: () => {
-        window.location.href = `${API_BASE_URL}/api/auth/google?client=local`;
+        const isLocal =
+            typeof window !== "undefined" &&
+            (window.location.hostname === "localhost" ||
+                window.location.hostname === "127.0.0.1");
+        const client = isLocal ? "local" : "dev";
+        window.location.href = `${API_BASE_URL}/api/auth/google?client=${client}`;
     },
 
     /**

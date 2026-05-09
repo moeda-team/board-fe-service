@@ -10,12 +10,14 @@ interface RoleListPanelProps {
   tenantId: string;
   selectedRoleId: string | null;
   onSelectRole: (roleId: string) => void;
+  canCreateRole: boolean;
 }
 
 export function RoleListPanel({
   tenantId,
   selectedRoleId,
-  onSelectRole
+  onSelectRole,
+  canCreateRole
 }: RoleListPanelProps) {
   const { data: roles = [], isLoading } = useRoles(tenantId);
   const roleList = Array.isArray(roles) ? roles : [];
@@ -29,7 +31,7 @@ export function RoleListPanel({
   console.log("roleList:", roleList);
 
   return (
-    <div className="w-full lg:w-[460px] flex flex-col gap-4">
+    <div className="w-full lg:w-115 flex flex-col gap-4">
       <Card className="shadow-sm border-slate-200 flex flex-col h-full">
         <div className="p-4 flex flex-col gap-4">
           <div className="flex items-center justify-between">
@@ -39,14 +41,16 @@ export function RoleListPanel({
                 Create and manage roles access levels
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 text-brand-blue border-brand-soft-blue hover:bg-brand-soft-blue/50"
-            >
-              <Plus className="mr-1 h-3 w-3" />
-              New Role
-            </Button>
+            {canCreateRole && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-brand-blue border-brand-soft-blue hover:bg-brand-soft-blue/50"
+              >
+                <Plus className="mr-1 h-3 w-3" />
+                New Role
+              </Button>
+            )}
           </div>
 
           {/* Role List */}

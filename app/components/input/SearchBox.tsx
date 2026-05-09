@@ -1,3 +1,5 @@
+"use client";
+
 import {
   InputGroup,
   InputGroupAddon,
@@ -5,14 +7,34 @@ import {
 } from "@/components/ui/input-group";
 import { Search } from "lucide-react";
 
-const SearchBox = () => {
+interface SearchBoxProps {
+  value?: string;
+  onChange?: (value: string) => void;
+  resultCount?: number;
+  placeholder?: string;
+}
+
+const SearchBox = ({
+  value,
+  onChange,
+  resultCount,
+  placeholder = "Search..."
+}: SearchBoxProps) => {
   return (
     <InputGroup className="max-w-xs">
-      <InputGroupInput placeholder="Search..." />
+      <InputGroupInput
+        placeholder={placeholder}
+        value={value}
+        onChange={(event) => onChange?.(event.target.value)}
+      />
       <InputGroupAddon>
         <Search />
       </InputGroupAddon>
-      <InputGroupAddon align="inline-end">12 results</InputGroupAddon>
+      {typeof resultCount === "number" && (
+        <InputGroupAddon align="inline-end">
+          {resultCount} results
+        </InputGroupAddon>
+      )}
     </InputGroup>
   );
 };

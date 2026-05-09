@@ -33,11 +33,21 @@ export default function RoleAccessPage() {
       return permissionName.toLowerCase();
     }
   );
+
+  console.log("tenantPermissions:", tenantPermissions);
   const canEditRolePermissions =
     tenantPermissions.includes("rbac.manage") ||
     tenantPermissions.includes("rbac.edit");
-
-  console.log("tenantId:", authMe);
+  const canCreateRole =
+    tenantPermissions.includes("rbac.manage") ||
+    tenantPermissions.includes("rbac.create");
+  const canDeleteRole =
+    tenantPermissions.includes("rbac.manage") ||
+    tenantPermissions.includes("rbac.delete");
+  const canInviteMember =
+    tenantPermissions.includes("member.manage") ||
+    tenantPermissions.includes("member.create") ||
+    tenantPermissions.includes("member.invite");
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
 
   if (isAuthLoading && !isFetched) {
@@ -80,13 +90,15 @@ export default function RoleAccessPage() {
             <Input
               type="search"
               placeholder="Search"
-              className="pl-8 w-[250px] bg-white border-slate-200"
+              className="pl-8 w-62.5 bg-white border-slate-200"
             />
           </div>
-          <Button className="bg-brand-blue hover:bg-brand-blue/90 text-brand-white shadow-sm">
-            <Plus className="mr-2 h-4 w-4" />
-            Invite member
-          </Button>
+          {canInviteMember && (
+            <Button className="bg-brand-blue hover:bg-brand-blue/90 text-brand-white shadow-sm">
+              <Plus className="mr-2 h-4 w-4" />
+              Invite member
+            </Button>
+          )}
         </div>
       }
     >
@@ -95,6 +107,7 @@ export default function RoleAccessPage() {
           tenantId={tenantId}
           selectedRoleId={selectedRoleId}
           onSelectRole={setSelectedRoleId}
+          canCreateRole={canCreateRole}
         />
 
         <div className="flex flex-col lg:flex-row gap-6 w-full">
@@ -103,6 +116,9 @@ export default function RoleAccessPage() {
               tenantId={tenantId}
               roleId={selectedRoleId}
               canEditPermissions={canEditRolePermissions}
+              canCreateRole={canCreateRole}
+              canDeleteRole={canDeleteRole}
+              onSelectRole={setSelectedRoleId}
             />
             <HowItWorksPanel />
           </div>

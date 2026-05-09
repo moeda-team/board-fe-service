@@ -29,6 +29,7 @@ export const useRoleDetail = (tenantId: string, roleId: string) => useQuery({
 });
 
 export const useCreateRole = () => useMutation({
+  meta: { successMessage: "Role created", errorMessage: "Failed to create role" },
   mutationFn: async ({ tenantId, dto }: CreateRoleParams): Promise<Role> => {
     const { data } = await apiClient.post<RoleEnvelope>(`/api/tenants/${tenantId}/roles`, dto);
     return unwrapApiData(data);
@@ -36,6 +37,7 @@ export const useCreateRole = () => useMutation({
 });
 
 export const useUpdateRole = () => useMutation({
+  meta: { successMessage: "Role updated", errorMessage: "Failed to update role" },
   mutationFn: async ({ tenantId, roleId, dto }: UpdateRoleParams): Promise<Role> => {
     const { data } = await apiClient.patch<RoleEnvelope>(`/api/tenants/${tenantId}/roles/${roleId}`, dto);
     return unwrapApiData(data);
@@ -43,6 +45,7 @@ export const useUpdateRole = () => useMutation({
 });
 
 export const useDeleteRole = () => useMutation({
+  meta: { successMessage: "Role deleted", errorMessage: "Failed to delete role" },
   mutationFn: async ({ tenantId, roleId }: DeleteRoleParams): Promise<void> => {
     await apiClient.delete(`/api/tenants/${tenantId}/roles/${roleId}`);
   }

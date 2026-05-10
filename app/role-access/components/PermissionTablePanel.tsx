@@ -78,8 +78,10 @@ const getModuleIcon = (module: string) => {
   }
 };
 
-const checkboxClassName =
-  "border-brand-blue data-[state=checked]:bg-brand-blue data-[state=checked]:text-brand-white rounded-md";
+const getCheckboxClassName = (editable: boolean) =>
+  editable
+    ? "cursor-pointer border-brand-blue data-[state=checked]:bg-brand-blue data-[state=checked]:text-brand-white rounded-md"
+    : "cursor-not-allowed border-slate-300 bg-slate-50 data-[state=checked]:bg-slate-400 data-[state=checked]:border-slate-400 data-[state=checked]:text-white rounded-md opacity-70";
 
 const actionColumns = ["create", "edit", "delete", "view"] as const;
 
@@ -125,8 +127,7 @@ export function PermissionTablePanel({
       {
         tenantId,
         dto: {
-          name: trimmedRoleName,
-          permissionIds: []
+          name: trimmedRoleName
         }
       },
       {
@@ -215,16 +216,8 @@ export function PermissionTablePanel({
       });
     });
 
-    (role?.permissions ?? []).forEach((rolePermission) => {
-      upsertPermission({
-        id: rolePermission.permissionId,
-        module: rolePermission.permission?.module as string | undefined,
-        name: rolePermission.permission?.name as string | undefined
-      });
-    });
-
     return catalog;
-  }, [permissions, role?.permissions]);
+  }, [permissions]);
 
   const [selectedPermissionIds, setSelectedPermissionIds] = useState<
     Set<string>
@@ -253,8 +246,7 @@ export function PermissionTablePanel({
         tenantId,
         roleId,
         dto: {
-          name: role.name,
-          permissionIds: Array.from(nextPermissionIds)
+          permissions: Array.from(nextPermissionIds)
         }
       },
       {
@@ -309,28 +301,19 @@ export function PermissionTablePanel({
       return;
     }
 
-    const managePermissionId = permissionCatalog[module]?.manage;
-    const actionPermissionIds = actionColumns
-      .map((action) => permissionCatalog[module]?.[action])
-      .filter((permissionId): permissionId is string => Boolean(permissionId));
+    const allModulePermissionIds = Object.values(
+      permissionCatalog[module] ?? {}
+    ).filter((id): id is string => Boolean(id));
 
     const previousPermissionIds = new Set(selectedPermissionIds);
     const nextPermissionIds = new Set(selectedPermissionIds);
 
     if (checked) {
-      if (managePermissionId) {
-        nextPermissionIds.add(managePermissionId);
-      }
-
-      actionPermissionIds.forEach((permissionId) =>
+      allModulePermissionIds.forEach((permissionId) =>
         nextPermissionIds.add(permissionId)
       );
     } else {
-      if (managePermissionId) {
-        nextPermissionIds.delete(managePermissionId);
-      }
-
-      actionPermissionIds.forEach((permissionId) =>
+      allModulePermissionIds.forEach((permissionId) =>
         nextPermissionIds.delete(permissionId)
       );
     }
@@ -395,31 +378,24 @@ export function PermissionTablePanel({
       ),
       cell: ({ row }) => {
         const module = row.original.module;
-        const actionPermissionIds = actionColumns
-          .map((action) => permissionCatalog[module]?.[action])
-          .filter((permissionId): permissionId is string =>
-            Boolean(permissionId)
-          );
-        const managePermissionId = permissionCatalog[module]?.manage;
-        const hasManage =
-          Boolean(managePermissionId) &&
-          selectedPermissionIds.has(managePermissionId as string);
-        const hasAllActions =
-          actionPermissionIds.length > 0 &&
-          actionPermissionIds.every((permissionId) =>
+        const allModulePermissionIds = Object.values(
+          permissionCatalog[module] ?? {}
+        ).filter((id): id is string => Boolean(id));
+        const allAccess =
+          allModulePermissionIds.length > 0 &&
+          allModulePermissionIds.every((permissionId) =>
             selectedPermissionIds.has(permissionId)
           );
-        const allAccess = hasManage || hasAllActions;
 
         return (
           <div className="flex justify-center">
             <Checkbox
               checked={allAccess}
-              disabled={isUpdatingRole}
+              disabled={isSystem || !canEditPermissions || isUpdatingRole}
               onCheckedChange={(checked) =>
                 handleAllAccessToggle(module, checked === true)
               }
-              className={checkboxClassName}
+              className={getCheckboxClassName(!isSystem && canEditPermissions)}
             />
           </div>
         );
@@ -442,11 +418,20 @@ export function PermissionTablePanel({
                 permissionCatalog[module]?.create &&
                 selectedPermissionIds.has(permissionCatalog[module].create)
               )}
-              disabled={!permissionCatalog[module]?.create || isUpdatingRole}
+              disabled={
+                !permissionCatalog[module]?.create ||
+                isSystem ||
+                !canEditPermissions ||
+                isUpdatingRole
+              }
               onCheckedChange={(checked) =>
                 handleActionToggle(module, "create", checked === true)
               }
-              className={checkboxClassName}
+              className={getCheckboxClassName(
+                !isSystem &&
+                  canEditPermissions &&
+                  !!permissionCatalog[module]?.create
+              )}
             />
           </div>
         );
@@ -469,11 +454,20 @@ export function PermissionTablePanel({
                 permissionCatalog[module]?.edit &&
                 selectedPermissionIds.has(permissionCatalog[module].edit)
               )}
-              disabled={!permissionCatalog[module]?.edit || isUpdatingRole}
+              disabled={
+                !permissionCatalog[module]?.edit ||
+                isSystem ||
+                !canEditPermissions ||
+                isUpdatingRole
+              }
               onCheckedChange={(checked) =>
                 handleActionToggle(module, "edit", checked === true)
               }
-              className={checkboxClassName}
+              className={getCheckboxClassName(
+                !isSystem &&
+                  canEditPermissions &&
+                  !!permissionCatalog[module]?.edit
+              )}
             />
           </div>
         );
@@ -496,11 +490,20 @@ export function PermissionTablePanel({
                 permissionCatalog[module]?.delete &&
                 selectedPermissionIds.has(permissionCatalog[module].delete)
               )}
-              disabled={!permissionCatalog[module]?.delete || isUpdatingRole}
+              disabled={
+                !permissionCatalog[module]?.delete ||
+                isSystem ||
+                !canEditPermissions ||
+                isUpdatingRole
+              }
               onCheckedChange={(checked) =>
                 handleActionToggle(module, "delete", checked === true)
               }
-              className={checkboxClassName}
+              className={getCheckboxClassName(
+                !isSystem &&
+                  canEditPermissions &&
+                  !!permissionCatalog[module]?.delete
+              )}
             />
           </div>
         );
@@ -523,11 +526,20 @@ export function PermissionTablePanel({
                 permissionCatalog[module]?.view &&
                 selectedPermissionIds.has(permissionCatalog[module].view)
               )}
-              disabled={!permissionCatalog[module]?.view || isUpdatingRole}
+              disabled={
+                !permissionCatalog[module]?.view ||
+                isSystem ||
+                !canEditPermissions ||
+                isUpdatingRole
+              }
               onCheckedChange={(checked) =>
                 handleActionToggle(module, "view", checked === true)
               }
-              className={checkboxClassName}
+              className={getCheckboxClassName(
+                !isSystem &&
+                  canEditPermissions &&
+                  !!permissionCatalog[module]?.view
+              )}
             />
           </div>
         );

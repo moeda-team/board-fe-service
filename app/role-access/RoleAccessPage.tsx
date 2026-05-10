@@ -34,7 +34,6 @@ export default function RoleAccessPage() {
     }
   );
 
-  console.log("tenantPermissions:", tenantPermissions);
   const canEditRolePermissions =
     tenantPermissions.includes("rbac.manage") ||
     tenantPermissions.includes("rbac.edit");

@@ -12,8 +12,8 @@ import type {
   RemoveTenantMemberParams
 } from "@/types/type-tenant-members";
 
-export const tenantMembersQueryKey = (tenantId: string) =>
-  ["tenantMembers", tenantId] as const;
+export const tenantMembersQueryKey = (tenantId: string, page?: number, limit?: number, search?: string) =>
+  ["tenantMembers", tenantId, page, limit, search] as const;
 
 const invalidateTenantMembers = async (
   queryClient: ReturnType<typeof useQueryClient>,
@@ -29,10 +29,15 @@ const invalidateTenantMembers = async (
   ]);
 };
 
-export const useTenantMembers = (tenantId: string) => useQuery({
-  queryKey: tenantMembersQueryKey(tenantId),
+export const useTenantMembers = (tenantId: string, page: number = 1, limit: number = 15, search?: string) => useQuery({
+  queryKey: tenantMembersQueryKey(tenantId, page, limit, search),
   queryFn: async (): Promise<TenantMembersData> => {
-    const { data } = await apiClient.get<TenantMembersEnvelope>(`/api/tenants/${tenantId}/members`);
+    const params = new URLSearchParams();
+    if (page) params.append("page", page.toString());
+    if (limit) params.append("limit", limit.toString());
+    if (search) params.append("search", search);
+
+    const { data } = await apiClient.get<TenantMembersEnvelope>(`/api/tenants/${tenantId}/members?${params.toString()}`);
     const members = unwrapApiData(data);
 
     return {
@@ -44,7 +49,8 @@ export const useTenantMembers = (tenantId: string) => useQuery({
         : [],
       archivedMembers: Array.isArray(members.archivedMembers)
         ? members.archivedMembers
-        : []
+        : [],
+      meta: members.meta
     };
   },
   enabled: !!tenantId && tenantId !== "undefined" && tenantId !== "null"

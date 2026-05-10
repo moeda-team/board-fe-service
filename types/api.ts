@@ -60,7 +60,16 @@ export type ReorderColumnsDto = Record<string, unknown>;
 export type UpdateColumnDto = Record<string, unknown>;
 export type CreateDocumentDto = Record<string, unknown>;
 export type UpdateDocumentDto = Record<string, unknown>;
-export type CreateTaskDto = Record<string, unknown>;
+export interface CreateTaskDto {
+    columnId: string;
+    title: string;
+    description?: string;
+    priority?: "LOW" | "MEDIUM" | "HIGH";
+    dueDate?: string;
+    assigneeIds?: string[];
+    tagIds?: string[];
+    customFields?: { customFieldId: string; value: string }[];
+}
 export type UpdateTaskDto = Record<string, unknown>;
 export type MoveTaskDto = Record<string, unknown>;
 
@@ -173,7 +182,9 @@ export interface Folder {
 export interface Board {
     id: string;
     workspaceId?: string;
+    folderId?: string;
     name?: string;
+    color?: string;
     [key: string]: unknown;
 }
 
@@ -203,13 +214,59 @@ export interface Task {
     title?: string;
     description?: string | null;
     priority?: string | null;
+    assignees?: { userId: string; user?: AuthMeUser }[];
     assigneeIds?: string[];
     subtaskCount?: number;
     completedSubtaskCount?: number;
-    tags?: string[];
+    tags?: any[];
+    customFieldValues?: any[];
+    attachments?: any[];
     dueDate?: string | null;
+    finishDate?: string | null;
     order?: number;
+    createdBy?: string;
+    updatedBy?: string | null;
+    creator?: AuthMeUser | null;
+    updater?: AuthMeUser | null;
     createdAt?: string;
     updatedAt?: string;
     [key: string]: unknown;
+}
+
+export interface Subtask {
+    id: string;
+    taskId: string;
+    title: string;
+    isDone: boolean;
+    position: number;
+    createdBy?: string;
+    updatedBy?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
+    creator?: AuthMeUser | null;
+    updater?: AuthMeUser | null;
+}
+
+export interface TaskActivity {
+    id: string;
+    tenantId: string;
+    userId: string;
+    entityType: string;
+    entityId: string;
+    action: string;
+    details: Record<string, any>;
+    createdAt: string;
+    user: AuthMeUser;
+}
+
+export interface Attachment {
+    id: string;
+    taskId: string;
+    fileUrl: string;
+    fileName: string;
+    fileSize: number;
+    mimeType: string;
+    createdBy: string;
+    createdAt: string;
+    creator?: AuthMeUser;
 }

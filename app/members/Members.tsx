@@ -152,8 +152,23 @@ const Members = () => {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRoleId, setInviteRoleId] = useState("");
   const [inviteWorkspaceIds, setInviteWorkspaceIds] = useState("");
-  const { data: membersData, isLoading: isMembersLoading } =
-    useTenantMembers(tenantId);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPageIndex(0); // Reset page on search
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const { data: membersData, isLoading: isMembersLoading } = useTenantMembers(
+    tenantId,
+    pageIndex + 1,
+    15,
+    debouncedSearch
+  );
   const { data: roles = [], isLoading: isRolesLoading } = useRoles(tenantId);
   const { mutate: inviteMember, isPending: isInvitingMember } =
     useInviteMember();
@@ -219,27 +234,15 @@ const Members = () => {
   }, [membersData?.activeMembers, membersData?.archivedMembers]);
 
   const tableRows = activeTab === "archived" ? archivedRows : activeRows;
-  const filteredRows = useMemo(() => {
-    const query = search.trim().toLowerCase();
-
-    if (!query) {
-      return tableRows;
-    }
-
-    return tableRows.filter((row) =>
-      [row.name, row.email, row.roleName, row.status]
-        .join(" ")
-        .toLowerCase()
-        .includes(query)
-    );
-  }, [search, tableRows]);
+  const filteredRows = tableRows; // Search is handled by the backend
   const activeMemberCount = activeRows.filter(
     (member) => member.status === "Active"
   ).length;
   const pendingInviteCount = activeRows.filter(
     (member) => member.status === "Pending"
   ).length;
-  const totalMemberCount = activeMemberCount + pendingInviteCount;
+  const totalMemberCount =
+    membersData?.meta?.total ?? activeMemberCount + pendingInviteCount;
   const selectedInviteRole = roleOptions.find(
     (role) => role.id === inviteRoleId
   );
@@ -592,6 +595,10 @@ const Members = () => {
           <DataTable<TenantMemberTableRow>
             data={filteredRows}
             columns={memberColumns}
+            manualPagination
+            pageCount={membersData?.meta?.lastPage ?? 1}
+            pageIndex={pageIndex}
+            onPageChange={setPageIndex}
           />
         )}
       </div>

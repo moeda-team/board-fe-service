@@ -62,7 +62,7 @@ function WorkspaceCard({
       onClick={handleCardClick}
       className="group relative overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10 transition-shadow hover:shadow-md cursor-pointer"
     >
-      <div className="aspect-[16/10] w-full overflow-hidden">
+      <div className="aspect-16/10 w-full overflow-hidden">
         {showImage ? (
           <img
             src={workspace?.imageUrl || ""}
@@ -133,7 +133,7 @@ function WorkspaceCard({
 function WorkspaceCardSkeleton() {
   return (
     <div className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
-      <div className="aspect-[16/10] w-full animate-pulse bg-muted" />
+      <div className="aspect-16/10 w-full animate-pulse bg-muted" />
       <div className="flex items-center justify-between p-4">
         <div className="h-4 w-24 animate-pulse rounded bg-muted" />
         <div className="h-6 w-6 animate-pulse rounded bg-muted" />

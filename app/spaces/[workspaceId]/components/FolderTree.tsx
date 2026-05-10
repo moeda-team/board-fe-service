@@ -1,49 +1,66 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   ChevronRight,
   Folder as FolderIcon,
   FolderOpen,
-  MoreHorizontal,
   Pencil,
   Plus,
   Trash2
 } from "lucide-react";
 import type { Folder } from "@/types/type-folders";
-import type { Document } from "@/types/type-documents";
+import type { Board } from "@/types/type-boards";
 import { DocumentNavItem } from "./DocumentNavItem";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
 
 interface FolderTreeProps {
   folder: Folder;
-  documents: Document[];
+  boards: Board[];
   activeDocumentId: string | null;
-  onSelectDocument: (doc: Document) => void;
+  onSelectDocument: (board: Board) => void;
   onCreateDocument: (folderId: string) => void;
   onRenameFolder: (folder: Folder) => void;
   onDeleteFolder: (folder: Folder) => void;
+  onRenameDocument: (board: Board) => void;
+  onDeleteDocument: (board: Board) => void;
 }
 
 export function FolderTree({
   folder,
-  documents,
+  boards,
   activeDocumentId,
   onSelectDocument,
   onCreateDocument,
   onRenameFolder,
-  onDeleteFolder
+  onDeleteFolder,
+  onRenameDocument,
+  onDeleteDocument
 }: FolderTreeProps) {
   const [isExpanded, setIsExpanded] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
+  const folderRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleClick = () => setMenuOpen(false);
+    window.addEventListener("click", handleClick);
+    return () => window.removeEventListener("click", handleClick);
+  }, [menuOpen]);
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setMenuPos({ x: e.clientX, y: e.clientY });
+    setMenuOpen(true);
+  };
 
   return (
     <div className="flex flex-col">
-      <div className="group flex items-center gap-1 rounded-md px-1 py-1 hover:bg-muted">
+      <div
+        ref={folderRef}
+        className="group flex items-center gap-1 rounded-md px-1 py-1 hover:bg-muted"
+        onContextMenu={handleContextMenu}
+      >
         <button
           onClick={() => setIsExpanded(!isExpanded)}
           className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-foreground"
@@ -60,46 +77,62 @@ export function FolderTree({
         <span className="flex-1 truncate text-sm font-medium">
           {folder.name || "Untitled"}
         </span>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            onClick={(e) => e.stopPropagation()}
-            className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground opacity-0 hover:bg-accent hover:text-foreground group-hover:opacity-100"
-          >
-            <MoreHorizontal className="h-3.5 w-3.5" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40">
-            <DropdownMenuItem onClick={() => onCreateDocument(folder.id)}>
-              <Plus className="mr-2 h-3.5 w-3.5" />
-              New Document
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onRenameFolder(folder)}>
-              <Pencil className="mr-2 h-3.5 w-3.5" />
-              Rename
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              variant="destructive"
-              onClick={() => onDeleteFolder(folder)}
-            >
-              <Trash2 className="mr-2 h-3.5 w-3.5" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onCreateDocument(folder.id);
+          }}
+          className="inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
+          title="New Document"
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </button>
       </div>
+
+      {menuOpen && (
+        <div
+          className="fixed z-50 min-w-35 rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+          style={{ left: menuPos.x, top: menuPos.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => {
+              setMenuOpen(false);
+              onRenameFolder(folder);
+            }}
+            className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Rename
+          </button>
+          <button
+            onClick={() => {
+              setMenuOpen(false);
+              onDeleteFolder(folder);
+            }}
+            className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-destructive hover:bg-accent"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete
+          </button>
+        </div>
+      )}
 
       {isExpanded && (
         <div className="ml-5 mt-0.5 flex flex-col gap-0.5 border-l border-border pl-2">
-          {documents.length === 0 ? (
+          {boards.length === 0 ? (
             <span className="px-2 py-1 text-xs text-muted-foreground">
-              No documents
+              No boards
             </span>
           ) : (
-            documents.map((doc) => (
+            boards.map((board) => (
               <DocumentNavItem
-                key={doc.id}
-                document={doc}
-                isActive={activeDocumentId === doc.id}
-                onClick={() => onSelectDocument(doc)}
+                key={board.id}
+                board={board}
+                isActive={activeDocumentId === board.id}
+                onClick={() => onSelectDocument(board)}
+                onRename={onRenameDocument}
+                onDelete={onDeleteDocument}
               />
             ))
           )}

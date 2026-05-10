@@ -68,6 +68,12 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { data: authMe } = useAuthMe();
 
+  const isWorkspaceDetail = pathname.startsWith("/spaces/") && pathname !== "/spaces";
+
+  if (isWorkspaceDetail) {
+    return null;
+  }
+
   const user = authMe?.user;
   const initials =
     user?.fullName

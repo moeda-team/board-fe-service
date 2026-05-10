@@ -73,10 +73,22 @@ export const useMoveTask = () => {
   return useMutation({
     meta: { successMessage: "Task moved", errorMessage: "Failed to move task" },
     mutationFn: async ({ tenantId, workspaceId, boardId, taskId, dto }: MoveTaskParams): Promise<void> => {
-      await apiClient.patch(`/api/tenants/${tenantId}/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/move`, dto);
+      await apiClient.patch(`/api/tenants/${tenantId}/workspaces/${workspaceId}/boards/${boardId}/tasks/move`, dto);
     },
     onSuccess: async (_data, variables) => {
       await queryClient.invalidateQueries({ queryKey: tasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId) });
     }
   });
 };
+
+export const taskDetailQueryKey = (tenantId: string, workspaceId: string, boardId: string, taskId: string) =>
+  ["taskDetail", tenantId, workspaceId, boardId, taskId] as const;
+
+export const useTaskDetail = (tenantId: string, workspaceId: string, boardId: string, taskId: string) => useQuery<Task>({
+  queryKey: taskDetailQueryKey(tenantId, workspaceId, boardId, taskId),
+  queryFn: async () => {
+    const { data } = await apiClient.get<TaskEnvelope>(`/api/tenants/${tenantId}/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}`);
+    return unwrapApiData(data);
+  },
+  enabled: !!tenantId && !!workspaceId && !!boardId && !!taskId
+});

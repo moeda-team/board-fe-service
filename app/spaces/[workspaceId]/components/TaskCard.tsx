@@ -7,21 +7,22 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 const priorityColors: Record<string, string> = {
   low: "bg-green-100 text-green-700",
   medium: "bg-amber-100 text-amber-700",
-  high: "bg-red-100 text-red-700",
+  high: "bg-red-100 text-red-700"
 };
 
 const tagColors = [
   "bg-blue-50 text-blue-700",
   "bg-purple-50 text-purple-700",
   "bg-pink-50 text-pink-700",
-  "bg-emerald-50 text-emerald-700",
+  "bg-emerald-50 text-emerald-700"
 ];
 
 interface TaskCardProps {
   task: Task;
+  onClick?: () => void;
 }
 
-export function TaskCard({ task }: TaskCardProps) {
+export function TaskCard({ task, onClick }: TaskCardProps) {
   const priority = (task.priority || "").toLowerCase();
   const priorityClass = priorityColors[priority] || "bg-gray-100 text-gray-600";
   const assignees = task.assigneeIds || [];
@@ -30,28 +31,49 @@ export function TaskCard({ task }: TaskCardProps) {
   const tags = task.tags || [];
 
   return (
-    <div className="group flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-sm transition-shadow hover:shadow-md">
+    <div 
+      className="group flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-sm transition-shadow hover:shadow-md cursor-pointer"
+      onClick={onClick}
+    >
       {tags.length > 0 && (
         <div className="flex flex-wrap gap-1">
-          {tags.slice(0, 3).map((tag, i) => (
-            <span
-              key={i}
-              className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${tagColors[i % tagColors.length]}`}
-            >
-              {tag}
-            </span>
-          ))}
+          {tags.slice(0, 3).map((tag, i) => {
+            const tagText =
+              typeof tag === "string"
+                ? tag
+                : (tag as { name?: string; tag?: { name?: string } | string })
+                    .name ||
+                  (typeof (tag as { tag?: { name?: string } | string }).tag ===
+                  "string"
+                    ? (tag as { tag: string }).tag
+                    : (tag as { tag?: { name?: string } }).tag?.name) ||
+                  "";
+            return (
+              <span
+                key={i}
+                className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${tagColors[i % tagColors.length]}`}
+              >
+                {tagText}
+              </span>
+            );
+          })}
         </div>
       )}
 
-      <h4 className="text-sm font-medium leading-snug">{task.title || "Untitled"}</h4>
+      <h4 className="text-sm font-medium leading-snug">
+        {task.title || "Untitled"}
+      </h4>
 
       {task.description && (
-        <p className="line-clamp-2 text-xs text-muted-foreground">{task.description}</p>
+        <p className="line-clamp-2 text-xs text-muted-foreground">
+          {task.description}
+        </p>
       )}
 
       <div className="flex items-center gap-2">
-        <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${priorityClass}`}>
+        <span
+          className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${priorityClass}`}
+        >
           {task.priority || "No priority"}
         </span>
       </div>
@@ -80,10 +102,14 @@ export function TaskCard({ task }: TaskCardProps) {
               <div className="h-1.5 w-8 overflow-hidden rounded-full bg-muted">
                 <div
                   className="h-full rounded-full bg-brand-blue"
-                  style={{ width: `${subtaskCount > 0 ? (completedSubtasks / subtaskCount) * 100 : 0}%` }}
+                  style={{
+                    width: `${subtaskCount > 0 ? (completedSubtasks / subtaskCount) * 100 : 0}%`
+                  }}
                 />
               </div>
-              <span>{completedSubtasks}/{subtaskCount}</span>
+              <span>
+                {completedSubtasks}/{subtaskCount}
+              </span>
             </div>
           )}
         </div>

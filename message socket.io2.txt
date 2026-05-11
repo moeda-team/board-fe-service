@@ -1,0 +1,297 @@
+# WebSocket (Socket.IO) Integration Guide — Vellox
+
+## 1. Pendahuluan & Prasyarat
+
+Backend Vellox menggunakan **Socket.IO**. Di sisi Frontend (termasuk Next.js), gunakan **`socket.io-client` versi 4.x** agar kompatibel dengan server.
+
+Instalasi:
+
+```bash
+npm install socket.io-client
+```
+
+## 2. Alur Koneksi & Autentikasi
+
+### Endpoint URL
+
+- Local backend (default): `http://localhost:3000`
+- Socket.IO menggunakan path default: `/socket.io`
+
+Catatan:
+
+- Global prefix REST API (misalnya `/api`) **tidak** dipakai untuk WebSocket. Jadi URL koneksi Socket.IO tetap ke base host/port.
+
+### Autentikasi (WAJIB)
+
+Koneksi WebSocket **WAJIB** menyertakan JWT Access Token pada object `auth` saat inisialisasi client.
+
+Backend akan membaca token dari:
+
+- `socket.handshake.auth.token` (**yang wajib kamu set**)
+- (fallback) header `Authorization: Bearer <token>`
+
+Contoh koneksi (TypeScript):
+
+```ts
+import { io, type Socket } from 'socket.io-client';
+
+const BACKEND_URL = 'http://localhost:3000';
+
+export function createSocket(accessToken: string): Socket {
+  return io(BACKEND_URL, {
+    auth: {
+      token: accessToken,
+    },
+  });
+}
+```
+
+Perilaku server saat connect:
+
+- Jika token **valid**, server akan menerima koneksi (client akan mendapatkan event `connect`).
+- Jika token **missing/invalid/expired** (atau user tidak valid), handshake akan gagal dan client akan menerima event **`connect_error`**.
+
+## 3. Mekanisme Room (Tenant)
+
+Setelah event `connect` berhasil, frontend **WAJIB** melakukan emit event **`joinTenant`** agar socket bergabung ke “room” tenant.
+
+### Event yang harus dikirim
+
+- **Event**: `joinTenant`
+- **Payload**:
+
+```json
+{ "tenantId": "uuid-string" }
+```
+
+### Konsekuensi jika tidak join room
+
+Tanpa memanggil `joinTenant`, socket **tidak akan menerima broadcast event apapun** dari backend untuk tenant tersebut, karena backend hanya melakukan emit ke room tenant.
+
+### Validasi server
+
+Saat `joinTenant`:
+
+- `tenantId` harus UUID v4.
+- user harus benar-benar member tenant tersebut.
+
+Jika gagal, server akan mengembalikan error (WsException) seperti:
+
+- `tenantId is invalid`
+- `Not a tenant member`
+- `Unauthorized socket`
+
+### Contoh pemanggilan `joinTenant` (disarankan pakai ACK)
+
+`EventsGateway.joinTenant` mengembalikan response object, yang bisa kamu terima via acknowledgement callback Socket.IO.
+
+```ts
+socket.on('connect', () => {
+  socket.emit('joinTenant', { tenantId }, (resp: unknown) => {
+    // resp biasanya: { ok: true, tenantId: "..." }
+    console.log('joinTenant resp', resp);
+  });
+});
+```
+
+## 4. Integrasi di Next.js (disarankan)
+
+Panduan ini fokus untuk Next.js yang memakai React (App Router atau Pages Router).
+
+### 4.1 Prinsip penting
+
+- **Jalankan Socket.IO hanya di client** (browser). Pada App Router, pastikan file React component/hook memakai `"use client"`.
+- **Jangan membuat koneksi socket berulang-ulang** di setiap render. Buat 1 koneksi per sesi user (atau per tenant) lalu reuse.
+- Saat `connect` / `reconnect`, kamu **harus** memanggil `joinTenant` lagi (karena room membership tidak selalu persist).
+
+### 4.2 Environment variable
+
+Disarankan pakai env publik di Next.js:
+
+```env
+NEXT_PUBLIC_BACKEND_URL=http://localhost:3000
+```
+
+### 4.3 Contoh hook `useTenantSocket` (client-only)
+
+Contoh ini:
+
+- connect dengan `auth.token`
+- join room tenant setelah connect
+- auto re-join saat reconnect
+
+```ts
+'use client';
+
+import { useEffect, useMemo, useRef } from 'react';
+import { io, type Socket } from 'socket.io-client';
+
+type JoinTenantAck =
+  | { ok: true; tenantId: string }
+  | { ok: false; tenantId?: string; message?: string };
+
+export function useTenantSocket(params: {
+  accessToken: string | null;
+  tenantId: string | null;
+}) {
+  const { accessToken, tenantId } = params;
+  const socketRef = useRef<Socket | null>(null);
+
+  const backendUrl = useMemo(() => {
+    return process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3000';
+  }, []);
+
+  useEffect(() => {
+    if (!accessToken) {
+      socketRef.current?.disconnect();
+      socketRef.current = null;
+      return;
+    }
+
+    if (!socketRef.current) {
+      socketRef.current = io(backendUrl, {
+        auth: { token: accessToken },
+        transports: ['websocket'],
+      });
+
+      socketRef.current.on('connect_error', (err) => {
+        console.error('socket connect_error', err?.message ?? err);
+      });
+
+      socketRef.current.on('disconnect', (reason) => {
+        console.warn('socket disconnected', reason);
+      });
+    }
+
+    return () => {
+      // Optional: kalau kamu ingin socket tetap hidup antar halaman, jangan disconnect di cleanup.
+      // socketRef.current?.disconnect();
+    };
+  }, [backendUrl, accessToken]);
+
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket) return;
+    if (!tenantId) return;
+
+    const join = () => {
+      socket.emit('joinTenant', { tenantId }, (ack: JoinTenantAck) => {
+        if (ack && 'ok' in ack && ack.ok) {
+          console.log('joinTenant OK', ack.tenantId);
+          return;
+        }
+        console.warn('joinTenant failed', ack);
+      });
+    };
+
+    // join saat connect pertama dan saat reconnect
+    socket.on('connect', join);
+    join();
+
+    return () => {
+      socket.off('connect', join);
+    };
+  }, [tenantId]);
+
+  return socketRef.current;
+}
+```
+
+## 5. Daftar Event (Listener)
+
+Semua event di bawah ini dibroadcast ke room tenant. Artinya:
+
+- Kamu **harus** sudah `joinTenant` untuk `tenantId` terkait.
+- Payload akan selalu memiliki minimal `tenantId` dan biasanya ditambahkan `eventName` oleh backend.
+
+### Event: Role
+
+| Event name                  | Kapan terjadi                     | Ekspektasi payload (minimal)                       |
+| --------------------------- | --------------------------------- | -------------------------------------------------- |
+| `role.created`              | Role berhasil dibuat              | `{ eventName, tenantId, roleId, userId }`          |
+| `role.updated`              | Role berhasil diupdate            | `{ eventName, tenantId, roleId, userId }`          |
+| `role.permissions.updated`  | Permissions role berhasil diupdate | `{ eventName, tenantId, roleId, userId }`          |
+| `role.deleted`              | Role berhasil dihapus             | `{ eventName, tenantId, roleId, userId }`          |
+
+### Event: Tenant Member
+
+| Event name                   | Kapan terjadi                           | Ekspektasi payload (minimal)                         |
+| ---------------------------- | --------------------------------------- | ---------------------------------------------------- |
+| `tenant.member.added`        | Member ditambahkan ke tenant            | `{ eventName, tenantId, userId, roleId, invitedBy }` |
+| `tenant.member.removed`      | Member dikeluarkan / keluar dari tenant | `{ eventName, tenantId, userId, removedBy }`         |
+| `tenant.member.role_updated` | Role member di tenant berubah           | `{ eventName, tenantId, userId, roleId, updatedBy }` |
+| `tenant.member.archived`     | Member di-archive                        | `{ eventName, tenantId, userId, archivedBy }`        |
+| `tenant.member.restored`     | Member di-restore                        | `{ eventName, tenantId, userId, restoredBy }`        |
+
+### Event: Tenant Invite
+
+| Event name                | Kapan terjadi     | Ekspektasi payload (minimal)                                  |
+| ------------------------- | ----------------- | ------------------------------------------------------------- |
+| `tenant.invite.created`   | Invite dibuat     | `{ eventName, tenantId, inviteId, email, roleId, invitedBy }` |
+| `tenant.invite.role_updated` | Role invite diupdate | `{ eventName, tenantId, inviteId, roleId, updatedBy }`     |
+| `tenant.invite.cancelled` | Invite dibatalkan | `{ eventName, tenantId, inviteId, email, cancelledBy }`       |
+
+### Event: Workspace
+
+- `workspace.created`
+- `workspace.updated`
+- `workspace.deleted`
+- `workspace.member.added`
+- `workspace.member.removed`
+
+### Event: Struktur board (folder/board/column/tag/custom-field)
+
+- `folder.created`, `folder.updated`, `folder.deleted`
+- `board.created`, `board.updated`, `board.deleted`
+- `column.created`, `column.updated`, `column.reordered`, `column.deleted`
+- `tag.created`, `tag.updated`, `tag.deleted`
+- `custom-field.created`, `custom-field.updated`, `custom-field.deleted`
+
+### Event: Task (task/subtask/attachment/comment)
+
+- `task.created`, `task.updated`, `task.reordered`, `task.moved`, `task.deleted`
+- `subtask.created`, `subtask.updated`, `subtask.reordered`, `subtask.deleted`
+- `task.attachment.created`, `task.attachment.deleted`
+- `task.comment.created`
+
+### Contoh listen event dengan `socket.on()`
+
+```ts
+socket.on('role.created', (payload) => {
+  // payload: { eventName: 'role.created', tenantId, roleId, userId, ... }
+  console.log('role.created', payload);
+});
+
+socket.on('tenant.member.role_updated', (payload) => {
+  console.log('tenant.member.role_updated', payload);
+});
+
+socket.on('tenant.invite.cancelled', (payload) => {
+  console.log('tenant.invite.cancelled', payload);
+});
+```
+
+## 6. Error Handling
+
+Frontend perlu meng-handle error fungsional berikut:
+
+- **`connect_error`**
+  - Terjadi saat handshake gagal (misalnya konfigurasi client salah / server tidak bisa diakses).
+  - Pada kasus autentikasi, dapat muncul jika token tidak diterima pada fase koneksi (tergantung behavior Socket.IO client).
+
+- **`disconnect`**
+  - Terjadi saat server memutus koneksi.
+  - Umumnya terjadi jika jaringan putus, server restart, atau client diputus oleh server karena kondisi tertentu.
+
+Contoh handler:
+
+```ts
+socket.on('connect_error', (err) => {
+  console.error('socket connect_error', err);
+});
+
+socket.on('disconnect', (reason) => {
+  // contoh reason: 'io server disconnect', 'transport close', dll.
+  console.warn('socket disconnected', reason);
+});
+```

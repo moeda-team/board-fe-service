@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { Loader2, Plus, Search } from "lucide-react";
 import { useAuthMe } from "@/hooks/api/useAuth";
@@ -18,13 +19,20 @@ import {
   useDeleteBoard
 } from "@/hooks/api/useBoards";
 import {
+  columnsQueryKey,
   useKanbanColumns,
   useCreateColumn,
   useUpdateColumn,
   useDeleteColumn,
   useReorderColumns
 } from "@/hooks/api/useKanbanColumns";
-import { useTasks, useCreateTask, useMoveTask } from "@/hooks/api/useTasks";
+import {
+  taskDetailQueryKey,
+  tasksQueryKey,
+  useTasks,
+  useCreateTask,
+  useMoveTask
+} from "@/hooks/api/useTasks";
 import type { Board } from "@/types/type-boards";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +45,7 @@ import { CreateTaskDialog } from "./components/CreateTaskDialog";
 import { TaskDetailSheet } from "./components/TaskDetailSheet";
 import { useTenantMembers } from "@/hooks/api/useTenantMembers";
 import type { CreateTaskDto, Member } from "@/types/api";
+import { useTenantSocket } from "@/hooks/useTenantSocket";
 
 export default function WorkspaceDetailPage() {
   const params = useParams();
@@ -143,6 +152,8 @@ export default function WorkspaceDetailPage() {
   const { mutate: reorderColumns } = useReorderColumns();
   const { mutate: createTask } = useCreateTask();
   const { mutate: moveTask } = useMoveTask();
+  const queryClient = useQueryClient();
+  const socket = useTenantSocket(tenantId || null);
 
   const handleMoveTask = (
     taskId: string,
@@ -165,6 +176,64 @@ export default function WorkspaceDetailPage() {
     });
   };
 
+  useEffect(() => {
+    if (!socket || !tenantId || !workspaceId || !activeBoardId) return;
+
+    const columnsKey = columnsQueryKey(tenantId, workspaceId, activeBoardId);
+    const tasksKey = tasksQueryKey(tenantId, workspaceId, activeBoardId);
+
+    const invalidateColumns = () => {
+      queryClient.invalidateQueries({ queryKey: columnsKey });
+    };
+
+    const handleTaskEvent = (payload: any) => {
+      queryClient.invalidateQueries({ queryKey: tasksKey });
+      if (
+        selectedTaskId &&
+        payload?.taskId === selectedTaskId &&
+        payload?.boardId === activeBoardId
+      ) {
+        queryClient.invalidateQueries({
+          queryKey: taskDetailQueryKey(
+            tenantId,
+            workspaceId,
+            activeBoardId,
+            payload.taskId
+          )
+        });
+      }
+    };
+
+    const columnEvents = [
+      "column.created",
+      "column.updated",
+      "column.reordered",
+      "column.deleted"
+    ];
+    columnEvents.forEach((event) => socket.on(event, invalidateColumns));
+
+    const taskEvents = [
+      "task.created",
+      "task.updated",
+      "task.reordered",
+      "task.moved",
+      "task.deleted"
+    ];
+    taskEvents.forEach((event) => socket.on(event, handleTaskEvent));
+
+    return () => {
+      columnEvents.forEach((event) => socket.off(event, invalidateColumns));
+      taskEvents.forEach((event) => socket.off(event, handleTaskEvent));
+    };
+  }, [
+    socket,
+    tenantId,
+    workspaceId,
+    activeBoardId,
+    queryClient,
+    selectedTaskId
+  ]);
+
   const isLoading =
     isAuthLoading || isWorkspacesLoading || isFoldersLoading || isBoardsLoading;
 
@@ -185,7 +254,7 @@ export default function WorkspaceDetailPage() {
   }
 
   return (
-    <div className="flex h-full w-full overflow-hidden">
+    <div className="flex h-full w-full">
       {/* Secondary Sidebar */}
       <WorkspaceSidebar
         workspaceName={workspace?.name || "Workspace"}
@@ -245,7 +314,7 @@ export default function WorkspaceDetailPage() {
       />
 
       {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col">
         {/* Header */}
         <div className="flex items-center justify-between border-b px-6 py-3">
           <div className="flex items-center gap-4">
@@ -279,7 +348,7 @@ export default function WorkspaceDetailPage() {
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-hidden p-4">
+        <div className="flex-1 p-4">
           {!activeBoardId && (
             <div className="flex h-full items-center justify-center text-muted-foreground">
               No board available. Select a document or create a board.

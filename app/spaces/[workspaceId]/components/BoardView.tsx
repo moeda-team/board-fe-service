@@ -181,11 +181,11 @@ export function BoardView({
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
-      <div className="flex h-full gap-4 overflow-x-auto pb-2">
+      <div className="flex h-full gap-4 pb-2">
         <Droppable droppableId="board" type="column" direction="horizontal">
           {(provided) => (
             <div
-              className="flex h-full gap-4"
+              className="flex h-full gap-4 overflow-x-auto"
               ref={provided.innerRef}
               {...provided.droppableProps}
             >
@@ -287,7 +287,12 @@ export function BoardView({
                                       className={`relative group ${snapshot.isDragging ? "z-50 opacity-90 shadow-xl scale-105" : ""} transition-transform`}
                                       style={provided.draggableProps.style}
                                     >
-                                      <TaskCard task={task} onClick={() => onTaskClick && onTaskClick(task.id)} />
+                                      <TaskCard
+                                        task={task}
+                                        onClick={() =>
+                                          onTaskClick && onTaskClick(task.id)
+                                        }
+                                      />
                                       {/* Quick move menu */}
                                       {!snapshot.isDragging && (
                                         <DropdownMenu>

@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/apiClient";
 import { unwrapApiArrayData, unwrapApiData } from "@/types/api";
 import {
@@ -28,13 +28,20 @@ export const useRoleDetail = (tenantId: string, roleId: string) => useQuery({
   enabled: !!tenantId && !!roleId && tenantId !== "undefined" && tenantId !== "null" && roleId !== "undefined" && roleId !== "null"
 });
 
-export const useCreateRole = () => useMutation({
-  meta: { successMessage: "Role created", errorMessage: "Failed to create role" },
-  mutationFn: async ({ tenantId, dto }: CreateRoleParams): Promise<Role> => {
-    const { data } = await apiClient.post<RoleEnvelope>(`/api/tenants/${tenantId}/roles`, dto);
-    return unwrapApiData(data);
-  }
-});
+export const useCreateRole = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    meta: { successMessage: "Role created", errorMessage: "Failed to create role" },
+    mutationFn: async ({ tenantId, dto }: CreateRoleParams): Promise<Role> => {
+      const { data } = await apiClient.post<RoleEnvelope>(`/api/tenants/${tenantId}/roles`, dto);
+      return unwrapApiData(data);
+    },
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: ["roles", variables.tenantId] });
+    }
+  });
+};
 
 export const useUpdateRole = () => useMutation({
   meta: { successMessage: "Role updated", errorMessage: "Failed to update role" },

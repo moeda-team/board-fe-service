@@ -42,6 +42,7 @@ import { BoardView } from "./components/BoardView";
 import { ListView } from "./components/ListView";
 import { GanttView } from "./components/GanttView";
 import { CreateTaskDialog } from "./components/CreateTaskDialog";
+import { NameDialog } from "./components/NameDialog";
 import { TaskDetailSheet } from "./components/TaskDetailSheet";
 import { useTenantMembers } from "@/hooks/api/useTenantMembers";
 import type { CreateTaskDto, Member } from "@/types/api";
@@ -79,6 +80,17 @@ export default function WorkspaceDetailPage() {
   const [creatingInColumnId, setCreatingInColumnId] = useState<
     string | undefined
   >(undefined);
+
+  // NameDialog state for folder/document operations
+  const [nameDialog, setNameDialog] = useState<{
+    open: boolean;
+    title: string;
+    description?: string;
+    placeholder?: string;
+    defaultValue?: string;
+    submitLabel?: string;
+    onSubmit: (value: string) => void;
+  }>({ open: false, title: "", onSubmit: () => {} });
 
   const boardsByFolder = useMemo(() => {
     const map: Record<string, Board[]> = {};
@@ -254,7 +266,7 @@ export default function WorkspaceDetailPage() {
   }
 
   return (
-    <div className="flex h-full w-full">
+    <div className="flex h-full w-full ">
       {/* Secondary Sidebar */}
       <WorkspaceSidebar
         workspaceName={workspace?.name || "Workspace"}
@@ -263,31 +275,46 @@ export default function WorkspaceDetailPage() {
         activeDocumentId={activeDocumentId}
         onSelectDocument={handleSelectDocument}
         onCreateFolder={() => {
-          const name = window.prompt("Folder name");
-          if (name?.trim()) {
-            createFolder({ tenantId, workspaceId, dto: { name: name.trim() } });
-          }
+          setNameDialog({
+            open: true,
+            title: "New Folder",
+            description: "Enter a name for the new folder.",
+            placeholder: "Folder name",
+            submitLabel: "Create",
+            onSubmit: (name) => {
+              createFolder({ tenantId, workspaceId, dto: { name } });
+            }
+          });
         }}
         onCreateDocument={(folderId) => {
-          const name = window.prompt("Board name");
-          if (name?.trim()) {
-            createBoard({
-              tenantId,
-              workspaceId,
-              dto: { name: name.trim(), folderId }
-            });
-          }
+          setNameDialog({
+            open: true,
+            title: "New Document",
+            description: "Enter a name for the new document.",
+            placeholder: "Document name",
+            submitLabel: "Create",
+            onSubmit: (name) => {
+              createBoard({ tenantId, workspaceId, dto: { name, folderId } });
+            }
+          });
         }}
         onRenameDocument={(board) => {
-          const name = window.prompt("Rename board", board.name || "");
-          if (name?.trim()) {
-            updateBoard({
-              tenantId,
-              workspaceId,
-              boardId: board.id,
-              dto: { name: name.trim() }
-            });
-          }
+          setNameDialog({
+            open: true,
+            title: "Rename Document",
+            description: "Enter a new name for the document.",
+            placeholder: "Document name",
+            defaultValue: board.name || "",
+            submitLabel: "Rename",
+            onSubmit: (name) => {
+              updateBoard({
+                tenantId,
+                workspaceId,
+                boardId: board.id,
+                dto: { name }
+              });
+            }
+          });
         }}
         onDeleteDocument={(board) => {
           if (window.confirm(`Delete board "${board.name}"?`)) {
@@ -295,15 +322,22 @@ export default function WorkspaceDetailPage() {
           }
         }}
         onRenameFolder={(folder) => {
-          const name = window.prompt("Rename folder", folder.name || "");
-          if (name?.trim()) {
-            updateFolder({
-              tenantId,
-              workspaceId,
-              folderId: folder.id,
-              dto: { name: name.trim() }
-            });
-          }
+          setNameDialog({
+            open: true,
+            title: "Rename Folder",
+            description: "Enter a new name for the folder.",
+            placeholder: "Folder name",
+            defaultValue: folder.name || "",
+            submitLabel: "Rename",
+            onSubmit: (name) => {
+              updateFolder({
+                tenantId,
+                workspaceId,
+                folderId: folder.id,
+                dto: { name }
+              });
+            }
+          });
         }}
         onDeleteFolder={(folder) => {
           if (window.confirm(`Delete folder "${folder.name}"?`)) {
@@ -314,7 +348,7 @@ export default function WorkspaceDetailPage() {
       />
 
       {/* Main Content */}
-      <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 min-w-0 flex-col">
         {/* Header */}
         <div className="flex items-center justify-between border-b px-6 py-3">
           <div className="flex items-center gap-4">
@@ -348,7 +382,7 @@ export default function WorkspaceDetailPage() {
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 p-4">
+        <div className="flex-1 min-w-0 p-4">
           {!activeBoardId && (
             <div className="flex h-full items-center justify-center text-muted-foreground">
               No board available. Select a document or create a board.
@@ -425,6 +459,18 @@ export default function WorkspaceDetailPage() {
             setIsCreateTaskOpen(false);
           }
         }}
+      />
+      <NameDialog
+        open={nameDialog.open}
+        onOpenChange={(open) => {
+          if (!open) setNameDialog((prev) => ({ ...prev, open: false }));
+        }}
+        title={nameDialog.title}
+        description={nameDialog.description}
+        placeholder={nameDialog.placeholder}
+        defaultValue={nameDialog.defaultValue}
+        submitLabel={nameDialog.submitLabel}
+        onSubmit={nameDialog.onSubmit}
       />
       {activeDocumentId && (
         <TaskDetailSheet

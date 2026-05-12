@@ -11,13 +11,15 @@ interface RoleListPanelProps {
   selectedRoleId: string | null;
   onSelectRole: (roleId: string) => void;
   canCreateRole: boolean;
+  onCreateRole?: () => void;
 }
 
 export function RoleListPanel({
   tenantId,
   selectedRoleId,
   onSelectRole,
-  canCreateRole
+  canCreateRole,
+  onCreateRole
 }: RoleListPanelProps) {
   const { data: roles = [], isLoading } = useRoles(tenantId);
   const roleList = Array.isArray(roles) ? roles : [];
@@ -46,6 +48,7 @@ export function RoleListPanel({
                 variant="outline"
                 size="sm"
                 className="h-8 text-brand-blue border-brand-soft-blue hover:bg-brand-soft-blue/50"
+                onClick={onCreateRole}
               >
                 <Plus className="mr-1 h-3 w-3" />
                 New Role

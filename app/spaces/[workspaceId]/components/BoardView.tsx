@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import type { Column } from "@/types/type-kanban-columns";
 import type { Task } from "@/types/type-tasks";
@@ -17,7 +17,8 @@ import {
   DragDropContext,
   Droppable,
   Draggable,
-  DropResult
+  DropResult,
+  type DragUpdate
 } from "@hello-pangea/dnd";
 
 interface BoardViewProps {
@@ -27,7 +28,7 @@ interface BoardViewProps {
   onUpdateColumn: (columnId: string, name: string) => void;
   onDeleteColumn: (columnId: string) => void;
   onReorderColumns?: (newColumns: { id: string; position: number }[]) => void;
-  onCreateTask: (columnId: string, title: string) => void;
+  onCreateTask: (columnId: string) => void;
   onMoveTask: (
     taskId: string,
     sourceColumnId: string,
@@ -51,16 +52,36 @@ export function BoardView({
   const [isMounted, setIsMounted] = useState(false);
   const [newColumnName, setNewColumnName] = useState("");
   const [addingColumn, setAddingColumn] = useState(false);
-  const [taskInputs, setTaskInputs] = useState<
-    Record<string, { value: string; active: boolean }>
-  >({});
+  const [contextMenu, setContextMenu] = useState<{
+    columnId: string;
+    x: number;
+    y: number;
+  } | null>(null);
+  const boardScrollRef = useRef<HTMLDivElement>(null);
+  const scrollAnimRef = useRef<number | null>(null);
+  const scrollTargetRef = useRef(0);
 
   const [localColumns, setLocalColumns] = useState<Column[]>(columns);
   const [localTasks, setLocalTasks] = useState<Task[]>(tasks);
+  const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!contextMenu) return;
+    const handleClick = () => setContextMenu(null);
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setContextMenu(null);
+    };
+    document.addEventListener("click", handleClick);
+    document.addEventListener("keydown", handleEsc);
+    return () => {
+      document.removeEventListener("click", handleClick);
+      document.removeEventListener("keydown", handleEsc);
+    };
+  }, [contextMenu]);
 
   useEffect(() => {
     setLocalColumns(columns);
@@ -99,7 +120,17 @@ export function BoardView({
     }
   };
 
+  const handleDragUpdate = (update: DragUpdate) => {
+    const destinationId = update.destination?.droppableId;
+    if (destinationId && localColumns.some((c) => c.id === destinationId)) {
+      setDragOverColumnId(destinationId);
+    } else {
+      setDragOverColumnId(null);
+    }
+  };
+
   const handleDragEnd = (result: DropResult) => {
+    setDragOverColumnId(null);
     const { destination, source, draggableId, type } = result;
 
     if (!destination) return;
@@ -180,313 +211,345 @@ export function BoardView({
   }
 
   return (
-    <DragDropContext onDragEnd={handleDragEnd}>
-      <div className="flex h-full gap-4 pb-2">
-        <Droppable droppableId="board" type="column" direction="horizontal">
-          {(provided) => (
-            <div
-              className="flex h-full gap-4 overflow-x-auto"
-              ref={provided.innerRef}
-              {...provided.droppableProps}
-            >
-              {localColumns.map((col, index) => {
-                const colTasks = tasksByColumn[col.id] || [];
-                const inputState = taskInputs[col.id] || {
-                  value: "",
-                  active: false
-                };
+    <DragDropContext onDragEnd={handleDragEnd} onDragUpdate={handleDragUpdate}>
+      <div
+        className="h-full overflow-auto pb-2"
+        ref={boardScrollRef}
+        onWheel={(e) => {
+          const target = e.target as HTMLElement;
+          const scrollYEl = target.closest(
+            "[data-scroll-y]"
+          ) as HTMLElement | null;
+          if (scrollYEl) {
+            const atTop = scrollYEl.scrollTop === 0;
+            const atBottom =
+              scrollYEl.scrollTop + scrollYEl.clientHeight >=
+              scrollYEl.scrollHeight - 1;
+            const scrollingUp = e.deltaY < 0;
+            const scrollingDown = e.deltaY > 0;
+            if ((scrollingUp && !atTop) || (scrollingDown && !atBottom)) return;
+          }
+          if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+            e.preventDefault();
+            const container = boardScrollRef.current;
+            if (!container) return;
+            scrollTargetRef.current += e.deltaY * 1.5;
+            if (scrollAnimRef.current) return;
+            const animate = () => {
+              const current = container.scrollLeft;
+              const diff = scrollTargetRef.current - current;
+              if (Math.abs(diff) < 0.5) {
+                container.scrollLeft = scrollTargetRef.current;
+                scrollAnimRef.current = null;
+                return;
+              }
+              container.scrollLeft += diff * 0.15;
+              scrollAnimRef.current = requestAnimationFrame(animate);
+            };
+            scrollAnimRef.current = requestAnimationFrame(animate);
+          }
+        }}
+      >
+        <div className="flex h-full gap-4">
+          <Droppable droppableId="board" type="column" direction="horizontal">
+            {(provided) => (
+              <div
+                className="flex h-full gap-4"
+                ref={provided.innerRef}
+                {...provided.droppableProps}
+              >
+                {localColumns.map((col, index) => {
+                  const colTasks = tasksByColumn[col.id] || [];
 
-                return (
-                  <Draggable key={col.id} draggableId={col.id} index={index}>
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        className={`flex w-72 shrink-0 flex-col rounded-xl border bg-card/50 shadow-sm ${
-                          snapshot.isDragging
-                            ? "shadow-2xl scale-[1.02] opacity-90 z-40 border-primary"
-                            : ""
-                        } transition-transform`}
-                        style={provided.draggableProps.style}
-                      >
-                        {/* Column Header */}
+                  return (
+                    <Draggable key={col.id} draggableId={col.id} index={index}>
+                      {(provided, snapshot) => (
                         <div
-                          className="flex items-center justify-between p-3"
-                          {...provided.dragHandleProps}
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          className={`flex w-72 shrink-0 flex-col rounded-xl border bg-card/50 shadow-sm ${
+                            snapshot.isDragging
+                              ? "shadow-2xl scale-[1.02] opacity-90 z-40 border-primary"
+                              : ""
+                          } ${
+                            dragOverColumnId === col.id
+                              ? "ring-2 ring-primary/30 border-primary/30"
+                              : ""
+                          } transition-transform`}
+                          style={provided.draggableProps.style}
                         >
-                          <div className="flex items-center gap-2">
-                            <div
-                              className={`h-2.5 w-2.5 rounded-full ${getColumnColor(col.name || "")}`}
-                            />
-                            <span className="text-sm font-semibold cursor-grab active:cursor-grabbing">
-                              {col.name || "Untitled"}
-                            </span>
-                            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-muted/60 px-1.5 text-xs font-medium text-muted-foreground">
-                              {colTasks.length}
-                            </span>
-                          </div>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground">
-                              <MoreHorizontal className="h-3.5 w-3.5" />
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-36">
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  const name = window.prompt(
-                                    "Rename column",
-                                    col.name || ""
-                                  );
-                                  if (name) onUpdateColumn(col.id, name);
-                                }}
-                              >
-                                <Pencil className="mr-2 h-3.5 w-3.5" />
-                                Rename
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                variant="destructive"
-                                onClick={() => {
-                                  if (
-                                    window.confirm(
-                                      `Delete column "${col.name}"?`
-                                    )
-                                  ) {
-                                    onDeleteColumn(col.id);
-                                  }
-                                }}
-                              >
-                                <Trash2 className="mr-2 h-3.5 w-3.5" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-
-                        {/* Tasks Droppable Area */}
-                        <Droppable droppableId={col.id} type="task">
-                          {(provided, snapshot) => (
-                            <div
-                              className={`flex flex-col gap-2 px-3 pb-2 min-h-2.5 flex-1 ${
-                                snapshot.isDraggingOver
-                                  ? "bg-muted/70 rounded-md"
-                                  : ""
-                              }`}
-                              ref={provided.innerRef}
-                              {...provided.droppableProps}
-                            >
-                              {colTasks.map((task, index) => (
-                                <Draggable
-                                  key={task.id}
-                                  draggableId={task.id}
-                                  index={index}
-                                >
-                                  {(provided, snapshot) => (
-                                    <div
-                                      ref={provided.innerRef}
-                                      {...provided.draggableProps}
-                                      {...provided.dragHandleProps}
-                                      className={`relative group ${snapshot.isDragging ? "z-50 opacity-90 shadow-xl scale-105" : ""} transition-transform`}
-                                      style={provided.draggableProps.style}
-                                    >
-                                      <TaskCard
-                                        task={task}
-                                        onClick={() =>
-                                          onTaskClick && onTaskClick(task.id)
-                                        }
-                                      />
-                                      {/* Quick move menu */}
-                                      {!snapshot.isDragging && (
-                                        <DropdownMenu>
-                                          <DropdownMenuTrigger className="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded opacity-0 group-hover:opacity-100 hover:bg-accent">
-                                            <MoreHorizontal className="h-3 w-3 text-muted-foreground" />
-                                          </DropdownMenuTrigger>
-                                          <DropdownMenuContent
-                                            align="end"
-                                            className="w-40"
-                                          >
-                                            <span className="px-2 py-1 text-xs font-medium text-muted-foreground">
-                                              Move to
-                                            </span>
-                                            {localColumns
-                                              .filter((c) => c.id !== col.id)
-                                              .map((targetCol) => (
-                                                <DropdownMenuItem
-                                                  key={targetCol.id}
-                                                  onClick={() =>
-                                                    onMoveTask(
-                                                      task.id,
-                                                      col.id,
-                                                      targetCol.id,
-                                                      0
-                                                    )
-                                                  }
-                                                >
-                                                  {targetCol.name}
-                                                </DropdownMenuItem>
-                                              ))}
-                                          </DropdownMenuContent>
-                                        </DropdownMenu>
-                                      )}
-                                    </div>
-                                  )}
-                                </Draggable>
-                              ))}
-                              {provided.placeholder}
-                            </div>
-                          )}
-                        </Droppable>
-
-                        {/* Add task */}
-                        <div className="px-3 pb-3 mt-auto">
-                          {inputState.active ? (
-                            <div className="flex flex-col gap-2">
-                              <Input
-                                autoFocus
-                                placeholder="Task title..."
-                                value={inputState.value}
-                                onChange={(e) =>
-                                  setTaskInputs((prev) => ({
-                                    ...prev,
-                                    [col.id]: {
-                                      ...inputState,
-                                      value: e.target.value
-                                    }
-                                  }))
-                                }
-                                onKeyDown={(e) => {
-                                  if (
-                                    e.key === "Enter" &&
-                                    inputState.value.trim()
-                                  ) {
-                                    onCreateTask(
-                                      col.id,
-                                      inputState.value.trim()
-                                    );
-                                    setTaskInputs((prev) => ({
-                                      ...prev,
-                                      [col.id]: { value: "", active: false }
-                                    }));
-                                  }
-                                  if (e.key === "Escape") {
-                                    setTaskInputs((prev) => ({
-                                      ...prev,
-                                      [col.id]: { value: "", active: false }
-                                    }));
-                                  }
-                                }}
-                                className="h-8 text-sm"
+                          {/* Column Header */}
+                          <div
+                            className="flex items-center justify-between p-3"
+                            {...provided.dragHandleProps}
+                            onContextMenu={(e) => {
+                              e.preventDefault();
+                              setContextMenu({
+                                columnId: col.id,
+                                x: e.clientX,
+                                y: e.clientY
+                              });
+                            }}
+                          >
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={`h-2.5 w-2.5 rounded-full ${getColumnColor(col.name || "")}`}
                               />
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  className="h-7 text-xs"
+                              <span className="text-sm font-semibold cursor-grab active:cursor-grabbing">
+                                {col.name || "Untitled"}
+                              </span>
+                              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-muted/60 px-1.5 text-xs font-medium text-muted-foreground">
+                                {colTasks.length}
+                              </span>
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground">
+                                <MoreHorizontal className="h-3.5 w-3.5" />
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-36">
+                                <DropdownMenuItem
+                                  onClick={() => onCreateTask(col.id)}
+                                >
+                                  <Plus className="mr-2 h-3.5 w-3.5" />
+                                  Add Task
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
                                   onClick={() => {
-                                    if (inputState.value.trim()) {
-                                      onCreateTask(
-                                        col.id,
-                                        inputState.value.trim()
-                                      );
-                                      setTaskInputs((prev) => ({
-                                        ...prev,
-                                        [col.id]: { value: "", active: false }
-                                      }));
+                                    const name = window.prompt(
+                                      "Rename column",
+                                      col.name || ""
+                                    );
+                                    if (name) onUpdateColumn(col.id, name);
+                                  }}
+                                >
+                                  <Pencil className="mr-2 h-3.5 w-3.5" />
+                                  Rename
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  onClick={() => {
+                                    if (
+                                      window.confirm(
+                                        `Delete column "${col.name}"?`
+                                      )
+                                    ) {
+                                      onDeleteColumn(col.id);
                                     }
                                   }}
                                 >
-                                  Add
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 text-xs"
-                                  onClick={() =>
-                                    setTaskInputs((prev) => ({
-                                      ...prev,
-                                      [col.id]: { value: "", active: false }
-                                    }))
-                                  }
-                                >
-                                  Cancel
-                                </Button>
+                                  <Trash2 className="mr-2 h-3.5 w-3.5" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+
+                          {/* Tasks Droppable Area */}
+                          <Droppable droppableId={col.id} type="task">
+                            {(provided, snapshot) => (
+                              <div
+                                data-scroll-y
+                                className={`relative flex flex-col gap-2 px-3 pb-2 min-h-2.5 flex-1 max-h-[75vh] overflow-y-auto transition-colors ${
+                                  snapshot.isDraggingOver
+                                    ? "bg-primary/5 rounded-lg border-2 border-dashed border-primary/40"
+                                    : "border-2 border-transparent"
+                                }`}
+                                ref={provided.innerRef}
+                                {...provided.droppableProps}
+                              >
+                                {snapshot.isDraggingOver && (
+                                  <div className="pointer-events-none absolute inset-0 flex items-start justify-center pt-2">
+                                    <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-medium text-primary">
+                                      Drop here
+                                    </span>
+                                  </div>
+                                )}
+                                {colTasks.map((task, index) => (
+                                  <Draggable
+                                    key={task.id}
+                                    draggableId={task.id}
+                                    index={index}
+                                  >
+                                    {(provided, snapshot) => (
+                                      <div
+                                        ref={provided.innerRef}
+                                        {...provided.draggableProps}
+                                        {...provided.dragHandleProps}
+                                        className={`relative group ${snapshot.isDragging ? "z-50 opacity-90 shadow-xl scale-105" : ""} transition-transform`}
+                                        style={provided.draggableProps.style}
+                                      >
+                                        <TaskCard
+                                          task={task}
+                                          onClick={() =>
+                                            onTaskClick && onTaskClick(task.id)
+                                          }
+                                        />
+                                        {/* Quick move menu */}
+                                        {!snapshot.isDragging && (
+                                          <DropdownMenu>
+                                            <DropdownMenuTrigger className="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded opacity-0 group-hover:opacity-100 hover:bg-accent">
+                                              <MoreHorizontal className="h-3 w-3 text-muted-foreground" />
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent
+                                              align="end"
+                                              className="w-40"
+                                            >
+                                              <span className="px-2 py-1 text-xs font-medium text-muted-foreground">
+                                                Move to
+                                              </span>
+                                              {localColumns
+                                                .filter((c) => c.id !== col.id)
+                                                .map((targetCol) => (
+                                                  <DropdownMenuItem
+                                                    key={targetCol.id}
+                                                    onClick={() =>
+                                                      onMoveTask(
+                                                        task.id,
+                                                        col.id,
+                                                        targetCol.id,
+                                                        0
+                                                      )
+                                                    }
+                                                  >
+                                                    {targetCol.name}
+                                                  </DropdownMenuItem>
+                                                ))}
+                                            </DropdownMenuContent>
+                                          </DropdownMenu>
+                                        )}
+                                      </div>
+                                    )}
+                                  </Draggable>
+                                ))}
+                                {provided.placeholder}
                               </div>
-                            </div>
-                          ) : (
+                            )}
+                          </Droppable>
+
+                          {/* Add task */}
+                          <div className="px-3 pb-3 mt-auto">
                             <Button
                               variant="ghost"
                               size="sm"
                               className="w-full justify-start gap-1 text-muted-foreground hover:text-foreground"
-                              onClick={() =>
-                                setTaskInputs((prev) => ({
-                                  ...prev,
-                                  [col.id]: { value: "", active: true }
-                                }))
-                              }
+                              onClick={() => onCreateTask(col.id)}
                             >
                               <Plus className="h-3.5 w-3.5" />
                               Add Task
                             </Button>
-                          )}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </Draggable>
-                );
-              })}
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-
-        {/* Add Column */}
-        <div className="flex w-72 shrink-0 flex-col">
-          {addingColumn ? (
-            <div className="rounded-lg bg-muted/50 p-3">
-              <Input
-                autoFocus
-                placeholder="Column name"
-                value={newColumnName}
-                onChange={(e) => setNewColumnName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleAddColumn();
-                  if (e.key === "Escape") {
-                    setAddingColumn(false);
-                    setNewColumnName("");
-                  }
-                }}
-                className="mb-2 h-8 text-sm"
-              />
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={handleAddColumn}
-                >
-                  Add Column
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 text-xs"
-                  onClick={() => {
-                    setAddingColumn(false);
-                    setNewColumnName("");
-                  }}
-                >
-                  Cancel
-                </Button>
+                      )}
+                    </Draggable>
+                  );
+                })}
+                {provided.placeholder}
               </div>
-            </div>
-          ) : (
-            <Button
-              variant="ghost"
-              className="h-10 justify-start gap-2 text-muted-foreground hover:text-foreground"
-              onClick={() => setAddingColumn(true)}
-            >
-              <Plus className="h-4 w-4" />
-              Add Column
-            </Button>
-          )}
+            )}
+          </Droppable>
+
+          {/* Add Column */}
+          <div className="flex w-72 shrink-0 flex-col">
+            {addingColumn ? (
+              <div className="rounded-lg bg-muted/50 p-3">
+                <Input
+                  autoFocus
+                  placeholder="Column name"
+                  value={newColumnName}
+                  onChange={(e) => setNewColumnName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleAddColumn();
+                    if (e.key === "Escape") {
+                      setAddingColumn(false);
+                      setNewColumnName("");
+                    }
+                  }}
+                  className="mb-2 h-8 text-sm"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={handleAddColumn}
+                  >
+                    Add Column
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs"
+                    onClick={() => {
+                      setAddingColumn(false);
+                      setNewColumnName("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                variant="ghost"
+                className="h-10 justify-start gap-2 text-muted-foreground hover:text-foreground"
+                onClick={() => setAddingColumn(true)}
+              >
+                <Plus className="h-4 w-4" />
+                Add Column
+              </Button>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Custom context menu for columns */}
+      {contextMenu && (
+        <div
+          className="fixed z-50 min-w-32 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            className="flex w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground"
+            onClick={() => {
+              onCreateTask(contextMenu.columnId);
+              setContextMenu(null);
+            }}
+          >
+            <Plus className="mr-2 h-3.5 w-3.5" />
+            Add Task
+          </button>
+          <button
+            className="flex w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground"
+            onClick={() => {
+              const name = window.prompt(
+                "Rename column",
+                localColumns.find((c) => c.id === contextMenu.columnId)?.name ||
+                  ""
+              );
+              if (name) onUpdateColumn(contextMenu.columnId, name);
+              setContextMenu(null);
+            }}
+          >
+            <Pencil className="mr-2 h-3.5 w-3.5" />
+            Rename
+          </button>
+          <button
+            className="flex w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-sm text-destructive outline-hidden select-none hover:bg-accent hover:text-accent-foreground"
+            onClick={() => {
+              const colName = localColumns.find(
+                (c) => c.id === contextMenu.columnId
+              )?.name;
+              if (colName && window.confirm(`Delete column "${colName}"?`)) {
+                onDeleteColumn(contextMenu.columnId);
+              }
+              setContextMenu(null);
+            }}
+          >
+            <Trash2 className="mr-2 h-3.5 w-3.5" />
+            Delete
+          </button>
+        </div>
+      )}
     </DragDropContext>
   );
 }

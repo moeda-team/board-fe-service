@@ -6,7 +6,7 @@ import {
   Sheet,
   SheetContent,
   SheetHeader,
-  SheetTitle,
+  SheetTitle
 } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,10 +15,33 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useTaskDetail } from "@/hooks/api/useTasks";
-import { useTaskSubtasks, useCreateSubtask, useUpdateSubtask } from "@/hooks/api/useTaskSubtasks";
-import { useTaskActivities } from "@/hooks/api/useTaskActivities";
-import { useTaskAttachments, useUploadAttachment, useDeleteAttachment } from "@/hooks/api/useTaskAttachments";
-import { Plus, Paperclip, CheckCircle2, Circle, Clock, Tag, X } from "lucide-react";
+import {
+  useTaskSubtasks,
+  useCreateSubtask,
+  useUpdateSubtask
+} from "@/hooks/api/useTaskSubtasks";
+import {
+  useTaskAttachments,
+  useUploadAttachment,
+  useDeleteAttachment
+} from "@/hooks/api/useTaskAttachments";
+import {
+  useTaskComments,
+  useCreateTaskComment,
+  useDeleteTaskComment
+} from "@/hooks/api/useTaskComments";
+import { useAuthMe } from "@/hooks/api/useAuth";
+import {
+  Plus,
+  Paperclip,
+  CheckCircle2,
+  Circle,
+  Clock,
+  Tag,
+  X,
+  Send,
+  Trash2
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TaskDetailSheetProps {
@@ -36,9 +59,13 @@ export function TaskDetailSheet({
   boardId,
   taskId,
   open,
-  onOpenChange,
+  onOpenChange
 }: TaskDetailSheetProps) {
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const [commentContent, setCommentContent] = useState("");
+
+  const { data: authMe } = useAuthMe();
+  const currentUser = authMe?.user;
 
   const { data: task, isLoading: isLoadingTask } = useTaskDetail(
     tenantId,
@@ -54,14 +81,14 @@ export function TaskDetailSheet({
     taskId || ""
   );
 
-  const { data: activities = [], isLoading: isLoadingActivities } = useTaskActivities(
+  const { data: attachments = [] } = useTaskAttachments(
     tenantId,
     workspaceId,
     boardId,
     taskId || ""
   );
 
-  const { data: attachments = [] } = useTaskAttachments(
+  const { data: comments = [], isLoading: isLoadingComments } = useTaskComments(
     tenantId,
     workspaceId,
     boardId,
@@ -72,6 +99,29 @@ export function TaskDetailSheet({
   const { mutate: updateSubtask } = useUpdateSubtask();
   const { mutate: uploadAttachment } = useUploadAttachment();
   const { mutate: deleteAttachment } = useDeleteAttachment();
+  const { mutate: createComment } = useCreateTaskComment();
+  const { mutate: deleteComment } = useDeleteTaskComment();
+
+  const handleSubmitComment = () => {
+    if (!commentContent.trim() || !taskId) return;
+    createComment(
+      {
+        tenantId,
+        workspaceId,
+        boardId,
+        taskId,
+        dto: { content: commentContent.trim() }
+      },
+      {
+        onSuccess: () => setCommentContent("")
+      }
+    );
+  };
+
+  const handleDeleteComment = (commentId: string) => {
+    if (!taskId) return;
+    deleteComment({ tenantId, workspaceId, boardId, taskId, commentId });
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -83,7 +133,7 @@ export function TaskDetailSheet({
         taskId,
         file
       });
-      e.target.value = ''; // Reset input
+      e.target.value = ""; // Reset input
     }
   };
 
@@ -96,7 +146,7 @@ export function TaskDetailSheet({
       workspaceId,
       boardId,
       taskId,
-      dto: { title: newSubtaskTitle.trim() },
+      dto: { title: newSubtaskTitle.trim() }
     });
     setNewSubtaskTitle("");
   };
@@ -109,7 +159,7 @@ export function TaskDetailSheet({
       boardId,
       taskId,
       subtaskId,
-      dto: { isDone: !currentIsDone },
+      dto: { isDone: !currentIsDone }
     });
   };
 
@@ -151,15 +201,20 @@ export function TaskDetailSheet({
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-2">
                     {/* Status / Column (We would need columns passed down to show name, for now just show a placeholder or nothing, since task only has columnId) */}
                     <div className="flex flex-col gap-1">
-                      <span className="text-xs text-muted-foreground font-medium">Status</span>
+                      <span className="text-xs text-muted-foreground font-medium">
+                        Status
+                      </span>
                       <div className="flex items-center gap-2 text-sm">
                         <div className="h-2 w-2 rounded-full bg-brand-blue" />
-                        <span>{task?.priority || "Default"}</span> {/* We might want to pass column name here */}
+                        <span>{task?.priority || "Default"}</span>{" "}
+                        {/* We might want to pass column name here */}
                       </div>
                     </div>
 
                     <div className="flex flex-col gap-1">
-                      <span className="text-xs text-muted-foreground font-medium">Priority</span>
+                      <span className="text-xs text-muted-foreground font-medium">
+                        Priority
+                      </span>
                       <div className="flex items-center gap-2 text-sm">
                         <span className="rounded bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
                           {task?.priority || "None"}
@@ -168,19 +223,27 @@ export function TaskDetailSheet({
                     </div>
 
                     <div className="flex flex-col gap-1">
-                      <span className="text-xs text-muted-foreground font-medium">Est time</span>
+                      <span className="text-xs text-muted-foreground font-medium">
+                        Est time
+                      </span>
                       <div className="flex items-center gap-1.5 text-sm">
                         <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                         <span>
-                          {task?.customFieldValues?.find((f: any) => f.customField?.name?.toLowerCase()?.includes("time"))?.value || "N/A"}
+                          {task?.customFieldValues?.find((f: any) =>
+                            f.customField?.name?.toLowerCase()?.includes("time")
+                          )?.value || "N/A"}
                         </span>
                       </div>
                     </div>
 
                     <div className="flex flex-col gap-1">
-                      <span className="text-xs text-muted-foreground font-medium">Due Date</span>
+                      <span className="text-xs text-muted-foreground font-medium">
+                        Due Date
+                      </span>
                       <div className="text-sm">
-                        {task?.dueDate ? format(new Date(task.dueDate), "dd MMM yyyy") : "No date"}
+                        {task?.dueDate
+                          ? format(new Date(task.dueDate), "dd MMM yyyy")
+                          : "No date"}
                       </div>
                     </div>
                   </div>
@@ -193,13 +256,20 @@ export function TaskDetailSheet({
                     <div className="flex gap-2">
                       {assigneesList.length > 0 ? (
                         assigneesList.map((user: any) => (
-                          <Avatar key={user.id || Math.random()} className="h-8 w-8">
+                          <Avatar
+                            key={user.id || Math.random()}
+                            className="h-8 w-8"
+                          >
                             <AvatarImage src={user.avatarUrl} />
-                            <AvatarFallback>{user.fullName?.charAt(0) || "U"}</AvatarFallback>
+                            <AvatarFallback>
+                              {user.fullName?.charAt(0) || "U"}
+                            </AvatarFallback>
                           </Avatar>
                         ))
                       ) : (
-                        <span className="text-sm text-muted-foreground">Unassigned</span>
+                        <span className="text-sm text-muted-foreground">
+                          Unassigned
+                        </span>
                       )}
                     </div>
                   </div>
@@ -212,13 +282,22 @@ export function TaskDetailSheet({
                           <span
                             key={tag.id || tag}
                             className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700"
-                            style={tag.color ? { backgroundColor: `${tag.color}20`, color: tag.color } : {}}
+                            style={
+                              tag.color
+                                ? {
+                                    backgroundColor: `${tag.color}20`,
+                                    color: tag.color
+                                  }
+                                : {}
+                            }
                           >
                             {tag.name || tag}
                           </span>
                         ))
                       ) : (
-                        <span className="text-sm text-muted-foreground">No tags</span>
+                        <span className="text-sm text-muted-foreground">
+                          No tags
+                        </span>
                       )}
                     </div>
                   </div>
@@ -248,13 +327,21 @@ export function TaskDetailSheet({
                         key={st.id}
                         className={cn(
                           "flex items-center gap-3 rounded-md border p-3 transition-colors",
-                          st.isDone ? "bg-muted/50" : "bg-card hover:bg-muted/30"
+                          st.isDone
+                            ? "bg-muted/50"
+                            : "bg-card hover:bg-muted/30"
                         )}
                       >
                         <Checkbox
                           checked={st.isDone}
-                          onCheckedChange={() => handleToggleSubtask(st.id, st.isDone)}
-                          className={st.isDone ? "data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500" : ""}
+                          onCheckedChange={() =>
+                            handleToggleSubtask(st.id, st.isDone)
+                          }
+                          className={
+                            st.isDone
+                              ? "data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
+                              : ""
+                          }
                         />
                         <span
                           className={cn(
@@ -293,80 +380,108 @@ export function TaskDetailSheet({
                 <div className="flex flex-col gap-3">
                   <span className="text-sm font-medium">Attachments</span>
                   <label className="flex flex-col items-center justify-center rounded-lg border border-dashed p-6 hover:bg-muted/50 transition-colors cursor-pointer">
-                    <input type="file" className="hidden" onChange={handleFileUpload} />
+                    <input
+                      type="file"
+                      className="hidden"
+                      onChange={handleFileUpload}
+                    />
                     <Paperclip className="h-6 w-6 text-brand-blue mb-2" />
                     <span className="text-sm text-brand-blue font-medium">
                       Drag or click your attachment
                     </span>
                   </label>
-                  
+
                   {attachments.length > 0 && (
-                     <div className="flex flex-wrap gap-2 mt-2">
-                        {attachments.map((att: any) => (
-                           <div key={att.id} className="flex items-center gap-2 p-2 border rounded bg-muted/20 text-sm group relative pr-8">
-                              <Paperclip className="w-4 h-4 text-muted-foreground shrink-0" />
-                              <a href={att.fileUrl} target="_blank" rel="noreferrer" className="truncate max-w-37.5 hover:underline">
-                                {att.fileName}
-                              </a>
-                              <button 
-                                onClick={() => deleteAttachment({ tenantId, workspaceId, boardId, taskId: taskId!, attachmentId: att.id })}
-                                className="absolute right-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 hover:bg-muted rounded transition-opacity"
-                              >
-                                <X className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
-                              </button>
-                           </div>
-                        ))}
-                     </div>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {attachments.map((att: any) => (
+                        <div
+                          key={att.id}
+                          className="flex items-center gap-2 p-2 border rounded bg-muted/20 text-sm group relative pr-8"
+                        >
+                          <Paperclip className="w-4 h-4 text-muted-foreground shrink-0" />
+                          <a
+                            href={att.fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="truncate max-w-37.5 hover:underline"
+                          >
+                            {att.fileName}
+                          </a>
+                          <button
+                            onClick={() =>
+                              deleteAttachment({
+                                tenantId,
+                                workspaceId,
+                                boardId,
+                                taskId: taskId!,
+                                attachmentId: att.id
+                              })
+                            }
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 hover:bg-muted rounded transition-opacity"
+                          >
+                            <X className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
             </ScrollArea>
 
-            {/* Right Panel: Activity */}
+            {/* Right Panel: Comments */}
             <div className="w-80 bg-muted/20 flex flex-col">
               <div className="p-4 border-b bg-background/50">
-                <h3 className="font-semibold">Activity</h3>
+                <h3 className="font-semibold">Comments</h3>
               </div>
               <ScrollArea className="flex-1">
-                <div className="p-4 flex flex-col gap-6">
-                  {isLoadingActivities ? (
+                <div className="p-4 flex flex-col gap-5">
+                  {isLoadingComments ? (
                     <div className="text-center text-sm text-muted-foreground">
-                      Loading activity...
+                      Loading comments...
                     </div>
-                  ) : activities.length === 0 ? (
+                  ) : comments.length === 0 ? (
                     <div className="text-center text-sm text-muted-foreground">
-                      No activity recorded yet.
+                      No comments yet. Be the first to comment.
                     </div>
                   ) : (
                     <div className="flex flex-col gap-5">
-                      {activities.map((activity) => (
-                        <div key={activity.id} className="flex gap-3">
+                      {comments.map((comment) => (
+                        <div key={comment.id} className="flex gap-3 group">
                           <Avatar className="h-8 w-8 shrink-0">
-                            <AvatarImage src={activity.user?.avatarUrl || undefined} />
+                            <AvatarImage
+                              src={comment.creator?.avatarUrl || undefined}
+                            />
                             <AvatarFallback>
-                              {activity.user?.fullName?.charAt(0) || "U"}
+                              {comment.creator?.fullName?.charAt(0) || "U"}
                             </AvatarFallback>
                           </Avatar>
-                          <div className="flex flex-col gap-0.5">
-                            <div className="text-sm">
-                              <span className="font-medium text-brand-blue">
-                                {activity.user?.fullName || "Unknown user"}
-                              </span>{" "}
-                              <span className="text-muted-foreground">
-                                {activity.action.toLowerCase() === "moved"
-                                  ? "Moved this task"
-                                  : `${activity.action.toLowerCase()} this task`}
+                          <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-brand-blue">
+                                {comment.creator?.fullName || "Unknown user"}
                               </span>
+                              {currentUser?.id === comment.createdBy && (
+                                <button
+                                  onClick={() =>
+                                    handleDeleteComment(comment.id)
+                                  }
+                                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-muted rounded transition-opacity"
+                                  title="Delete comment"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                                </button>
+                              )}
                             </div>
+                            <p className="text-sm whitespace-pre-wrap wrap-break-word">
+                              {comment.content}
+                            </p>
                             <span className="text-xs text-muted-foreground">
-                              {format(new Date(activity.createdAt), "dd MMM yyyy, HH:mm")}
+                              {format(
+                                new Date(comment.createdAt),
+                                "dd MMM yyyy, HH:mm"
+                              )}
                             </span>
-                            {/* Activity Detail extra info (like moved from X to Y) */}
-                            {activity.action === "MOVED" && activity.details?.move && (
-                                <div className="text-xs mt-1 bg-muted p-1.5 rounded text-muted-foreground">
-                                  Moved to a new column
-                                </div>
-                            )}
                           </div>
                         </div>
                       ))}
@@ -374,15 +489,41 @@ export function TaskDetailSheet({
                   )}
                 </div>
               </ScrollArea>
-              
-              {/* Optional Comment Input Box could go here */}
+
+              {/* Comment Input */}
               <div className="p-4 border-t bg-background">
-                 <div className="flex items-center gap-2">
-                    <Avatar className="h-8 w-8 shrink-0">
-                        <AvatarFallback>Me</AvatarFallback>
-                    </Avatar>
-                    <Input placeholder="Write a comment..." className="h-9" />
-                 </div>
+                <div className="flex items-start gap-2">
+                  <Avatar className="h-8 w-8 shrink-0 mt-0.5">
+                    <AvatarImage src={currentUser?.avatarUrl || undefined} />
+                    <AvatarFallback>
+                      {currentUser?.fullName?.charAt(0) || "Me"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 flex flex-col gap-2">
+                    <Input
+                      placeholder="Write a comment..."
+                      className="h-9"
+                      value={commentContent}
+                      onChange={(e) => setCommentContent(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSubmitComment();
+                        }
+                      }}
+                    />
+                    <div className="flex justify-end">
+                      <Button
+                        size="sm"
+                        disabled={!commentContent.trim()}
+                        onClick={handleSubmitComment}
+                      >
+                        <Send className="h-4 w-4 mr-1" />
+                        Send
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

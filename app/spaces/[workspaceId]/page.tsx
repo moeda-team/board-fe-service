@@ -298,22 +298,12 @@ export default function WorkspaceDetailPage() {
             }
           });
         }}
-        onRenameDocument={(board) => {
-          setNameDialog({
-            open: true,
-            title: "Rename Document",
-            description: "Enter a new name for the document.",
-            placeholder: "Document name",
-            defaultValue: board.name || "",
-            submitLabel: "Rename",
-            onSubmit: (name) => {
-              updateBoard({
-                tenantId,
-                workspaceId,
-                boardId: board.id,
-                dto: { name }
-              });
-            }
+        onRenameDocumentSubmit={(boardId, name) => {
+          updateBoard({
+            tenantId,
+            workspaceId,
+            boardId,
+            dto: { name }
           });
         }}
         onDeleteDocument={(board) => {
@@ -321,22 +311,12 @@ export default function WorkspaceDetailPage() {
             deleteBoard({ tenantId, workspaceId, boardId: board.id });
           }
         }}
-        onRenameFolder={(folder) => {
-          setNameDialog({
-            open: true,
-            title: "Rename Folder",
-            description: "Enter a new name for the folder.",
-            placeholder: "Folder name",
-            defaultValue: folder.name || "",
-            submitLabel: "Rename",
-            onSubmit: (name) => {
-              updateFolder({
-                tenantId,
-                workspaceId,
-                folderId: folder.id,
-                dto: { name }
-              });
-            }
+        onRenameFolderSubmit={(folderId, name) => {
+          updateFolder({
+            tenantId,
+            workspaceId,
+            folderId,
+            dto: { name }
           });
         }}
         onDeleteFolder={(folder) => {

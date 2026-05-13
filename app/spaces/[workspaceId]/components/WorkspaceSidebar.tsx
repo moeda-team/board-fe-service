@@ -15,9 +15,9 @@ interface WorkspaceSidebarProps {
   onSelectDocument: (board: Board) => void;
   onCreateFolder: () => void;
   onCreateDocument: (folderId: string) => void;
-  onRenameFolder: (folder: Folder) => void;
+  onRenameFolderSubmit: (folderId: string, name: string) => void;
   onDeleteFolder: (folder: Folder) => void;
-  onRenameDocument: (board: Board) => void;
+  onRenameDocumentSubmit: (boardId: string, name: string) => void;
   onDeleteDocument: (board: Board) => void;
   isLoading?: boolean;
 }
@@ -30,9 +30,9 @@ export function WorkspaceSidebar({
   onSelectDocument,
   onCreateFolder,
   onCreateDocument,
-  onRenameFolder,
+  onRenameFolderSubmit,
   onDeleteFolder,
-  onRenameDocument,
+  onRenameDocumentSubmit,
   onDeleteDocument,
   isLoading
 }: WorkspaceSidebarProps) {
@@ -101,9 +101,9 @@ export function WorkspaceSidebar({
                 activeDocumentId={activeDocumentId}
                 onSelectDocument={onSelectDocument}
                 onCreateDocument={onCreateDocument}
-                onRenameFolder={onRenameFolder}
+                onRenameFolderSubmit={onRenameFolderSubmit}
                 onDeleteFolder={onDeleteFolder}
-                onRenameDocument={onRenameDocument}
+                onRenameDocumentSubmit={onRenameDocumentSubmit}
                 onDeleteDocument={onDeleteDocument}
               />
             ))}

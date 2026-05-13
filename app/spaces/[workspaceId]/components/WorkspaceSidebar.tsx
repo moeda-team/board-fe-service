@@ -34,7 +34,7 @@ export function WorkspaceSidebar({
   onDeleteFolder,
   onRenameDocumentSubmit,
   onDeleteDocument,
-  isLoading
+  isLoading,
 }: WorkspaceSidebarProps) {
   return (
     <aside className="flex h-full w-64 flex-col border-r bg-sidebar text-sidebar-foreground">
@@ -55,7 +55,7 @@ export function WorkspaceSidebar({
               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
             </svg>
           </div>
-          <span className="text-base font-bold tracking-tight">Trello KW</span>
+          <span className="text-base font-bold tracking-tight">ChronoTask</span>
         </Link>
 
         {/* Mock Tenant Selector */}
@@ -67,12 +67,8 @@ export function WorkspaceSidebar({
             <div className="flex flex-col">
               <span className="text-sm font-medium leading-none">Tenant 1</span>
               <div className="mt-1 flex items-center gap-1">
-                <span className="text-[10px] text-muted-foreground">
-                  Subscription
-                </span>
-                <span className="rounded bg-blue-100 px-1 py-0.5 text-[9px] font-medium text-blue-600">
-                  Free
-                </span>
+                <span className="text-[10px] text-muted-foreground">Subscription</span>
+                <span className="rounded bg-blue-100 px-1 py-0.5 text-[9px] font-medium text-blue-600">Free</span>
               </div>
             </div>
           </div>
@@ -88,9 +84,7 @@ export function WorkspaceSidebar({
             ))}
           </div>
         ) : folders.length === 0 ? (
-          <p className="px-2 py-4 text-center text-xs text-muted-foreground">
-            No folders yet.
-          </p>
+          <p className="px-2 py-4 text-center text-xs text-muted-foreground">No folders yet.</p>
         ) : (
           <div className="flex flex-col gap-1">
             {folders.map((folder) => (
@@ -130,9 +124,7 @@ export function WorkspaceSidebar({
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-sidebar-accent border border-sidebar-border">
             <div className="h-full w-[40%] rounded-full bg-brand-blue" />
           </div>
-          <span className="text-[10px] text-muted-foreground">
-            2.50GB / 6 GB
-          </span>
+          <span className="text-[10px] text-muted-foreground">2.50GB / 6 GB</span>
         </div>
       </div>
     </aside>

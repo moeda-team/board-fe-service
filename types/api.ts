@@ -270,3 +270,15 @@ export interface Attachment {
     createdAt: string;
     creator?: AuthMeUser;
 }
+
+export interface TaskComment {
+    id: string;
+    content: string;
+    parentId?: string | null;
+    taskId: string;
+    createdBy: string;
+    creator?: AuthMeUser;
+    createdAt: string;
+    updatedAt?: string;
+    attachments?: Attachment[];
+}

@@ -145,6 +145,10 @@ export function CreateTaskDialog({
               <Select
                 value={columnId}
                 onValueChange={(val) => val && setColumnId(val)}
+                items={columns.map((col) => ({
+                  value: col.id,
+                  label: col.name
+                }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select column" />
@@ -166,6 +170,10 @@ export function CreateTaskDialog({
               <Select
                 value={assigneeId}
                 onValueChange={(val) => val && setAssigneeId(val)}
+                items={members.map((m) => ({
+                  value: m.id,
+                  label: m.fullName || m.username || m.email
+                }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select assignee" />
@@ -189,6 +197,11 @@ export function CreateTaskDialog({
                 onValueChange={(val) =>
                   val && setPriority(val as "LOW" | "MEDIUM" | "HIGH")
                 }
+                items={[
+                  { value: "LOW", label: "Low" },
+                  { value: "MEDIUM", label: "Medium" },
+                  { value: "HIGH", label: "High" }
+                ]}
               >
                 <SelectTrigger>
                   <SelectValue />

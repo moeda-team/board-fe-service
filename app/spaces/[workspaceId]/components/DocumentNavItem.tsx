@@ -8,7 +8,7 @@ interface DocumentNavItemProps {
   board: Board;
   isActive: boolean;
   onClick: () => void;
-  onRename: (board: Board) => void;
+  onRenameSubmit: (boardId: string, name: string) => void;
   onDelete: (board: Board) => void;
 }
 
@@ -16,12 +16,15 @@ export function DocumentNavItem({
   board,
   isActive,
   onClick,
-  onRename,
+  onRenameSubmit,
   onDelete
 }: DocumentNavItemProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
   const containerRef = useRef<HTMLButtonElement>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -40,7 +43,7 @@ export function DocumentNavItem({
     <div className="relative">
       <button
         ref={containerRef}
-        onClick={onClick}
+        onClick={isRenaming ? undefined : onClick}
         onContextMenu={handleContextMenu}
         className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
           isActive
@@ -49,7 +52,36 @@ export function DocumentNavItem({
         }`}
       >
         <FileText className="h-3.5 w-3.5 shrink-0" />
-        <span className="truncate">{board.name || "Untitled"}</span>
+        {isRenaming ? (
+          <input
+            ref={renameInputRef}
+            className="flex-1 truncate rounded-sm border border-ring bg-transparent px-1 py-0 text-sm outline-none"
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                const trimmed = renameValue.trim();
+                if (trimmed && trimmed !== board.name) {
+                  onRenameSubmit(board.id, trimmed);
+                }
+                setIsRenaming(false);
+              } else if (e.key === "Escape") {
+                setIsRenaming(false);
+              }
+            }}
+            onBlur={() => {
+              const trimmed = renameValue.trim();
+              if (trimmed && trimmed !== board.name) {
+                onRenameSubmit(board.id, trimmed);
+              }
+              setIsRenaming(false);
+            }}
+          />
+        ) : (
+          <span className="truncate">{board.name || "Untitled"}</span>
+        )}
       </button>
 
       {menuOpen && (
@@ -61,7 +93,9 @@ export function DocumentNavItem({
           <button
             onClick={() => {
               setMenuOpen(false);
-              onRename(board);
+              setRenameValue(board.name || "");
+              setIsRenaming(true);
+              setTimeout(() => renameInputRef.current?.focus(), 0);
             }}
             className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
           >

@@ -19,9 +19,9 @@ interface FolderTreeProps {
   activeDocumentId: string | null;
   onSelectDocument: (board: Board) => void;
   onCreateDocument: (folderId: string) => void;
-  onRenameFolder: (folder: Folder) => void;
+  onRenameFolderSubmit: (folderId: string, name: string) => void;
   onDeleteFolder: (folder: Folder) => void;
-  onRenameDocument: (board: Board) => void;
+  onRenameDocumentSubmit: (boardId: string, name: string) => void;
   onDeleteDocument: (board: Board) => void;
 }
 
@@ -31,15 +31,18 @@ export function FolderTree({
   activeDocumentId,
   onSelectDocument,
   onCreateDocument,
-  onRenameFolder,
+  onRenameFolderSubmit,
   onDeleteFolder,
-  onRenameDocument,
+  onRenameDocumentSubmit,
   onDeleteDocument
 }: FolderTreeProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
   const folderRef = useRef<HTMLDivElement>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -74,9 +77,37 @@ export function FolderTree({
         ) : (
           <FolderIcon className="h-4 w-4 shrink-0 text-amber-500" />
         )}
-        <span className="flex-1 truncate text-sm font-medium">
-          {folder.name || "Untitled"}
-        </span>
+        {isRenaming ? (
+          <input
+            ref={renameInputRef}
+            className="flex-1 truncate rounded-sm border border-ring bg-transparent px-1 py-0 text-sm font-medium outline-none"
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                const trimmed = renameValue.trim();
+                if (trimmed && trimmed !== folder.name) {
+                  onRenameFolderSubmit(folder.id, trimmed);
+                }
+                setIsRenaming(false);
+              } else if (e.key === "Escape") {
+                setIsRenaming(false);
+              }
+            }}
+            onBlur={() => {
+              const trimmed = renameValue.trim();
+              if (trimmed && trimmed !== folder.name) {
+                onRenameFolderSubmit(folder.id, trimmed);
+              }
+              setIsRenaming(false);
+            }}
+          />
+        ) : (
+          <span className="flex-1 truncate text-sm font-medium">
+            {folder.name || "Untitled"}
+          </span>
+        )}
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -98,7 +129,9 @@ export function FolderTree({
           <button
             onClick={() => {
               setMenuOpen(false);
-              onRenameFolder(folder);
+              setRenameValue(folder.name || "");
+              setIsRenaming(true);
+              setTimeout(() => renameInputRef.current?.focus(), 0);
             }}
             className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
           >
@@ -131,7 +164,7 @@ export function FolderTree({
                 board={board}
                 isActive={activeDocumentId === board.id}
                 onClick={() => onSelectDocument(board)}
-                onRename={onRenameDocument}
+                onRenameSubmit={onRenameDocumentSubmit}
                 onDelete={onDeleteDocument}
               />
             ))

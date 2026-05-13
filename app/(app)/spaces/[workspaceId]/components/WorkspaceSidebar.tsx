@@ -41,18 +41,12 @@ export function WorkspaceSidebar({
       {/* Header / Logo */}
       <div className="flex flex-col gap-4 border-b border-sidebar-border px-4 py-5">
         <Link href="/dashboard" className="flex items-center gap-2.5">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-brand-blue text-white">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+          <div className="flex size-8 items-center justify-center">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <circle cx="5" cy="5" r="4" fill="#53A3FF" />
+              <circle cx="15" cy="5" r="4" fill="#14100A" />
+              <circle cx="5" cy="15" r="4" fill="#14100A" />
+              <circle cx="15" cy="15" r="4" fill="#14100A" />
             </svg>
           </div>
           <span className="text-base font-bold tracking-tight">ChronoTask</span>

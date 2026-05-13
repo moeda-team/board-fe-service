@@ -1,13 +1,9 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
-import { ThemeProvider } from "next-themes";
 import { SessionProvider } from "@/providers/session-provider";
 import { PhosphorProvider } from "@/providers/phosphor-provider";
 import { QueryProvider } from "@/providers/query-provider";
-import { ApiAuthProvider } from "@/providers/api-auth-provider";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
 import "./globals.css";
 
 const inter = Inter({
@@ -31,13 +27,8 @@ export default function RootLayout({
         <SessionProvider>
           <PhosphorProvider>
             <QueryProvider>
-              <ApiAuthProvider>
-                <SidebarProvider>
-                  <AppSidebar />
-                  <SidebarInset className="overflow-x-hidden">{children}</SidebarInset>
-                </SidebarProvider>
-                <Toaster />
-              </ApiAuthProvider>
+              {children}
+              <Toaster />
             </QueryProvider>
           </PhosphorProvider>
         </SessionProvider>

@@ -54,35 +54,37 @@ export function Resources() {
               <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
               <span className="ml-3 text-sm text-gray-400">Space Permissions — Engineering</span>
             </div>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/5">
-                  <th className="text-left px-6 py-4 text-gray-500 font-medium">Role</th>
-                  {["View", "Edit", "Delete", "Admin"].map((h) => (
-                    <th key={h} className="px-4 py-4 text-gray-500 font-medium">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  { role: "Eng Lead", access: [true, true, true, true], color: "text-emerald-400" },
-                  { role: "Developer", access: [true, true, false, false], color: "text-blue-400" },
-                  { role: "Designer", access: [true, false, false, false], color: "text-yellow-400" },
-                  { role: "Client", access: [true, false, false, false], color: "text-red-400" },
-                ].map((row) => (
-                  <tr key={row.role} className="border-b border-white/5 last:border-0">
-                    <td className={`px-6 py-4 font-semibold ${row.color}`}>{row.role}</td>
-                    {row.access.map((a, i) => (
-                      <td key={i} className="px-4 py-4 text-center text-base">
-                        {a ? <span className="text-emerald-400">✓</span> : <span className="text-white/20">—</span>}
-                      </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[340px]">
+                <thead>
+                  <tr className="border-b border-white/5">
+                    <th className="text-left px-6 py-4 text-gray-500 font-medium">Role</th>
+                    {["View", "Edit", "Delete", "Admin"].map((h) => (
+                      <th key={h} className="px-4 py-4 text-gray-500 font-medium">
+                        {h}
+                      </th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {[
+                    { role: "Eng Lead", access: [true, true, true, true], color: "text-emerald-400" },
+                    { role: "Developer", access: [true, true, false, false], color: "text-blue-400" },
+                    { role: "Designer", access: [true, false, false, false], color: "text-yellow-400" },
+                    { role: "Client", access: [true, false, false, false], color: "text-red-400" },
+                  ].map((row) => (
+                    <tr key={row.role} className="border-b border-white/5 last:border-0">
+                      <td className={`px-6 py-4 font-semibold ${row.color}`}>{row.role}</td>
+                      {row.access.map((a, i) => (
+                        <td key={i} className="px-4 py-4 text-center text-base">
+                          {a ? <span className="text-emerald-400">✓</span> : <span className="text-white/20">—</span>}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <div className="mt-5 bg-white/5 border border-white/10 rounded-xl px-6 py-4 backdrop-blur-sm">

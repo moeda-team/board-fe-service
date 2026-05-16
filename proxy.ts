@@ -27,7 +27,10 @@ export default async function proxy(req: NextRequest) {
   }
 
   const isPublicRoute =
-    nextUrl.pathname === "/" || nextUrl.pathname === "/login" || nextUrl.pathname === "/auth/callback";
+    nextUrl.pathname === "/" ||
+    nextUrl.pathname === "/login" ||
+    nextUrl.pathname === "/auth/callback" ||
+    nextUrl.pathname === "/pricing";
 
   if (isApiAuthRoute) return NextResponse.next();
   if (!isLoggedIn && !isPublicRoute) {

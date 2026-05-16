@@ -1,17 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Navbar, Hero, Product, Solutions, Resources, Testimonials, FinalCTA, Footer } from "./home";
-import type { NavItem } from "./home";
+import { Navbar, Pricing, Footer } from "../home";
+import type { NavItem } from "../home";
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Product", href: "#product" },
-  { label: "Solutions", href: "#solutions" },
-  { label: "Resources", href: "#resources" },
+  { label: "Product", href: "/#product" },
+  { label: "Solutions", href: "/#solutions" },
+  { label: "Resources", href: "/#resources" },
   { label: "Pricing", href: "/pricing" },
 ];
 
-export default function Home() {
+export default function PricingPage() {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -55,12 +55,7 @@ export default function Home() {
       `}</style>
 
       <Navbar scrolled={scrolled} navItems={NAV_ITEMS} />
-      <Hero />
-      <Product />
-      <Solutions />
-      <Resources />
-      <Testimonials />
-      <FinalCTA />
+      <Pricing standalone />
       <Footer />
     </>
   );

@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { Plus, Building2, ChevronDown } from "lucide-react";
+import { Plus, Building2 } from "lucide-react";
 import type { Folder } from "@/types/type-folders";
 import type { Board } from "@/types/type-boards";
 import { Button } from "@/components/ui/button";
@@ -34,40 +33,14 @@ export function WorkspaceSidebar({
   onDeleteFolder,
   onRenameDocumentSubmit,
   onDeleteDocument,
-  isLoading,
+  isLoading
 }: WorkspaceSidebarProps) {
   return (
-    <aside className="flex h-full w-64 flex-col border-r bg-sidebar text-sidebar-foreground">
-      {/* Header / Logo */}
-      <div className="flex flex-col gap-4 border-b border-sidebar-border px-4 py-5">
-        <Link href="/dashboard" className="flex items-center gap-2.5">
-          <div className="flex size-8 items-center justify-center">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <circle cx="5" cy="5" r="4" fill="#53A3FF" />
-              <circle cx="15" cy="5" r="4" fill="#14100A" />
-              <circle cx="5" cy="15" r="4" fill="#14100A" />
-              <circle cx="15" cy="15" r="4" fill="#14100A" />
-            </svg>
-          </div>
-          <span className="text-base font-bold tracking-tight">ChronoTask</span>
-        </Link>
-
-        {/* Mock Tenant Selector */}
-        <div className="flex cursor-pointer items-center justify-between rounded-md p-2 transition-colors hover:bg-sidebar-accent">
-          <div className="flex items-center gap-2">
-            <div className="flex size-8 items-center justify-center rounded bg-brand-soft-blue text-brand-blue">
-              <Building2 className="size-4" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-medium leading-none">Tenant 1</span>
-              <div className="mt-1 flex items-center gap-1">
-                <span className="text-[10px] text-muted-foreground">Subscription</span>
-                <span className="rounded bg-blue-100 px-1 py-0.5 text-[9px] font-medium text-blue-600">Free</span>
-              </div>
-            </div>
-          </div>
-          <ChevronDown className="size-4 text-muted-foreground" />
-        </div>
+    <aside className="flex h-full w-64 flex-col rounded-xl border bg-sidebar text-sidebar-foreground shadow-sm overflow-hidden">
+      {/* Workspace Title */}
+      <div className="flex items-center gap-2 border-b border-sidebar-border px-4 py-3">
+        <Building2 className="size-4 text-muted-foreground" />
+        <span className="text-sm font-medium">{workspaceName}</span>
       </div>
 
       <div className="flex-1 overflow-y-auto p-3">
@@ -78,7 +51,9 @@ export function WorkspaceSidebar({
             ))}
           </div>
         ) : folders.length === 0 ? (
-          <p className="px-2 py-4 text-center text-xs text-muted-foreground">No folders yet.</p>
+          <p className="px-2 py-4 text-center text-xs text-muted-foreground">
+            No folders yet.
+          </p>
         ) : (
           <div className="flex flex-col gap-1">
             {folders.map((folder) => (
@@ -99,7 +74,7 @@ export function WorkspaceSidebar({
         )}
       </div>
 
-      <div className="flex flex-col gap-4 border-t border-sidebar-border p-4">
+      <div className="flex flex-col gap-4 p-4">
         <Button
           variant="ghost"
           size="sm"
@@ -118,7 +93,9 @@ export function WorkspaceSidebar({
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-sidebar-accent border border-sidebar-border">
             <div className="h-full w-[40%] rounded-full bg-brand-blue" />
           </div>
-          <span className="text-[10px] text-muted-foreground">2.50GB / 6 GB</span>
+          <span className="text-[10px] text-muted-foreground">
+            2.50GB / 6 GB
+          </span>
         </div>
       </div>
     </aside>

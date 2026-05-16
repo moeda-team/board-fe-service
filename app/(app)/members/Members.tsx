@@ -10,25 +10,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle
-} from "@/components/ui/sheet";
-import { Textarea } from "@/components/ui/textarea";
 import { useAuthMe } from "@/hooks/api/useAuth";
 import {
   useCancelTenantInvite,
-  useInviteMember,
   useRemoveTenantMember,
   useTenantMembers,
   useUpdateMemberRole
 } from "@/hooks/api/useTenantMembers";
 import { useRoles } from "@/hooks/api/useTenantRoles";
+import { InviteMemberDialog } from "../components/member/InviteMemberDialog";
 import type {
   ActiveTenantMember,
   PendingTenantInvite,
@@ -42,12 +32,11 @@ import {
   Loader2,
   MoreHorizontal,
   Plus,
-  Send,
   Trash2,
   UserRound,
   Users
 } from "lucide-react";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import SearchBox from "../components/input/SearchBox";
 import DynamicTabs from "../components/Layout/DynamicTabs";
@@ -100,12 +89,6 @@ const normalizePermission = (permission: unknown) => {
   return "";
 };
 
-const parseWorkspaceIds = (value: string) =>
-  value
-    .split(/[\s,]+/)
-    .map((workspaceId) => workspaceId.trim())
-    .filter(Boolean);
-
 const mapActiveMemberToRow = (
   member: ActiveTenantMember,
   status: TenantMemberTableRow["status"] = "Active"
@@ -149,9 +132,6 @@ const Members = () => {
   const [activeTab, setActiveTab] = useState("active");
   const [search, setSearch] = useState("");
   const [isInviteOpen, setIsInviteOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRoleId, setInviteRoleId] = useState("");
-  const [inviteWorkspaceIds, setInviteWorkspaceIds] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -169,9 +149,7 @@ const Members = () => {
     15,
     debouncedSearch
   );
-  const { data: roles = [], isLoading: isRolesLoading } = useRoles(tenantId);
-  const { mutate: inviteMember, isPending: isInvitingMember } =
-    useInviteMember();
+  const { data: roles = [] } = useRoles(tenantId);
   const { mutate: updateMemberRole, isPending: isUpdatingMemberRole } =
     useUpdateMemberRole();
   const { mutate: removeTenantMember, isPending: isRemovingTenantMember } =
@@ -203,12 +181,6 @@ const Members = () => {
   const isLoading = isAuthLoading || isMembersLoading;
   const isMutatingRow =
     isUpdatingMemberRole || isRemovingTenantMember || isCancelingTenantInvite;
-
-  useEffect(() => {
-    if (!inviteRoleId && roleOptions[0]?.id) {
-      setInviteRoleId(roleOptions[0].id as string);
-    }
-  }, [inviteRoleId, roleOptions]);
 
   const activeRows = useMemo(() => {
     const activeMembers = membersData?.activeMembers ?? [];
@@ -243,42 +215,6 @@ const Members = () => {
   ).length;
   const totalMemberCount =
     membersData?.meta?.total ?? activeMemberCount + pendingInviteCount;
-  const selectedInviteRole = roleOptions.find(
-    (role) => role.id === inviteRoleId
-  );
-
-  const handleInviteSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const email = inviteEmail.trim();
-
-    if (!tenantId || !email || !inviteRoleId || isInvitingMember) {
-      return;
-    }
-
-    if (!canInviteMember) {
-      toast.error("You don't have permission to invite members.");
-      return;
-    }
-
-    inviteMember(
-      {
-        tenantId,
-        dto: {
-          email,
-          roleId: inviteRoleId,
-          workspaceIds: parseWorkspaceIds(inviteWorkspaceIds)
-        }
-      },
-      {
-        onSuccess: () => {
-          setInviteEmail("");
-          setInviteWorkspaceIds("");
-          setIsInviteOpen(false);
-        }
-      }
-    );
-  };
 
   const handleRoleChange = (row: TenantMemberTableRow, roleId: string) => {
     if (!tenantId || row.roleId === roleId || isUpdatingMemberRole) {
@@ -525,12 +461,11 @@ const Members = () => {
           />
           {canInviteMember && (
             <Button
-              type="button"
+              className="bg-brand-blue hover:bg-brand-blue/90 text-brand-white shadow-sm"
               onClick={() => setIsInviteOpen(true)}
-              disabled={isRolesLoading}
             >
-              <Plus className="h-4 w-4" />
-              Invite Member
+              <Plus className="mr-2 h-4 w-4" />
+              Invite member
             </Button>
           )}
         </div>
@@ -602,95 +537,12 @@ const Members = () => {
           />
         )}
       </div>
-      <Sheet open={isInviteOpen} onOpenChange={setIsInviteOpen}>
-        <SheetContent className="w-full sm:max-w-md">
-          <form onSubmit={handleInviteSubmit} className="flex h-full flex-col">
-            <SheetHeader>
-              <SheetTitle>Invite member</SheetTitle>
-              <SheetDescription>
-                Send an invitation and assign a tenant role.
-              </SheetDescription>
-            </SheetHeader>
-            <div className="flex flex-1 flex-col gap-4 px-4">
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium" htmlFor="invite-email">
-                  Email
-                </label>
-                <Input
-                  id="invite-email"
-                  type="email"
-                  placeholder="user@example.com"
-                  value={inviteEmail}
-                  onChange={(event) => setInviteEmail(event.target.value)}
-                  required
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium">Role</label>
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    type="button"
-                    className="inline-flex h-8 w-full items-center justify-between rounded-lg border border-input px-2.5 text-sm"
-                  >
-                    {selectedInviteRole?.name ?? "Select role"}
-                    <ChevronDown className="h-4 w-4" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-52">
-                    {roleOptions.length === 0 ? (
-                      <DropdownMenuItem disabled>
-                        No roles available
-                      </DropdownMenuItem>
-                    ) : (
-                      roleOptions.map((role: Role) => (
-                        <DropdownMenuItem
-                          key={role.id}
-                          onClick={() => setInviteRoleId(role.id)}
-                        >
-                          {role.name}
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-              <div className="flex flex-col gap-2">
-                <label
-                  className="text-sm font-medium"
-                  htmlFor="invite-workspaces"
-                >
-                  Workspace IDs
-                </label>
-                <Textarea
-                  id="invite-workspaces"
-                  placeholder="Separate workspace IDs with comma, space, or new line"
-                  value={inviteWorkspaceIds}
-                  onChange={(event) =>
-                    setInviteWorkspaceIds(event.target.value)
-                  }
-                />
-              </div>
-            </div>
-            <SheetFooter>
-              <Button
-                type="submit"
-                disabled={
-                  isInvitingMember ||
-                  isRolesLoading ||
-                  !inviteEmail.trim() ||
-                  !inviteRoleId
-                }
-              >
-                {isInvitingMember ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-                Send invite
-              </Button>
-            </SheetFooter>
-          </form>
-        </SheetContent>
-      </Sheet>
+      <InviteMemberDialog
+        tenantId={tenantId}
+        open={isInviteOpen}
+        onOpenChange={setIsInviteOpen}
+        canInviteMember={canInviteMember}
+      />
     </LayoutWrapper>
   );
 };

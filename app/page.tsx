@@ -508,19 +508,109 @@ export default function Home() {
               Spaces, Folders, Boards, and Docs — all structured in one place. No more juggling between apps to track
               what your team is working on.
             </p>
-            <div className="mt-10 grid grid-cols-2 gap-6">
+            <div className="mt-10 grid grid-cols-2 gap-4">
               {[
-                { v: `${statsCount}+`, l: "Teams onboarded" },
-                { v: "3×", l: "Faster project handoffs" },
-                { v: "RBAC", l: "Enterprise access control" },
-                { v: "∞", l: "Spaces per workspace" },
-              ].map(({ v, l }, i) => (
+                {
+                  icon: (
+                    <svg
+                      width="28"
+                      height="28"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#7C6FF7"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                      <circle cx="12" cy="12" r="3" />
+                      <path d="M15 9l1.5-1.5" />
+                    </svg>
+                  ),
+                  iconBg: "#EDEAFD",
+                  title: "Custom Roles",
+                  desc: "Granular access control with flexible roles and permissions.",
+                },
+                {
+                  icon: (
+                    <svg
+                      width="28"
+                      height="28"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#F472B6"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <rect x="3" y="10" width="5" height="10" rx="1" />
+                      <rect x="16" y="10" width="5" height="10" rx="1" />
+                      <path d="M8 20h8" />
+                      <path d="M12 4c-3 0-5 2-5 4" strokeDasharray="2 2" />
+                      <path d="M12 4c3 0 5 2 5 4" strokeDasharray="2 2" />
+                    </svg>
+                  ),
+                  iconBg: "#FDE8F3",
+                  title: "Multi-Tenant Access",
+                  desc: "Invite other companies and collaborate across organizations.",
+                },
+                {
+                  icon: (
+                    <svg
+                      width="28"
+                      height="28"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#10B981"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M12 12c-2-2.5-4-4-6-4a4 4 0 0 0 0 8c2 0 4-1.5 6-4z" />
+                      <path d="M12 12c2 2.5 4 4 6 4a4 4 0 0 0 0-8c-2 0-4 1.5-6 4z" />
+                    </svg>
+                  ),
+                  iconBg: "#D1FAE5",
+                  title: "Unlimited Workspaces",
+                  desc: "Create unlimited workspaces to organize projects your way.",
+                },
+                {
+                  icon: (
+                    <svg
+                      width="28"
+                      height="28"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#53A3FF"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="12" cy="6" r="2.5" />
+                      <path d="M7 21v-1.5a5 5 0 0 1 10 0V21" />
+                      <circle cx="5" cy="8" r="2" />
+                      <path d="M2 21v-1a4 4 0 0 1 5.5-3.7" />
+                      <circle cx="19" cy="8" r="2" />
+                      <path d="M22 21v-1a4 4 0 0 0-5.5-3.7" />
+                    </svg>
+                  ),
+                  iconBg: "#DBEAFE",
+                  title: "Unlimited Users",
+                  desc: "Add as many users as you need. No seat limits, ever.",
+                },
+              ].map(({ icon, iconBg, title, desc }, i) => (
                 <div
-                  key={l}
-                  className={`bg-gray-50 rounded-xl p-4 border border-gray-100 reveal-scale stagger-${i + 1} ${productReveal.visible ? "revealed" : ""}`}
+                  key={title}
+                  className={`bg-white rounded-2xl p-5 border border-gray-100 shadow-sm reveal-scale stagger-${i + 1} ${productReveal.visible ? "revealed" : ""}`}
                 >
-                  <div className="text-2xl font-bold text-gray-900">{v}</div>
-                  <div className="text-sm text-gray-500 mt-0.5">{l}</div>
+                  <div
+                    className="w-12 h-12 rounded-full flex items-center justify-center mb-4"
+                    style={{ backgroundColor: iconBg }}
+                  >
+                    {icon}
+                  </div>
+                  <div className="text-base font-bold text-gray-900 mb-1">{title}</div>
+                  <div className="text-sm text-gray-500 leading-relaxed">{desc}</div>
                 </div>
               ))}
             </div>

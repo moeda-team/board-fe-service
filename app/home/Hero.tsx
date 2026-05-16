@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { anim } from "./hooks";
 import type { Column, Task } from "./types";
 
@@ -41,10 +41,55 @@ const INITIAL_COLUMNS: Column[] = [
   },
 ];
 
+function ProgressBar({ progress, from, delay }: { progress: number; from: number; delay: number }) {
+  const [displayWidth, setDisplayWidth] = useState(from);
+  const raf = useRef<number>(0);
+
+  useEffect(() => {
+    cancelAnimationFrame(raf.current);
+    setDisplayWidth(from);
+    const tid = setTimeout(() => {
+      raf.current = requestAnimationFrame(() => setDisplayWidth(progress));
+    }, delay);
+    return () => {
+      clearTimeout(tid);
+      cancelAnimationFrame(raf.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [progress, from]);
+
+  const increasing = progress >= from;
+  const done = progress === 100;
+  return (
+    <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+      <div
+        className="h-full rounded-full"
+        style={{
+          width: `${displayWidth}%`,
+          transition: `width ${increasing ? "0.8s cubic-bezier(0.34,1.56,0.64,1)" : "0.6s cubic-bezier(0.4,0,0.2,1)"}`,
+          background: done ? "linear-gradient(90deg, #818cf8, #6366f1, #a78bfa, #6366f1, #818cf8)" : "#818cf8",
+          backgroundSize: done ? "200% auto" : undefined,
+          animation: done ? "shimmer 2s linear infinite" : undefined,
+        }}
+      />
+    </div>
+  );
+}
+
 function KanbanBoard() {
   const [columns, setColumns] = useState<Column[]>(INITIAL_COLUMNS);
+  const [mounted, setMounted] = useState(false);
   const [draggedTask, setDraggedTask] = useState<{ task: Task; sourceColId: string } | null>(null);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
+  const [hoveredTask, setHoveredTask] = useState<string | null>(null);
+  const prevProgressMap = useRef<Record<string, number>>(
+    Object.fromEntries(INITIAL_COLUMNS.flatMap((c) => c.tasks.map((t) => [t.id, t.progress]))),
+  );
+
+  useEffect(() => {
+    const t = setTimeout(() => setMounted(true), 50);
+    return () => clearTimeout(t);
+  }, []);
 
   const handleDragStart = (task: Task, sourceColId: string) => {
     setDraggedTask({ task, sourceColId });
@@ -70,13 +115,22 @@ function KanbanBoard() {
       return;
     }
 
+    const progressForCol = (colId: string) => {
+      if (colId === "done") return 100;
+      if (colId === "inprogress") return Math.floor(Math.random() * 45) + 40;
+      return Math.floor(Math.random() * 25) + 5;
+    };
+
+    const newProgress = progressForCol(targetColId);
+    prevProgressMap.current[task.id] = task.progress;
+
     setColumns((prev) => {
       const newCols = prev.map((col) => {
         if (col.id === sourceColId) {
           return { ...col, tasks: col.tasks.filter((t) => t.id !== task.id) };
         }
         if (col.id === targetColId) {
-          return { ...col, tasks: [...col.tasks, task] };
+          return { ...col, tasks: [...col.tasks, { ...task, progress: newProgress }] };
         }
         return col;
       });
@@ -103,26 +157,51 @@ function KanbanBoard() {
           {columns.map(({ id, title, color, tasks }) => (
             <div
               key={id}
-              className={`flex-1 rounded-xl p-3.5 ${color} transition-all ${dragOverCol === id ? "ring-2 ring-indigo-400 ring-offset-2" : ""}`}
+              className={`flex-1 rounded-xl p-3.5 ${color} transition-all duration-200 ${dragOverCol === id ? "ring-2 ring-indigo-400 ring-offset-2 scale-[1.02] shadow-md" : ""}`}
               onDragOver={(e) => handleDragOver(e, id)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, id)}
             >
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">{title}</p>
-              {tasks.map((task) => (
+              {tasks.map((task, taskIdx) => (
                 <div
                   key={task.id}
                   draggable
                   onDragStart={() => handleDragStart(task, id)}
-                  className="bg-white rounded-lg px-3 py-2.5 mb-2 shadow-sm border border-gray-100 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
+                  onDragEnd={() => setDraggedTask(null)}
+                  onMouseEnter={() => setHoveredTask(task.id)}
+                  onMouseLeave={() => setHoveredTask(null)}
+                  className="bg-white rounded-lg px-3 py-2.5 mb-2 shadow-sm border border-gray-100 cursor-grab active:cursor-grabbing hover:shadow-md transition-all select-none"
+                  style={{
+                    opacity: draggedTask?.task.id === task.id ? 0.4 : mounted ? 1 : 0,
+                    transform:
+                      draggedTask?.task.id === task.id ? "scale(0.96)" : mounted ? "translateY(0)" : "translateY(8px)",
+                    transition: `opacity 0.5s ease, transform 0.5s ease`,
+                    transitionDelay: draggedTask ? "0ms" : mounted ? `${taskIdx * 80}ms` : "0ms",
+                  }}
                 >
                   <p className="text-sm text-gray-700 font-medium">{task.title}</p>
                   <div className="flex items-center gap-1 mt-1.5">
                     <div className="w-5 h-5 rounded-full bg-indigo-200 text-indigo-700 text-[10px] flex items-center justify-center font-bold">
                       A
                     </div>
-                    <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                      <div className="h-full rounded-full bg-indigo-400" style={{ width: `${task.progress}%` }} />
+                    <div className="relative flex-1">
+                      <ProgressBar
+                        key={task.id}
+                        progress={task.progress}
+                        from={mounted ? (prevProgressMap.current[task.id] ?? 0) : 0}
+                        delay={mounted ? taskIdx * 60 : taskIdx * 60}
+                      />
+                      <span
+                        className="absolute -top-4 right-0 text-[9px] font-semibold text-indigo-500 pointer-events-none"
+                        style={{
+                          opacity: hoveredTask === task.id ? 1 : 0,
+                          transform: hoveredTask === task.id ? "translateY(0)" : "translateY(3px)",
+                          transition: "opacity 0.2s ease, transform 0.2s ease",
+                        }}
+                      >
+                        {task.progress}%
+                      </span>
                     </div>
                   </div>
                 </div>

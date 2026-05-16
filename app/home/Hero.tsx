@@ -157,7 +157,7 @@ function KanbanBoard() {
           {columns.map(({ id, title, color, tasks }) => (
             <div
               key={id}
-              className={`flex-1 rounded-xl p-3.5 ${color} transition-all duration-200 ${dragOverCol === id ? "ring-2 ring-indigo-400 ring-offset-2 scale-[1.02] shadow-md" : ""}`}
+              className={`flex-1 rounded-xl p-3.5 ${color} transition-all duration-200 overflow-y-auto max-h-full ${dragOverCol === id ? "ring-2 ring-indigo-400 ring-offset-2 scale-[1.02] shadow-md" : ""}`}
               onDragOver={(e) => handleDragOver(e, id)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, id)}

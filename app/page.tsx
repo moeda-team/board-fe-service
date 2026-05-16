@@ -3,6 +3,183 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+interface Task {
+  id: string;
+  title: string;
+  progress: number;
+}
+
+interface Column {
+  id: string;
+  title: string;
+  color: string;
+  tasks: Task[];
+}
+
+const INITIAL_COLUMNS: Column[] = [
+  {
+    id: "todo",
+    title: "To Do",
+    color: "bg-gray-100",
+    tasks: [
+      { id: "t1", title: "Implement OAuth2 login", progress: 15 },
+      { id: "t2", title: "Setup Stripe billing", progress: 5 },
+      { id: "t3", title: "Design email templates", progress: 25 },
+      { id: "t4", title: "Write API documentation", progress: 10 },
+    ],
+  },
+  {
+    id: "inprogress",
+    title: "In Progress",
+    color: "bg-blue-50",
+    tasks: [
+      { id: "t5", title: "Dashboard analytics", progress: 65 },
+      { id: "t6", title: "RBAC permissions", progress: 80 },
+      { id: "t7", title: "Mobile responsive", progress: 45 },
+    ],
+  },
+  {
+    id: "done",
+    title: "Done",
+    color: "bg-green-50",
+    tasks: [
+      { id: "t8", title: "Real-time notifications", progress: 100 },
+      { id: "t9", title: "PostgreSQL schema", progress: 100 },
+      { id: "t10", title: "CI/CD pipeline", progress: 100 },
+      { id: "t11", title: "Docker compose setup", progress: 100 },
+      { id: "t12", title: "Health check endpoint", progress: 100 },
+    ],
+  },
+];
+
+function KanbanBoard() {
+  const [columns, setColumns] = useState<Column[]>(INITIAL_COLUMNS);
+  const [draggedTask, setDraggedTask] = useState<{ task: Task; sourceColId: string } | null>(null);
+  const [dragOverCol, setDragOverCol] = useState<string | null>(null);
+
+  const handleDragStart = (task: Task, sourceColId: string) => {
+    setDraggedTask({ task, sourceColId });
+  };
+
+  const handleDragOver = (e: React.DragEvent, colId: string) => {
+    e.preventDefault();
+    setDragOverCol(colId);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverCol(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetColId: string) => {
+    e.preventDefault();
+    if (!draggedTask) return;
+
+    const { task, sourceColId } = draggedTask;
+    if (sourceColId === targetColId) {
+      setDragOverCol(null);
+      setDraggedTask(null);
+      return;
+    }
+
+    setColumns((prev) => {
+      const newCols = prev.map((col) => {
+        if (col.id === sourceColId) {
+          return { ...col, tasks: col.tasks.filter((t) => t.id !== task.id) };
+        }
+        if (col.id === targetColId) {
+          return { ...col, tasks: [...col.tasks, task] };
+        }
+        return col;
+      });
+      return newCols;
+    });
+
+    setDragOverCol(null);
+    setDraggedTask(null);
+  };
+
+  return (
+    <div
+      className="flex-1 relative hidden lg:flex items-center justify-center"
+      style={{ animation: "scaleIn 0.9s cubic-bezier(0.22,1,0.36,1) 0.3s both" }}
+    >
+      {/* Main board card */}
+      <div className="float bg-white rounded-2xl shadow-2xl border border-white/60 w-[540px] h-[60vh] overflow-hidden flex flex-col">
+        {/* Topbar */}
+        <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100">
+          <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+          <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
+          <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
+          <span className="ml-3 text-sm text-gray-400 font-medium">ChronoTask — Engineering Sprint</span>
+        </div>
+        {/* Kanban columns */}
+        <div className="flex gap-4 p-5 flex-1 overflow-auto">
+          {columns.map(({ id, title, color, tasks }) => (
+            <div
+              key={id}
+              className={`flex-1 rounded-xl p-3.5 ${color} transition-all ${dragOverCol === id ? "ring-2 ring-indigo-400 ring-offset-2" : ""}`}
+              onDragOver={(e) => handleDragOver(e, id)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, id)}
+            >
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">{title}</p>
+              {tasks.map((task) => (
+                <div
+                  key={task.id}
+                  draggable
+                  onDragStart={() => handleDragStart(task, id)}
+                  className="bg-white rounded-lg px-3 py-2.5 mb-2 shadow-sm border border-gray-100 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
+                >
+                  <p className="text-sm text-gray-700 font-medium">{task.title}</p>
+                  <div className="flex items-center gap-1 mt-1.5">
+                    <div className="w-5 h-5 rounded-full bg-indigo-200 text-indigo-700 text-[10px] flex items-center justify-center font-bold">
+                      A
+                    </div>
+                    <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                      <div className="h-full rounded-full bg-indigo-400" style={{ width: `${task.progress}%` }} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Floating KPI badge */}
+      <div className="float-slow absolute -top-4 -right-6 bg-white rounded-xl shadow-lg border border-gray-100 px-4 py-3 w-44">
+        <p className="text-xs text-gray-400 font-medium mb-1.5">Top Developer</p>
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-full bg-indigo-500 text-white text-[10px] flex items-center justify-center font-bold">
+            JD
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-gray-800">John D.</p>
+            <p className="text-xs text-emerald-500 font-medium">KPI 94 🏆</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Floating permission badge */}
+      <div className="float absolute -bottom-2 -left-8 bg-white rounded-xl shadow-lg border border-gray-100 px-4 py-3 w-52">
+        <p className="text-xs text-gray-400 font-medium mb-2">Access Control</p>
+        {[
+          ["Dev", "Can Edit", "bg-blue-400"],
+          ["Client", "View Only", "bg-yellow-400"],
+        ].map(([r, a, c]) => (
+          <div key={r} className="flex items-center justify-between mb-1">
+            <span className="text-sm text-gray-700">{r}</span>
+            <div className="flex items-center gap-1">
+              <div className={`w-1.5 h-1.5 rounded-full ${c}`} />
+              <span className="text-xs text-gray-400">{a}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function anim(delay: string) {
   return { animation: "fadeUp 0.7s cubic-bezier(0.22,1,0.36,1) both", animationDelay: delay } as React.CSSProperties;
 }
@@ -235,7 +412,7 @@ export default function Home() {
                   href="/login"
                   className="btn-shine bg-gray-900 text-white px-7 py-3.5 rounded-xl text-sm font-semibold hover:bg-gray-700 transition-colors shadow-lg"
                 >
-                  Start Free
+                  Sign up, it's Free!
                 </Link>
                 <Link
                   href="/login"
@@ -244,98 +421,10 @@ export default function Home() {
                   Book a Demo
                 </Link>
               </div>
-              <div className="mt-10 flex items-center gap-6" style={anim("550ms")}>
-                {[
-                  ["100+", "Teams"],
-                  ["RBAC", "Access Control"],
-                  ["∞", "Spaces"],
-                ].map(([v, l]) => (
-                  <div key={l}>
-                    <div className="text-xl font-bold text-gray-900">{v}</div>
-                    <div className="text-xs text-gray-500">{l}</div>
-                  </div>
-                ))}
-              </div>
             </div>
 
             {/* Right: mock UI */}
-            <div
-              className="flex-1 relative hidden lg:flex items-center justify-center"
-              style={{ ...anim("300ms"), animation: "scaleIn 0.9s cubic-bezier(0.22,1,0.36,1) 0.3s both" }}
-            >
-              {/* Main board card */}
-              <div className="float bg-white rounded-2xl shadow-2xl border border-white/60 w-[420px] overflow-hidden">
-                {/* Topbar */}
-                <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
-                  <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
-                  <span className="ml-3 text-xs text-gray-400 font-medium">ChronoTask — Engineering Sprint</span>
-                </div>
-                {/* Kanban columns */}
-                <div className="flex gap-3 p-4">
-                  {[
-                    { col: "To Do", color: "bg-gray-100", tasks: ["API auth endpoint", "Write unit tests"] },
-                    { col: "In Progress", color: "bg-blue-50", tasks: ["Dashboard UI", "RBAC module"] },
-                    { col: "Done", color: "bg-green-50", tasks: ["DB schema", "CI pipeline"] },
-                  ].map(({ col, color, tasks }) => (
-                    <div key={col} className={`flex-1 rounded-xl p-2.5 ${color}`}>
-                      <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">{col}</p>
-                      {tasks.map((t, ti) => (
-                        <div
-                          key={t}
-                          className="bg-white rounded-lg px-2.5 py-2 mb-1.5 shadow-sm border border-gray-100"
-                        >
-                          <p className="text-xs text-gray-700 font-medium">{t}</p>
-                          <div className="flex items-center gap-1 mt-1.5">
-                            <div className="w-4 h-4 rounded-full bg-indigo-200 text-indigo-700 text-[8px] flex items-center justify-center font-bold">
-                              A
-                            </div>
-                            <div className="flex-1 h-1 rounded-full bg-gray-100 overflow-hidden">
-                              <div
-                                className="h-full rounded-full bg-indigo-400"
-                                style={{ width: `${[45, 70, 60, 85, 90, 55][ti % 6]}%` }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Floating KPI badge */}
-              <div className="float-slow absolute -top-4 -right-6 bg-white rounded-xl shadow-lg border border-gray-100 px-3 py-2.5 w-36">
-                <p className="text-[10px] text-gray-400 font-medium mb-1">Top Developer</p>
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-indigo-500 text-white text-[9px] flex items-center justify-center font-bold">
-                    JD
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-gray-800">John D.</p>
-                    <p className="text-[10px] text-emerald-500 font-medium">KPI 94 🏆</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Floating permission badge */}
-              <div className="float absolute -bottom-2 -left-8 bg-white rounded-xl shadow-lg border border-gray-100 px-3 py-2.5 w-44">
-                <p className="text-[10px] text-gray-400 font-medium mb-1.5">Access Control</p>
-                {[
-                  ["Dev", "Can Edit", "bg-blue-400"],
-                  ["Client", "View Only", "bg-yellow-400"],
-                ].map(([r, a, c]) => (
-                  <div key={r} className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-gray-700">{r}</span>
-                    <div className="flex items-center gap-1">
-                      <div className={`w-1.5 h-1.5 rounded-full ${c}`} />
-                      <span className="text-[10px] text-gray-400">{a}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <KanbanBoard />
           </div>
         </div>
       </div>

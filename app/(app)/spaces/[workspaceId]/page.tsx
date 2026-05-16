@@ -266,7 +266,7 @@ export default function WorkspaceDetailPage() {
   }
 
   return (
-    <div className="flex h-full w-full ">
+    <div className="flex h-full w-full gap-2 px-2">
       {/* Secondary Sidebar */}
       <WorkspaceSidebar
         workspaceName={workspace?.name || "Workspace"}
@@ -328,7 +328,7 @@ export default function WorkspaceDetailPage() {
       />
 
       {/* Main Content */}
-      <div className="flex flex-1 min-w-0 flex-col">
+      <div className="flex flex-1 min-w-0 flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between border-b px-6 py-3">
           <div className="flex items-center gap-4">

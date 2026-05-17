@@ -42,12 +42,14 @@ export interface CreateWorkspaceDto {
     name: string;
     description?: string;
     color?: string;
+    image?: File;
 }
 
 export interface UpdateWorkspaceDto {
     name?: string;
     description?: string;
     color?: string;
+    image?: File;
 }
 export type AddWorkspaceMemberDto = Record<string, unknown>;
 export type CreateFolderDto = Record<string, unknown>;

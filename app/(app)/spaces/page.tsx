@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 function useImageFallback() {
@@ -9,30 +9,16 @@ function useImageFallback() {
 }
 import { Loader2, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { useAuthMe } from "@/hooks/api/useAuth";
-import {
-  useWorkspaces,
-  useCreateWorkspace,
-  useUpdateWorkspace,
-  useDeleteWorkspace
-} from "@/hooks/api/useWorkspaces";
+import { useWorkspaces, useDeleteWorkspace } from "@/hooks/api/useWorkspaces";
 import type { Workspace } from "@/types/type-workspaces";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle
-} from "@/components/ui/sheet";
+import CreateSpaceDrawer from "./CreateSpaceDrawer";
 import LayoutWrapper from "../components/Layout/LayoutWrapper";
 import SearchBox from "../components/input/SearchBox";
 
@@ -149,10 +135,6 @@ export default function SpacesPage() {
   const { data: workspaces = [], isLoading: isWorkspacesLoading } =
     useWorkspaces(tenantId);
 
-  const { mutate: createWorkspace, isPending: isCreating } =
-    useCreateWorkspace();
-  const { mutate: updateWorkspace, isPending: isUpdating } =
-    useUpdateWorkspace();
   const { mutate: deleteWorkspace, isPending: isDeleting } =
     useDeleteWorkspace();
 
@@ -161,11 +143,6 @@ export default function SpacesPage() {
   const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(
     null
   );
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [color, setColor] = useState("");
-
-  const isMutating = isCreating || isUpdating || isDeleting;
 
   const filteredWorkspaces = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -177,65 +154,21 @@ export default function SpacesPage() {
 
   const openCreate = () => {
     setEditingWorkspace(null);
-    setName("");
-    setDescription("");
-    setColor("");
     setIsSheetOpen(true);
   };
 
   const openEdit = (workspace: Workspace) => {
     setEditingWorkspace(workspace);
-    setName(workspace.name ?? "");
-    setDescription(workspace.description ?? "");
-    setColor(workspace.color ?? "");
     setIsSheetOpen(true);
   };
 
   const handleDelete = (workspace: Workspace) => {
-    if (!tenantId || !workspace.id || isMutating) return;
+    if (!tenantId || !workspace.id || isDeleting) return;
     const confirmed = window.confirm(
       `Delete workspace "${workspace.name}"? This action cannot be undone.`
     );
     if (!confirmed) return;
     deleteWorkspace({ tenantId, workspaceId: workspace.id });
-  };
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!tenantId || !name.trim() || isMutating) return;
-
-    const dto = {
-      name: name.trim(),
-      description: description.trim() || undefined,
-      color: color.trim() || undefined
-    };
-
-    if (editingWorkspace?.id) {
-      updateWorkspace(
-        { tenantId, workspaceId: editingWorkspace.id, dto },
-        {
-          onSuccess: () => {
-            setIsSheetOpen(false);
-            setEditingWorkspace(null);
-            setName("");
-            setDescription("");
-            setColor("");
-          }
-        }
-      );
-    } else {
-      createWorkspace(
-        { tenantId, dto },
-        {
-          onSuccess: () => {
-            setIsSheetOpen(false);
-            setName("");
-            setDescription("");
-            setColor("");
-          }
-        }
-      );
-    }
   };
 
   const isLoading = isAuthLoading || isWorkspacesLoading;
@@ -281,7 +214,7 @@ export default function SpacesPage() {
             placeholder="Search"
             resultCount={filteredWorkspaces.length}
           />
-          <Button type="button" onClick={openCreate} disabled={isMutating}>
+          <Button type="button" onClick={openCreate} disabled={isDeleting}>
             <Plus className="h-4 w-4" />
             Create New Space
           </Button>
@@ -322,83 +255,12 @@ export default function SpacesPage() {
         </div>
       )}
 
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent className="w-full sm:max-w-md">
-          <form onSubmit={handleSubmit} className="flex h-full flex-col">
-            <SheetHeader>
-              <SheetTitle>
-                {editingWorkspace ? "Edit Space" : "Create New Space"}
-              </SheetTitle>
-              <SheetDescription>
-                {editingWorkspace
-                  ? "Update your workspace details."
-                  : "Add a new workspace to organize your projects."}
-              </SheetDescription>
-            </SheetHeader>
-            <div className="flex flex-1 flex-col gap-4 px-4 py-2">
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium" htmlFor="space-name">
-                  Name
-                </label>
-                <Input
-                  id="space-name"
-                  placeholder="e.g. Project WCC"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <label
-                  className="text-sm font-medium"
-                  htmlFor="space-description"
-                >
-                  Description
-                </label>
-                <Textarea
-                  id="space-description"
-                  placeholder="Short description..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium" htmlFor="space-color">
-                  Color
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    id="space-color"
-                    type="color"
-                    value={color || "#227bfe"}
-                    onChange={(e) => setColor(e.target.value)}
-                    className="h-10 w-10 cursor-pointer rounded-md border border-input bg-transparent p-1"
-                  />
-                  <Input
-                    placeholder="#227bfe"
-                    value={color}
-                    onChange={(e) => setColor(e.target.value)}
-                    className="flex-1"
-                  />
-                </div>
-              </div>
-            </div>
-            <SheetFooter>
-              <Button type="submit" disabled={isMutating || !name.trim()}>
-                {isMutating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : editingWorkspace ? (
-                  <Pencil className="h-4 w-4" />
-                ) : (
-                  <Plus className="h-4 w-4" />
-                )}
-                {editingWorkspace ? "Update Space" : "Create Space"}
-              </Button>
-            </SheetFooter>
-          </form>
-        </SheetContent>
-      </Sheet>
+      <CreateSpaceDrawer
+        open={isSheetOpen}
+        onOpenChange={setIsSheetOpen}
+        editingWorkspace={editingWorkspace}
+        tenantId={tenantId}
+      />
     </LayoutWrapper>
   );
 }

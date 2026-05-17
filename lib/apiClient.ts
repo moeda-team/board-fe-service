@@ -1,6 +1,8 @@
 import axios from "axios";
+import { signOut } from "next-auth/react";
 
 let currentToken: string | null = null;
+let isRedirecting401 = false;
 
 export function setApiToken(token: string | null) {
     currentToken = token;
@@ -33,9 +35,10 @@ apiClient.interceptors.response.use(
         } else {
             console.error("[apiClient] Network/Request error:", error.message);
         }
-        if (status === 401) {
+        if (status === 401 && !isRedirecting401) {
+            isRedirecting401 = true;
             setApiToken(null);
-            window.location.href = "/login";
+            signOut({ callbackUrl: "/login" });
         }
         return Promise.reject(error);
     }

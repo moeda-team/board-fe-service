@@ -28,7 +28,14 @@ export const useCreateWorkspace = () => {
   return useMutation({
     meta: { successMessage: "Workspace created", errorMessage: "Failed to create workspace" },
     mutationFn: async ({ tenantId, dto }: CreateWorkspaceParams): Promise<Workspace> => {
-      const { data } = await apiClient.post<WorkspaceEnvelope>(`/api/tenants/${tenantId}/workspaces`, dto);
+      const formData = new FormData();
+      formData.append("name", dto.name);
+      if (dto.description) formData.append("description", dto.description);
+      if (dto.color) formData.append("color", dto.color);
+      if (dto.image) formData.append("image", dto.image);
+      const { data } = await apiClient.post<WorkspaceEnvelope>(`/api/tenants/${tenantId}/workspaces`, formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
       return unwrapApiData(data);
     },
     onSuccess: async (_data, variables) => {
@@ -43,7 +50,14 @@ export const useUpdateWorkspace = () => {
   return useMutation({
     meta: { successMessage: "Workspace updated", errorMessage: "Failed to update workspace" },
     mutationFn: async ({ tenantId, workspaceId, dto }: UpdateWorkspaceParams): Promise<Workspace> => {
-      const { data } = await apiClient.patch<WorkspaceEnvelope>(`/api/tenants/${tenantId}/workspaces/${workspaceId}`, dto);
+      const formData = new FormData();
+      if (dto.name) formData.append("name", dto.name);
+      if (dto.description) formData.append("description", dto.description);
+      if (dto.color) formData.append("color", dto.color);
+      if (dto.image) formData.append("image", dto.image);
+      const { data } = await apiClient.patch<WorkspaceEnvelope>(`/api/tenants/${tenantId}/workspaces/${workspaceId}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
       return unwrapApiData(data);
     },
     onSuccess: async (_data, variables) => {

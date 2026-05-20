@@ -8,18 +8,25 @@ import {
   DialogContent,
   DialogDescription,
   DialogHeader,
-  DialogTitle,
+  DialogTitle
 } from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
-  SelectTrigger,
+  SelectTrigger
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger
+} from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
 import { useInviteMember } from "@/hooks/api/useTenantMembers";
 import { useRoles } from "@/hooks/api/useTenantRoles";
 import { useWorkspaces } from "@/hooks/api/useWorkspaces";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, ChevronDown } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -36,12 +43,14 @@ export function InviteMemberDialog({
   open,
   onOpenChange,
   canInviteMember = true,
-  onSuccess,
+  onSuccess
 }: InviteMemberDialogProps) {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRoleId, setInviteRoleId] = useState("");
-  const [inviteWorkspaceId, setInviteWorkspaceId] = useState("");
+  const [inviteWorkspaceIds, setInviteWorkspaceIds] = useState<string[]>([]);
   const [inviteMessage, setInviteMessage] = useState("");
+  const [workspaceSearch, setWorkspaceSearch] = useState("");
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
 
   const { data: roles = [], isLoading: isRolesLoading } = useRoles(tenantId);
   const { data: workspaces = [], isLoading: isWorkspacesLoading } =
@@ -56,9 +65,14 @@ export function InviteMemberDialog({
   const selectedInviteRole = roleOptions.find(
     (role) => role.id === inviteRoleId
   );
-  const selectedInviteWorkspace = workspaces.find(
-    (ws) => ws.id === inviteWorkspaceId
+  const selectedWorkspaces = useMemo(
+    () => workspaces.filter((ws) => inviteWorkspaceIds.includes(ws.id)),
+    [workspaces, inviteWorkspaceIds]
   );
+  const filteredWorkspaces = useMemo(() => {
+    const q = workspaceSearch.toLowerCase();
+    return workspaces.filter((ws) => (ws.name || "").toLowerCase().includes(q));
+  }, [workspaces, workspaceSearch]);
 
   useEffect(() => {
     if (!inviteRoleId && roleOptions[0]?.id) {
@@ -69,10 +83,16 @@ export function InviteMemberDialog({
   useEffect(() => {
     if (!open) {
       setInviteEmail("");
-      setInviteWorkspaceId("");
+      setInviteWorkspaceIds([]);
       setInviteMessage("");
     }
   }, [open]);
+
+  const handleWorkspaceToggle = (workspaceId: string, checked: boolean) => {
+    setInviteWorkspaceIds((prev) =>
+      checked ? [...prev, workspaceId] : prev.filter((id) => id !== workspaceId)
+    );
+  };
 
   const handleInviteSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -84,17 +104,19 @@ export function InviteMemberDialog({
       return;
     }
 
-    const workspaceIds = inviteWorkspaceId ? [inviteWorkspaceId] : [];
     inviteMember(
-      { tenantId, dto: { email, roleId: inviteRoleId, workspaceIds } },
+      {
+        tenantId,
+        dto: { email, roleId: inviteRoleId, workspaceIds: inviteWorkspaceIds }
+      },
       {
         onSuccess: () => {
           setInviteEmail("");
-          setInviteWorkspaceId("");
+          setInviteWorkspaceIds([]);
           setInviteMessage("");
           onOpenChange(false);
           onSuccess?.();
-        },
+        }
       }
     );
   };
@@ -153,30 +175,67 @@ export function InviteMemberDialog({
 
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium">Select Space Invite</label>
-            <Select
-              value={inviteWorkspaceId}
-              onValueChange={(value) => value && setInviteWorkspaceId(value)}
-              disabled={isWorkspacesLoading}
-            >
-              <SelectTrigger className="w-full">
-                {inviteWorkspaceId && selectedInviteWorkspace
-                  ? selectedInviteWorkspace.name || "Untitled"
-                  : "Select space"}
-              </SelectTrigger>
-              <SelectContent>
-                {workspaces.length === 0 ? (
-                  <SelectItem value="none" disabled>
-                    No spaces available
-                  </SelectItem>
-                ) : (
-                  workspaces.map((ws) => (
-                    <SelectItem key={ws.id} value={ws.id}>
-                      {ws.name || "Untitled"}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
+            {isWorkspacesLoading ? (
+              <div className="text-sm text-slate-500">Loading spaces...</div>
+            ) : workspaces.length === 0 ? (
+              <div className="text-sm text-slate-500">No spaces available</div>
+            ) : (
+              <Popover open={workspaceOpen} onOpenChange={setWorkspaceOpen}>
+                <PopoverTrigger className="flex min-h-9 w-full items-center justify-between rounded-md border bg-white px-3 py-2 text-sm hover:bg-slate-50 cursor-pointer">
+                  <div className="flex flex-wrap gap-1">
+                    {selectedWorkspaces.length === 0 ? (
+                      <span className="text-slate-500">Select spaces...</span>
+                    ) : (
+                      selectedWorkspaces.map((ws) => (
+                        <Badge
+                          key={ws.id}
+                          variant="secondary"
+                          className="text-xs"
+                        >
+                          {ws.name || "Untitled"}
+                        </Badge>
+                      ))
+                    )}
+                  </div>
+                  <ChevronDown
+                    className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${workspaceOpen ? "rotate-180" : ""}`}
+                  />
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-2" align="start">
+                  <Input
+                    placeholder="Search spaces..."
+                    value={workspaceSearch}
+                    onChange={(e) => setWorkspaceSearch(e.target.value)}
+                    className="mb-2 h-8 text-sm"
+                  />
+                  <div className="max-h-48 overflow-y-auto">
+                    {filteredWorkspaces.length === 0 ? (
+                      <div className="px-2 py-3 text-sm text-slate-500">
+                        No spaces found
+                      </div>
+                    ) : (
+                      filteredWorkspaces.map((ws) => (
+                        <label
+                          key={ws.id}
+                          className="flex items-center gap-2 cursor-pointer px-2 py-2 hover:bg-slate-100 rounded"
+                          onClick={(e) => e.preventDefault()}
+                        >
+                          <Checkbox
+                            checked={inviteWorkspaceIds.includes(ws.id)}
+                            onCheckedChange={(checked) =>
+                              handleWorkspaceToggle(ws.id, checked === true)
+                            }
+                          />
+                          <span className="text-sm">
+                            {ws.name || "Untitled"}
+                          </span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">

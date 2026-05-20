@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import {
   Sheet,
@@ -25,8 +25,8 @@ import {
   useUploadAttachment,
   useDeleteAttachment
 } from "@/hooks/api/useTaskAttachments";
+import { useTaskActivities } from "@/hooks/api/useTaskActivities";
 import {
-  useTaskComments,
   useCreateTaskComment,
   useDeleteTaskComment
 } from "@/hooks/api/useTaskComments";
@@ -40,9 +40,11 @@ import {
   Tag,
   X,
   Send,
-  Trash2
+  Trash2,
+  Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { TaskActivity } from "@/types/type-tasks";
 
 interface TaskDetailSheetProps {
   tenantId: string;
@@ -88,12 +90,10 @@ export function TaskDetailSheet({
     taskId || ""
   );
 
-  const { data: comments = [], isLoading: isLoadingComments } = useTaskComments(
-    tenantId,
-    workspaceId,
-    boardId,
-    taskId || ""
-  );
+  const { data: activities = [], isLoading: isLoadingActivities } =
+    useTaskActivities(tenantId, workspaceId, boardId, taskId || "");
+
+  // Activity feed combines comments and task activities
 
   const { mutate: createSubtask } = useCreateSubtask();
   const { mutate: updateSubtask } = useUpdateSubtask();
@@ -162,6 +162,39 @@ export function TaskDetailSheet({
       dto: { isDone: !currentIsDone }
     });
   };
+
+  // Group activities by date - must be before any early returns
+  const groupedActivities = useMemo(() => {
+    const groups: Record<string, TaskActivity[]> = {};
+    if (!activities.length) return groups;
+
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    activities.forEach((activity) => {
+      const date = new Date(activity.createdAt);
+      const dateKey = format(date, "yyyy-MM-dd");
+      const todayKey = format(today, "yyyy-MM-dd");
+      const yesterdayKey = format(yesterday, "yyyy-MM-dd");
+
+      let label: string;
+      if (dateKey === todayKey) {
+        label = "Today";
+      } else if (dateKey === yesterdayKey) {
+        label = "Yesterday";
+      } else {
+        label = format(date, "d MMMM yyyy");
+      }
+
+      if (!groups[label]) {
+        groups[label] = [];
+      }
+      groups[label].push(activity);
+    });
+
+    return groups;
+  }, [activities]);
 
   if (!taskId) return null;
 
@@ -429,62 +462,165 @@ export function TaskDetailSheet({
               </div>
             </ScrollArea>
 
-            {/* Right Panel: Comments */}
+            {/* Right Panel: Activity */}
             <div className="w-80 bg-muted/20 flex flex-col">
               <div className="p-4 border-b bg-background/50">
-                <h3 className="font-semibold">Comments</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold">Activity</h3>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search activity"
+                      className="h-8 w-36 rounded-md border border-input bg-background px-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    />
+                  </div>
+                </div>
               </div>
               <ScrollArea className="flex-1">
                 <div className="p-4 flex flex-col gap-5">
-                  {isLoadingComments ? (
-                    <div className="text-center text-sm text-muted-foreground">
-                      Loading comments...
+                  {isLoadingActivities ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                     </div>
-                  ) : comments.length === 0 ? (
-                    <div className="text-center text-sm text-muted-foreground">
-                      No comments yet. Be the first to comment.
+                  ) : activities.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground text-sm">
+                      No activity yet. Start the conversation!
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-5">
-                      {comments.map((comment) => (
-                        <div key={comment.id} className="flex gap-3 group">
-                          <Avatar className="h-8 w-8 shrink-0">
-                            <AvatarImage
-                              src={comment.creator?.avatarUrl || undefined}
-                            />
-                            <AvatarFallback>
-                              {comment.creator?.fullName?.charAt(0) || "U"}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-brand-blue">
-                                {comment.creator?.fullName || "Unknown user"}
+                    <div className="flex flex-col gap-6">
+                      {Object.entries(groupedActivities).map(
+                        ([dateLabel, dateActivities]: [
+                          string,
+                          TaskActivity[]
+                        ]) => (
+                          <div key={dateLabel} className="flex flex-col gap-3">
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                {dateLabel}
                               </span>
-                              {currentUser?.id === comment.createdBy && (
-                                <button
-                                  onClick={() =>
-                                    handleDeleteComment(comment.id)
+                              <div className="h-px flex-1 bg-border" />
+                            </div>
+                            <div className="flex flex-col gap-4">
+                              {(dateActivities as TaskActivity[]).map(
+                                (activity) => {
+                                  // Handle COMMENT feed type
+                                  if (activity.feedType === "COMMENT") {
+                                    return (
+                                      <div
+                                        key={activity.id}
+                                        className="flex gap-3 group"
+                                      >
+                                        <Avatar className="h-8 w-8 shrink-0">
+                                          <AvatarImage
+                                            src={
+                                              activity.creator?.avatarUrl ||
+                                              undefined
+                                            }
+                                          />
+                                          <AvatarFallback>
+                                            {activity.creator?.fullName?.charAt(
+                                              0
+                                            ) || "U"}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-sm font-medium text-brand-blue">
+                                              {activity.creator?.fullName ||
+                                                "Unknown user"}
+                                            </span>
+                                            {currentUser?.id ===
+                                              activity.creator?.id && (
+                                              <button
+                                                onClick={() =>
+                                                  handleDeleteComment(
+                                                    activity.id
+                                                  )
+                                                }
+                                                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-muted rounded transition-opacity"
+                                                title="Delete comment"
+                                              >
+                                                <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                                              </button>
+                                            )}
+                                          </div>
+                                          <p className="text-sm whitespace-pre-wrap wrap-break-word">
+                                            {activity.content}
+                                          </p>
+                                          <span className="text-xs text-muted-foreground">
+                                            {format(
+                                              new Date(activity.createdAt),
+                                              "dd MMM yyyy, HH:mm"
+                                            )}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    );
                                   }
-                                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-muted rounded transition-opacity"
-                                  title="Delete comment"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
-                                </button>
+
+                                  // Handle ACTIVITY feed type
+                                  return (
+                                    <div
+                                      key={activity.id}
+                                      className="flex gap-3"
+                                    >
+                                      <Avatar className="h-8 w-8 shrink-0">
+                                        <AvatarImage
+                                          src={
+                                            activity.user?.avatarUrl ||
+                                            undefined
+                                          }
+                                        />
+                                        <AvatarFallback>
+                                          {activity.user?.fullName?.charAt(0) ||
+                                            "U"}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <span className="text-sm font-medium text-brand-blue">
+                                            {activity.user?.fullName ||
+                                              "Unknown user"}
+                                          </span>
+                                          <span className="text-sm text-muted-foreground">
+                                            {activity.action === "CREATED" &&
+                                              activity.entityType === "TASK" &&
+                                              " created this task"}
+                                            {activity.action === "CREATED" &&
+                                              activity.entityType ===
+                                                "SUBTASK" &&
+                                              " added a subtask"}
+                                            {activity.action === "CREATED" &&
+                                              activity.entityType ===
+                                                "COMMENT" &&
+                                              " added a comment"}
+                                            {activity.action === "UPDATED" &&
+                                              " updated this task"}
+                                            {activity.action === "MOVED" &&
+                                              " moved this task"}
+                                            {activity.action === "DELETED" &&
+                                              " deleted " +
+                                                (activity.entityType ===
+                                                "SUBTASK"
+                                                  ? "a subtask"
+                                                  : "this task")}
+                                          </span>
+                                        </div>
+                                        <span className="text-xs text-muted-foreground">
+                                          {format(
+                                            new Date(activity.createdAt),
+                                            "dd MMM yyyy, HH:mm"
+                                          )}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  );
+                                }
                               )}
                             </div>
-                            <p className="text-sm whitespace-pre-wrap wrap-break-word">
-                              {comment.content}
-                            </p>
-                            <span className="text-xs text-muted-foreground">
-                              {format(
-                                new Date(comment.createdAt),
-                                "dd MMM yyyy, HH:mm"
-                              )}
-                            </span>
                           </div>
-                        </div>
-                      ))}
+                        )
+                      )}
                     </div>
                   )}
                 </div>

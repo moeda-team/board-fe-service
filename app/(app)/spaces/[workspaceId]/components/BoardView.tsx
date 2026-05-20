@@ -6,6 +6,7 @@ import type { Column } from "@/types/type-kanban-columns";
 import type { Task } from "@/types/type-tasks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,8 +25,8 @@ import {
 interface BoardViewProps {
   columns: Column[];
   tasks: Task[];
-  onCreateColumn: (name: string) => void;
-  onUpdateColumn: (columnId: string, name: string) => void;
+  onCreateColumn: (name: string, isDone?: boolean) => void;
+  onUpdateColumn: (columnId: string, name: string, isDone?: boolean) => void;
   onDeleteColumn: (columnId: string) => void;
   onReorderColumns?: (newColumns: { id: string; position: number }[]) => void;
   onCreateTask: (columnId: string) => void;
@@ -51,6 +52,7 @@ export function BoardView({
 }: BoardViewProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [newColumnName, setNewColumnName] = useState("");
+  const [newColumnIsDone, setNewColumnIsDone] = useState(false);
   const [addingColumn, setAddingColumn] = useState(false);
   const [contextMenu, setContextMenu] = useState<{
     columnId: string;
@@ -58,8 +60,6 @@ export function BoardView({
     y: number;
   } | null>(null);
   const boardScrollRef = useRef<HTMLDivElement>(null);
-  const scrollAnimRef = useRef<number | null>(null);
-  const scrollTargetRef = useRef(0);
 
   const [localColumns, setLocalColumns] = useState<Column[]>(columns);
   const [localTasks, setLocalTasks] = useState<Task[]>(tasks);
@@ -114,8 +114,9 @@ export function BoardView({
 
   const handleAddColumn = () => {
     if (newColumnName.trim()) {
-      onCreateColumn(newColumnName.trim());
+      onCreateColumn(newColumnName.trim(), newColumnIsDone);
       setNewColumnName("");
+      setNewColumnIsDone(false);
       setAddingColumn(false);
     }
   };
@@ -212,44 +213,7 @@ export function BoardView({
 
   return (
     <DragDropContext onDragEnd={handleDragEnd} onDragUpdate={handleDragUpdate}>
-      <div
-        className="h-full overflow-auto pb-2"
-        ref={boardScrollRef}
-        onWheel={(e) => {
-          const target = e.target as HTMLElement;
-          const scrollYEl = target.closest(
-            "[data-scroll-y]"
-          ) as HTMLElement | null;
-          if (scrollYEl) {
-            const atTop = scrollYEl.scrollTop === 0;
-            const atBottom =
-              scrollYEl.scrollTop + scrollYEl.clientHeight >=
-              scrollYEl.scrollHeight - 1;
-            const scrollingUp = e.deltaY < 0;
-            const scrollingDown = e.deltaY > 0;
-            if ((scrollingUp && !atTop) || (scrollingDown && !atBottom)) return;
-          }
-          if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-            e.preventDefault();
-            const container = boardScrollRef.current;
-            if (!container) return;
-            scrollTargetRef.current += e.deltaY * 1.5;
-            if (scrollAnimRef.current) return;
-            const animate = () => {
-              const current = container.scrollLeft;
-              const diff = scrollTargetRef.current - current;
-              if (Math.abs(diff) < 0.5) {
-                container.scrollLeft = scrollTargetRef.current;
-                scrollAnimRef.current = null;
-                return;
-              }
-              container.scrollLeft += diff * 0.15;
-              scrollAnimRef.current = requestAnimationFrame(animate);
-            };
-            scrollAnimRef.current = requestAnimationFrame(animate);
-          }
-        }}
-      >
+      <div className="h-full overflow-auto pb-2" ref={boardScrollRef}>
         <div className="flex h-full gap-4">
           <Droppable droppableId="board" type="column" direction="horizontal">
             {(provided) => (
@@ -290,10 +254,21 @@ export function BoardView({
                                 y: e.clientY
                               });
                             }}
+                            onClick={() => {
+                              if (col.isEditing) {
+                                onUpdateColumn(
+                                  col.id,
+                                  col.name ?? "Untitled",
+                                  col.isDone
+                                );
+                              }
+                            }}
                           >
                             <div className="flex items-center gap-2">
                               <div
-                                className={`h-2.5 w-2.5 rounded-full ${getColumnColor(col.name || "")}`}
+                                className={`h-2.5 w-2.5 rounded-full ${getColumnColor(
+                                  col.name || ""
+                                )}`}
                               />
                               <span className="text-sm font-semibold cursor-grab active:cursor-grabbing">
                                 {col.name || "Untitled"}
@@ -319,11 +294,27 @@ export function BoardView({
                                       "Rename column",
                                       col.name || ""
                                     );
-                                    if (name) onUpdateColumn(col.id, name);
+                                    if (name)
+                                      onUpdateColumn(col.id, name, col.isDone);
                                   }}
                                 >
                                   <Pencil className="mr-2 h-3.5 w-3.5" />
                                   Rename
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    onUpdateColumn(
+                                      col.id,
+                                      col.name ?? "Untitled",
+                                      !col.isDone
+                                    );
+                                  }}
+                                >
+                                  <Checkbox
+                                    checked={col.isDone || false}
+                                    className="mr-2 h-3.5 w-3.5"
+                                  />
+                                  {col.isDone ? "Unset Done" : "Set as Done"}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   variant="destructive"
@@ -462,10 +453,20 @@ export function BoardView({
                     if (e.key === "Escape") {
                       setAddingColumn(false);
                       setNewColumnName("");
+                      setNewColumnIsDone(false);
                     }
                   }}
                   className="mb-2 h-8 text-sm"
                 />
+                <label className="flex items-center gap-2 mb-2 text-sm text-muted-foreground cursor-pointer">
+                  <Checkbox
+                    checked={newColumnIsDone}
+                    onCheckedChange={(checked) =>
+                      setNewColumnIsDone(checked === true)
+                    }
+                  />
+                  Mark as "Done" column
+                </label>
                 <div className="flex gap-2">
                   <Button
                     size="sm"
@@ -481,6 +482,7 @@ export function BoardView({
                     onClick={() => {
                       setAddingColumn(false);
                       setNewColumnName("");
+                      setNewColumnIsDone(false);
                     }}
                   >
                     Cancel

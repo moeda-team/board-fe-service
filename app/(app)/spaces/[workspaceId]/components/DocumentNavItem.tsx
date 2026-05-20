@@ -80,7 +80,9 @@ export function DocumentNavItem({
             }}
           />
         ) : (
-          <span className="truncate">{board.name || "Untitled"}</span>
+          <span className="truncate" title={board.name || "Untitled"}>
+            {board.name || "Untitled"}
+          </span>
         )}
       </button>
 

@@ -4,10 +4,26 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DataTable } from "@/app/(app)/components/table/DataTable";
-import { BarChart3, Layers, LayoutDashboard, ShieldCheck, Users, Loader2, Lock, Plus, Trash2 } from "lucide-react";
+import { EditRoleDialog } from "@/app/(app)/components/role/EditRoleDialog";
+import {
+  BarChart3,
+  Layers,
+  LayoutDashboard,
+  ShieldCheck,
+  Users,
+  Loader2,
+  Lock,
+  Pencil,
+  Trash2
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCreateRole, useDeleteRole, useRoleDetail, useRoles, useUpdateRole } from "@/hooks/api/useTenantRoles";
+import {
+  useDeleteRole,
+  useRoleDetail,
+  useRoles,
+  useUpdateRole
+} from "@/hooks/api/useTenantRoles";
 import { usePermissions } from "@/hooks/api/useMasterData";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -22,7 +38,15 @@ interface PermissionTablePanelProps {
   onSelectRole: (roleId: string | null) => void;
 }
 
-const moduleOrder = ["DASHBOARD", "RBAC", "WORKSPACE", "MEMBER", "BOARD", "TASK", "TENANT"];
+const moduleOrder = [
+  "DASHBOARD",
+  "RBAC",
+  "WORKSPACE",
+  "MEMBER",
+  "BOARD",
+  "TASK",
+  "TENANT"
+];
 
 const getModuleLabel = (module: string) => {
   if (module === "RBAC") {
@@ -71,58 +95,37 @@ export function PermissionTablePanel({
   canEditPermissions,
   canCreateRole,
   canDeleteRole,
-  onSelectRole,
+  onSelectRole
 }: PermissionTablePanelProps) {
   const queryClient = useQueryClient();
   const { data: roles = [] } = useRoles(tenantId);
   const { data: role, isLoading } = useRoleDetail(tenantId, roleId || "");
   const { data: permissions = [] } = usePermissions();
   const { mutate: updateRole, isPending: isUpdatingRole } = useUpdateRole();
-  const { mutate: createRole, isPending: isCreatingRole } = useCreateRole();
   const { mutate: deleteRole, isPending: isDeletingRole } = useDeleteRole();
   const isSystem =
-    role?.isDefault || ["admin", "manager", "developer", "stakeholder"].includes((role?.name as string)?.toLowerCase());
-  const canUpdatePermissions = canEditPermissions;
-
-  const handleCreateRole = () => {
-    if (!tenantId || !canUpdatePermissions || isCreatingRole) {
-      return;
-    }
-
-    const roleName = window.prompt("Enter role name");
-    const trimmedRoleName = roleName?.trim();
-
-    if (!trimmedRoleName) {
-      return;
-    }
-
-    createRole(
-      {
-        tenantId,
-        dto: {
-          name: trimmedRoleName,
-        },
-      },
-      {
-        onSuccess: async (createdRole) => {
-          await queryClient.invalidateQueries({
-            queryKey: ["roles", tenantId],
-          });
-
-          if (createdRole?.id) {
-            onSelectRole(createdRole.id as string);
-          }
-        },
-      },
+    role?.isDefault ||
+    ["admin", "manager", "developer", "stakeholder"].includes(
+      (role?.name as string)?.toLowerCase()
     );
-  };
+  const canUpdatePermissions = canEditPermissions;
+  const [isEditRoleOpen, setIsEditRoleOpen] = useState(false);
 
   const handleDeleteRole = () => {
-    if (!tenantId || !roleId || !role || isSystem || !canUpdatePermissions || isDeletingRole) {
+    if (
+      !tenantId ||
+      !roleId ||
+      !role ||
+      isSystem ||
+      !canUpdatePermissions ||
+      isDeletingRole
+    ) {
       return;
     }
 
-    const confirmed = window.confirm(`Delete role \"${role.name as string}\"? This action cannot be undone.`);
+    const confirmed = window.confirm(
+      `Delete role \"${role.name as string}\"? This action cannot be undone.`
+    );
 
     if (!confirmed) {
       return;
@@ -131,26 +134,32 @@ export function PermissionTablePanel({
     deleteRole(
       {
         tenantId,
-        roleId,
+        roleId
       },
       {
         onSuccess: async () => {
-          const nextRole = (roles as Array<{ id?: string }>).find((item) => item.id && item.id !== roleId);
+          const nextRole = (roles as Array<{ id?: string }>).find(
+            (item) => item.id && item.id !== roleId
+          );
 
           onSelectRole(nextRole?.id ?? null);
 
           await queryClient.invalidateQueries({
-            queryKey: ["roles", tenantId],
+            queryKey: ["roles", tenantId]
           });
-        },
-      },
+        }
+      }
     );
   };
 
   const permissionCatalog = useMemo(() => {
     const catalog: Record<string, Record<string, string>> = {};
 
-    const upsertPermission = (permission: { id?: string; module?: string; name?: string }) => {
+    const upsertPermission = (permission: {
+      id?: string;
+      module?: string;
+      name?: string;
+    }) => {
       const module = permission.module?.toUpperCase();
       const action = permission.name?.split(".").pop()?.toLowerCase();
       const permissionId = permission.id;
@@ -170,20 +179,31 @@ export function PermissionTablePanel({
       upsertPermission({
         id: permission.id,
         module: permission.module,
-        name: permission.name,
+        name: permission.name
       });
     });
 
     return catalog;
   }, [permissions]);
 
-  const [selectedPermissionIds, setSelectedPermissionIds] = useState<Set<string>>(new Set());
+  const [selectedPermissionIds, setSelectedPermissionIds] = useState<
+    Set<string>
+  >(new Set());
 
   useEffect(() => {
-    setSelectedPermissionIds(new Set((role?.permissions ?? []).map((rolePermission) => rolePermission.permissionId)));
+    setSelectedPermissionIds(
+      new Set(
+        (role?.permissions ?? []).map(
+          (rolePermission) => rolePermission.permissionId
+        )
+      )
+    );
   }, [role?.permissions]);
 
-  const persistPermissions = (nextPermissionIds: Set<string>, previousPermissionIds: Set<string>) => {
+  const persistPermissions = (
+    nextPermissionIds: Set<string>,
+    previousPermissionIds: Set<string>
+  ) => {
     if (!tenantId || !roleId || !role?.name || !canUpdatePermissions) {
       return;
     }
@@ -193,23 +213,27 @@ export function PermissionTablePanel({
         tenantId,
         roleId,
         dto: {
-          permissions: Array.from(nextPermissionIds),
-        },
+          permissions: Array.from(nextPermissionIds)
+        }
       },
       {
         onSuccess: async () => {
           await queryClient.invalidateQueries({
-            queryKey: ["roles", tenantId],
+            queryKey: ["roles", tenantId]
           });
         },
         onError: () => {
           setSelectedPermissionIds(previousPermissionIds);
-        },
-      },
+        }
+      }
     );
   };
 
-  const handleActionToggle = (module: string, action: string, checked: boolean) => {
+  const handleActionToggle = (
+    module: string,
+    action: string,
+    checked: boolean
+  ) => {
     if (!canEditPermissions) {
       toast.error("You don't have permission to edit role access.");
       return;
@@ -244,17 +268,21 @@ export function PermissionTablePanel({
       return;
     }
 
-    const allModulePermissionIds = Object.values(permissionCatalog[module] ?? {}).filter((id): id is string =>
-      Boolean(id),
-    );
+    const allModulePermissionIds = Object.values(
+      permissionCatalog[module] ?? {}
+    ).filter((id): id is string => Boolean(id));
 
     const previousPermissionIds = new Set(selectedPermissionIds);
     const nextPermissionIds = new Set(selectedPermissionIds);
 
     if (checked) {
-      allModulePermissionIds.forEach((permissionId) => nextPermissionIds.add(permissionId));
+      allModulePermissionIds.forEach((permissionId) =>
+        nextPermissionIds.add(permissionId)
+      );
     } else {
-      allModulePermissionIds.forEach((permissionId) => nextPermissionIds.delete(permissionId));
+      allModulePermissionIds.forEach((permissionId) =>
+        nextPermissionIds.delete(permissionId)
+      );
     }
 
     setSelectedPermissionIds(nextPermissionIds);
@@ -281,13 +309,15 @@ export function PermissionTablePanel({
   });
 
   const tableData: PermissionTableRow[] = moduleKeys.map((module) => ({
-    module,
+    module
   }));
 
   const columns: ColumnDef<PermissionTableRow>[] = [
     {
       id: "module",
-      header: () => <span className="text-slate-900 font-semibold text-xs">Module</span>,
+      header: () => (
+        <span className="text-slate-900 font-semibold text-xs">Module</span>
+      ),
       cell: ({ row }) => {
         const module = row.original.module;
 
@@ -295,40 +325,66 @@ export function PermissionTablePanel({
           <div className="flex items-start gap-2">
             <div className="mt-0.5 text-slate-400">{getModuleIcon(module)}</div>
             <div className="flex flex-col">
-              <span className="font-medium text-slate-900 text-sm">{getModuleLabel(module)}</span>
-              <span className="text-[10px] text-slate-400">View and manage {getModuleLabel(module).toLowerCase()}</span>
+              <span className="font-medium text-slate-900 text-sm">
+                {getModuleLabel(module)}
+              </span>
+              <span className="text-[10px] text-slate-400">
+                View and manage {getModuleLabel(module).toLowerCase()}
+              </span>
             </div>
           </div>
         );
-      },
+      }
     },
     {
       id: "all-access",
-      header: () => <span className="block text-center text-slate-900 font-semibold text-xs">All Access</span>,
+      header: () => (
+        <span className="block text-center text-slate-900 font-semibold text-xs">
+          All Access
+        </span>
+      ),
       cell: ({ row }) => {
         const module = row.original.module;
-        const allModulePermissionIds = Object.values(permissionCatalog[module] ?? {}).filter((id): id is string =>
-          Boolean(id),
-        );
+        const allModulePermissionIds = Object.values(
+          permissionCatalog[module] ?? {}
+        ).filter((id): id is string => Boolean(id));
         const allAccess =
           allModulePermissionIds.length > 0 &&
-          allModulePermissionIds.every((permissionId) => selectedPermissionIds.has(permissionId));
+          allModulePermissionIds.every((permissionId) =>
+            selectedPermissionIds.has(permissionId)
+          );
+        const hasAllActions = actionColumns.every(
+          (action) => !!permissionCatalog[module]?.[action]
+        );
 
         return (
           <div className="flex justify-center">
             <Checkbox
               checked={allAccess}
-              disabled={isSystem || !canEditPermissions || isUpdatingRole}
-              onCheckedChange={(checked) => handleAllAccessToggle(module, checked === true)}
-              className={getCheckboxClassName(!isSystem && canEditPermissions)}
+              disabled={
+                !hasAllActions ||
+                isSystem ||
+                !canEditPermissions ||
+                isUpdatingRole
+              }
+              onCheckedChange={(checked) =>
+                handleAllAccessToggle(module, checked === true)
+              }
+              className={getCheckboxClassName(
+                !isSystem && canEditPermissions && hasAllActions
+              )}
             />
           </div>
         );
-      },
+      }
     },
     {
       id: "create",
-      header: () => <span className="block text-center text-slate-900 font-semibold text-xs">Create</span>,
+      header: () => (
+        <span className="block text-center text-slate-900 font-semibold text-xs">
+          Create
+        </span>
+      ),
       cell: ({ row }) => {
         const module = row.original.module;
 
@@ -336,19 +392,35 @@ export function PermissionTablePanel({
           <div className="flex justify-center">
             <Checkbox
               checked={Boolean(
-                permissionCatalog[module]?.create && selectedPermissionIds.has(permissionCatalog[module].create),
+                permissionCatalog[module]?.create &&
+                selectedPermissionIds.has(permissionCatalog[module].create)
               )}
-              disabled={!permissionCatalog[module]?.create || isSystem || !canEditPermissions || isUpdatingRole}
-              onCheckedChange={(checked) => handleActionToggle(module, "create", checked === true)}
-              className={getCheckboxClassName(!isSystem && canEditPermissions && !!permissionCatalog[module]?.create)}
+              disabled={
+                !permissionCatalog[module]?.create ||
+                isSystem ||
+                !canEditPermissions ||
+                isUpdatingRole
+              }
+              onCheckedChange={(checked) =>
+                handleActionToggle(module, "create", checked === true)
+              }
+              className={getCheckboxClassName(
+                !isSystem &&
+                  canEditPermissions &&
+                  !!permissionCatalog[module]?.create
+              )}
             />
           </div>
         );
-      },
+      }
     },
     {
       id: "edit",
-      header: () => <span className="block text-center text-slate-900 font-semibold text-xs">Edit</span>,
+      header: () => (
+        <span className="block text-center text-slate-900 font-semibold text-xs">
+          Edit
+        </span>
+      ),
       cell: ({ row }) => {
         const module = row.original.module;
 
@@ -356,19 +428,35 @@ export function PermissionTablePanel({
           <div className="flex justify-center">
             <Checkbox
               checked={Boolean(
-                permissionCatalog[module]?.edit && selectedPermissionIds.has(permissionCatalog[module].edit),
+                permissionCatalog[module]?.edit &&
+                selectedPermissionIds.has(permissionCatalog[module].edit)
               )}
-              disabled={!permissionCatalog[module]?.edit || isSystem || !canEditPermissions || isUpdatingRole}
-              onCheckedChange={(checked) => handleActionToggle(module, "edit", checked === true)}
-              className={getCheckboxClassName(!isSystem && canEditPermissions && !!permissionCatalog[module]?.edit)}
+              disabled={
+                !permissionCatalog[module]?.edit ||
+                isSystem ||
+                !canEditPermissions ||
+                isUpdatingRole
+              }
+              onCheckedChange={(checked) =>
+                handleActionToggle(module, "edit", checked === true)
+              }
+              className={getCheckboxClassName(
+                !isSystem &&
+                  canEditPermissions &&
+                  !!permissionCatalog[module]?.edit
+              )}
             />
           </div>
         );
-      },
+      }
     },
     {
       id: "delete",
-      header: () => <span className="block text-center text-slate-900 font-semibold text-xs">Delete</span>,
+      header: () => (
+        <span className="block text-center text-slate-900 font-semibold text-xs">
+          Delete
+        </span>
+      ),
       cell: ({ row }) => {
         const module = row.original.module;
 
@@ -376,19 +464,35 @@ export function PermissionTablePanel({
           <div className="flex justify-center">
             <Checkbox
               checked={Boolean(
-                permissionCatalog[module]?.delete && selectedPermissionIds.has(permissionCatalog[module].delete),
+                permissionCatalog[module]?.delete &&
+                selectedPermissionIds.has(permissionCatalog[module].delete)
               )}
-              disabled={!permissionCatalog[module]?.delete || isSystem || !canEditPermissions || isUpdatingRole}
-              onCheckedChange={(checked) => handleActionToggle(module, "delete", checked === true)}
-              className={getCheckboxClassName(!isSystem && canEditPermissions && !!permissionCatalog[module]?.delete)}
+              disabled={
+                !permissionCatalog[module]?.delete ||
+                isSystem ||
+                !canEditPermissions ||
+                isUpdatingRole
+              }
+              onCheckedChange={(checked) =>
+                handleActionToggle(module, "delete", checked === true)
+              }
+              className={getCheckboxClassName(
+                !isSystem &&
+                  canEditPermissions &&
+                  !!permissionCatalog[module]?.delete
+              )}
             />
           </div>
         );
-      },
+      }
     },
     {
       id: "view",
-      header: () => <span className="block text-center text-slate-900 font-semibold text-xs">View</span>,
+      header: () => (
+        <span className="block text-center text-slate-900 font-semibold text-xs">
+          View
+        </span>
+      ),
       cell: ({ row }) => {
         const module = row.original.module;
 
@@ -396,23 +500,37 @@ export function PermissionTablePanel({
           <div className="flex justify-center">
             <Checkbox
               checked={Boolean(
-                permissionCatalog[module]?.view && selectedPermissionIds.has(permissionCatalog[module].view),
+                permissionCatalog[module]?.view &&
+                selectedPermissionIds.has(permissionCatalog[module].view)
               )}
-              disabled={!permissionCatalog[module]?.view || isSystem || !canEditPermissions || isUpdatingRole}
-              onCheckedChange={(checked) => handleActionToggle(module, "view", checked === true)}
-              className={getCheckboxClassName(!isSystem && canEditPermissions && !!permissionCatalog[module]?.view)}
+              disabled={
+                !permissionCatalog[module]?.view ||
+                isSystem ||
+                !canEditPermissions ||
+                isUpdatingRole
+              }
+              onCheckedChange={(checked) =>
+                handleActionToggle(module, "view", checked === true)
+              }
+              className={getCheckboxClassName(
+                !isSystem &&
+                  canEditPermissions &&
+                  !!permissionCatalog[module]?.view
+              )}
             />
           </div>
         );
-      },
-    },
+      }
+    }
   ];
 
   if (!roleId) {
     return (
       <Card className="shadow-sm border-slate-200 overflow-hidden flex flex-col h-125 items-center justify-center bg-slate-50/50">
         <Lock className="h-12 w-12 text-slate-300 mb-3" />
-        <p className="text-sm text-slate-500 font-medium">Select a role to view permissions</p>
+        <p className="text-sm text-slate-500 font-medium">
+          Select a role to view permissions
+        </p>
       </Card>
     );
   }
@@ -435,12 +553,16 @@ export function PermissionTablePanel({
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-slate-900 text-base">{role?.name as string}</span>
+              <span className="font-bold text-slate-900 text-base">
+                {role?.name as string}
+              </span>
               <Badge
                 variant={isSystem ? "secondary" : "outline"}
                 className={cn(
                   "px-1.5 py-0 text-[10px] h-4",
-                  isSystem ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-100" : "text-slate-600 border-slate-200",
+                  isSystem
+                    ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-100"
+                    : "text-slate-600 border-slate-200"
                 )}
               >
                 {isSystem ? "System" : "Custom"}
@@ -453,17 +575,17 @@ export function PermissionTablePanel({
         </div>
         <div className="flex flex-col items-end">
           <div className="flex items-center gap-2 mb-2">
-            {canCreateRole && (
+            {canCreateRole && !isSystem && (
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 className="h-7 px-2"
-                onClick={handleCreateRole}
-                disabled={isCreatingRole}
+                onClick={() => setIsEditRoleOpen(true)}
+                disabled={!roleId}
               >
-                <Plus className="h-3.5 w-3.5" />
-                New Role
+                <Pencil className="h-3.5 w-3.5" />
+                Edit Role
               </Button>
             )}
             {canDeleteRole && (
@@ -501,6 +623,15 @@ export function PermissionTablePanel({
       <ScrollArea className="flex-1">
         <DataTable data={tableData} columns={columns} showPagination={false} />
       </ScrollArea>
+
+      <EditRoleDialog
+        tenantId={tenantId}
+        roleId={roleId}
+        roleName={role?.name as string}
+        roleDescription={role?.description as string}
+        open={isEditRoleOpen}
+        onOpenChange={setIsEditRoleOpen}
+      />
     </Card>
   );
 }

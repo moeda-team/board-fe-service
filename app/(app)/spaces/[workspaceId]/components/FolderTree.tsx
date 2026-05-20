@@ -104,7 +104,10 @@ export function FolderTree({
             }}
           />
         ) : (
-          <span className="flex-1 truncate text-sm font-medium">
+          <span
+            className="flex-1 truncate text-sm font-medium"
+            title={folder.name || "Untitled"}
+          >
             {folder.name || "Untitled"}
           </span>
         )}

@@ -372,23 +372,23 @@ export default function WorkspaceDetailPage() {
             <BoardView
               columns={columns}
               tasks={filteredTasks}
-              onCreateColumn={(name) =>
+              onCreateColumn={(name, isDone) =>
                 activeBoardId &&
                 createColumn({
                   tenantId,
                   workspaceId,
                   boardId: activeBoardId,
-                  dto: { name }
+                  dto: { name, isDone }
                 })
               }
-              onUpdateColumn={(columnId, name) =>
+              onUpdateColumn={(columnId, name, isDone) =>
                 activeBoardId &&
                 updateColumn({
                   tenantId,
                   workspaceId,
                   boardId: activeBoardId,
                   columnId,
-                  dto: { name }
+                  dto: { name, isDone }
                 })
               }
               onDeleteColumn={(columnId) =>

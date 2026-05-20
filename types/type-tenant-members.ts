@@ -34,6 +34,7 @@ export interface ActiveTenantMember {
   archivedAt: string | null;
   user: TenantMemberUser;
   role: TenantMemberRole;
+  workspaceIds?: string[];
 }
 
 export interface PendingTenantInvite {
@@ -92,6 +93,7 @@ export interface TenantMemberTableRow {
   space: string;
   status: TenantMemberStatus;
   joined: string;
+  workspaceIds?: string[];
 }
 
 export interface InviteMemberParams {

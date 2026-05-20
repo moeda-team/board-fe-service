@@ -113,3 +113,24 @@ export const useCancelTenantInvite = () => {
     }
   });
 };
+
+export interface UpdateMemberWorkspacesParams {
+  tenantId: string;
+  userId: string;
+  workspaceIds: string[];
+}
+
+export const useUpdateMemberWorkspaces = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    meta: { successMessage: "Member workspaces updated", errorMessage: "Failed to update member workspaces" },
+    mutationFn: async ({ tenantId, userId, workspaceIds }: UpdateMemberWorkspacesParams): Promise<TenantMemberMutationResult> => {
+      const { data } = await apiClient.patch<TenantMemberEnvelope>(`/api/tenants/${tenantId}/members/${userId}/workspaces`, { workspaceIds });
+      return unwrapApiData(data);
+    },
+    onSuccess: async (_data, variables) => {
+      await invalidateTenantMembers(queryClient, variables.tenantId);
+    }
+  });
+};

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Clock } from "lucide-react";
+import { CalendarIcon, Clock, X, Check, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,6 +27,9 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Column } from "@/types/type-kanban-columns";
 import type { CreateTaskDto } from "@/types/api";
 import type { Member } from "@/types/api";
@@ -53,7 +56,8 @@ export function CreateTaskDialog({
   const [columnId, setColumnId] = useState(
     defaultColumnId || columns[0]?.id || ""
   );
-  const [assigneeId, setAssigneeId] = useState<string>("");
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
   const [priority, setPriority] = useState<"LOW" | "MEDIUM" | "HIGH">("MEDIUM");
   const [dueDate, setDueDate] = useState<Date | undefined>();
   const [estimatedHours, setEstimatedHours] = useState("");
@@ -83,7 +87,7 @@ export function CreateTaskDialog({
       priority,
       ...(description.trim() ? { description: description.trim() } : {}),
       ...(dueDate ? { dueDate: dueDate.toISOString() } : {}),
-      ...(assigneeId ? { assigneeIds: [assigneeId] } : {}),
+      ...(assigneeIds.length > 0 ? { assigneeIds } : {}),
       ...(tags.length > 0 ? { tagIds: tags } : {}) // Sending tags as strings, backend might expect IDs but if it creates them it might accept strings
     };
 
@@ -101,7 +105,7 @@ export function CreateTaskDialog({
     // Reset form after submit
     setTitle("");
     setDescription("");
-    setAssigneeId("");
+    setAssigneeIds([]);
     setDueDate(undefined);
     setEstimatedHours("");
     setTags([]);
@@ -165,27 +169,102 @@ export function CreateTaskDialog({
 
             <div className="grid gap-2">
               <label className="text-sm font-medium text-muted-foreground">
-                Assignee
+                Assignees
               </label>
-              <Select
-                value={assigneeId}
-                onValueChange={(val) => val && setAssigneeId(val)}
-                items={members.map((m) => ({
-                  value: m.id,
-                  label: m.fullName || m.username || m.email
-                }))}
+              <Popover
+                open={assigneePopoverOpen}
+                onOpenChange={setAssigneePopoverOpen}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select assignee" />
-                </SelectTrigger>
-                <SelectContent>
-                  {members.map((member) => (
-                    <SelectItem key={member.id} value={member.id}>
-                      {member.fullName || member.username || member.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <PopoverTrigger
+                  render={
+                    <Button variant="outline" className="justify-between">
+                      <span
+                        className={
+                          assigneeIds.length === 0
+                            ? "text-muted-foreground"
+                            : ""
+                        }
+                      >
+                        {assigneeIds.length === 0
+                          ? "Select assignees"
+                          : `${assigneeIds.length} selected`}
+                      </span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  }
+                />
+                <PopoverContent className="w-[280px] p-2">
+                  <div className="flex flex-col gap-1 max-h-[200px] overflow-auto">
+                    {members.length === 0 && (
+                      <p className="text-sm text-muted-foreground p-2">
+                        No members available
+                      </p>
+                    )}
+                    {members.map((member) => {
+                      const isSelected = assigneeIds.includes(member.id);
+                      return (
+                        <button
+                          key={member.id}
+                          onClick={() => {
+                            setAssigneeIds((prev) =>
+                              isSelected
+                                ? prev.filter((id) => id !== member.id)
+                                : [...prev, member.id]
+                            );
+                          }}
+                          className="flex items-center gap-2 w-full px-2 py-2 rounded hover:bg-muted text-left"
+                        >
+                          <Checkbox checked={isSelected} />
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage
+                              src={(member as any).avatarUrl || ""}
+                            />
+                            <AvatarFallback className="text-xs">
+                              {(member.fullName || member.username || "U")
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")
+                                .slice(0, 2)
+                                .toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm truncate">
+                            {member.fullName || member.username || member.email}
+                          </span>
+                          {isSelected && <Check className="ml-auto h-4 w-4" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </PopoverContent>
+              </Popover>
+              {assigneeIds.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {assigneeIds.map((id) => {
+                    const member = members.find((m) => m.id === id);
+                    if (!member) return null;
+                    return (
+                      <Badge
+                        key={id}
+                        variant="secondary"
+                        className="flex items-center gap-1"
+                      >
+                        {member.fullName || member.username || member.email}
+                        <button
+                          onClick={() =>
+                            setAssigneeIds((prev) =>
+                              prev.filter((x) => x !== id)
+                            )
+                          }
+                          className="ml-1 hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="grid gap-2">

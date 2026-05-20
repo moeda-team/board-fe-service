@@ -56,10 +56,20 @@ export type CreateFolderDto = Record<string, unknown>;
 export type UpdateFolderDto = Record<string, unknown>;
 export type CreateBoardDto = Record<string, unknown>;
 export type UpdateBoardDto = Record<string, unknown>;
-export type CreateColumnDto = Record<string, unknown>;
+export interface CreateColumnDto {
+    name: string;
+    color?: string;
+    position?: number;
+    isDone?: boolean;
+}
 export type ColumnOrderDto = Record<string, unknown>;
 export type ReorderColumnsDto = Record<string, unknown>;
-export type UpdateColumnDto = Record<string, unknown>;
+export interface UpdateColumnDto {
+    name?: string;
+    color?: string;
+    position?: number;
+    isDone?: boolean;
+}
 export type CreateDocumentDto = Record<string, unknown>;
 export type UpdateDocumentDto = Record<string, unknown>;
 export interface CreateTaskDto {
@@ -195,6 +205,7 @@ export interface Column {
     boardId?: string;
     name?: string;
     order?: number;
+    isDone?: boolean;
     [key: string]: unknown;
 }
 
@@ -251,14 +262,29 @@ export interface Subtask {
 
 export interface TaskActivity {
     id: string;
-    tenantId: string;
-    userId: string;
-    entityType: string;
-    entityId: string;
-    action: string;
-    details: Record<string, any>;
+    feedType: "ACTIVITY" | "COMMENT";
     createdAt: string;
-    user: AuthMeUser;
+    updatedAt?: string;
+    deletedAt?: string | null;
+    // For COMMENT type
+    creator?: AuthMeUser;
+    content?: string;
+    attachments?: any[];
+    parentId?: string | null;
+    isEdited?: boolean;
+    // For ACTIVITY type
+    user?: AuthMeUser;
+    entityType?: "TASK" | "SUBTASK" | "COMMENT" | "ATTACHMENT";
+    entityId?: string;
+    action?: "CREATED" | "UPDATED" | "MOVED" | "DELETED";
+    details?: {
+        after?: any;
+        before?: any;
+        taskId?: string;
+    };
+    // Legacy fields for backward compatibility
+    tenantId?: string;
+    userId?: string;
 }
 
 export interface Attachment {

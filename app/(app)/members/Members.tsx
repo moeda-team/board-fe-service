@@ -4,19 +4,27 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger
+} from "@/components/ui/popover";
 import { useAuthMe } from "@/hooks/api/useAuth";
 import {
   useCancelTenantInvite,
   useRemoveTenantMember,
   useTenantMembers,
-  useUpdateMemberRole
+  useUpdateMemberRole,
+  useUpdateMemberWorkspaces
 } from "@/hooks/api/useTenantMembers";
+import { useWorkspaces } from "@/hooks/api/useWorkspaces";
 import { useRoles } from "@/hooks/api/useTenantRoles";
 import { InviteMemberDialog } from "../components/member/InviteMemberDialog";
 import type {
@@ -105,7 +113,8 @@ const mapActiveMemberToRow = (
   roleName: member.role?.name ?? "-",
   space: "All spaces",
   status,
-  joined: formatDate(member.joinedAt)
+  joined: formatDate(member.joinedAt),
+  workspaceIds: member.workspaceIds || []
 });
 
 const mapPendingInviteToRow = (
@@ -156,6 +165,12 @@ const Members = () => {
     useRemoveTenantMember();
   const { mutate: cancelTenantInvite, isPending: isCancelingTenantInvite } =
     useCancelTenantInvite();
+  const { mutate: updateMemberWorkspaces, isPending: isUpdatingWorkspaces } =
+    useUpdateMemberWorkspaces();
+  const { data: workspaces = [], isLoading: isWorkspacesLoading } =
+    useWorkspaces(tenantId);
+  const [spacePopoverOpen, setSpacePopoverOpen] = useState<string | null>(null);
+  const [spaceSearch, setSpaceSearch] = useState("");
   const activeTenant =
     authMe?.tenants?.find((tenant) => tenant.tenant?.id === tenantId) ??
     authMe?.tenants?.[0];
@@ -180,7 +195,10 @@ const Members = () => {
 
   const isLoading = isAuthLoading || isMembersLoading;
   const isMutatingRow =
-    isUpdatingMemberRole || isRemovingTenantMember || isCancelingTenantInvite;
+    isUpdatingMemberRole ||
+    isRemovingTenantMember ||
+    isCancelingTenantInvite ||
+    isUpdatingWorkspaces;
 
   const activeRows = useMemo(() => {
     const activeMembers = membersData?.activeMembers ?? [];
@@ -361,11 +379,126 @@ const Members = () => {
     {
       accessorKey: "space",
       header: "Space Access",
-      cell: ({ row }) => (
-        <span className="text-blue-600 cursor-pointer">
-          {row.original.space}
-        </span>
-      )
+      cell: ({ row }) => {
+        const isOpen = spacePopoverOpen === row.original.id;
+        const memberWorkspaceIds = row.original.workspaceIds || [];
+        const filteredSpaces = useMemo(() => {
+          const q = spaceSearch.toLowerCase();
+          return workspaces.filter((ws) =>
+            (ws.name || "").toLowerCase().includes(q)
+          );
+        }, [workspaces, spaceSearch]);
+        const selectedSpaces = useMemo(
+          () => workspaces.filter((ws) => memberWorkspaceIds.includes(ws.id)),
+          [workspaces, memberWorkspaceIds]
+        );
+        const canManageWorkspaceAccess =
+          tenantPermissions.includes("member.manage") ||
+          tenantPermissions.includes("member.edit");
+
+        const handleWorkspaceToggle = (
+          workspaceId: string,
+          checked: boolean
+        ) => {
+          if (!row.original.userId || !canManageWorkspaceAccess) return;
+          const nextIds = checked
+            ? [...memberWorkspaceIds, workspaceId]
+            : memberWorkspaceIds.filter((id) => id !== workspaceId);
+          updateMemberWorkspaces(
+            {
+              tenantId,
+              userId: row.original.userId,
+              workspaceIds: nextIds
+            },
+            {
+              onError: () => {
+                toast.error("Failed to update workspace access");
+              }
+            }
+          );
+        };
+
+        return (
+          <Popover
+            open={isOpen}
+            onOpenChange={(open) => {
+              if (open) {
+                setSpacePopoverOpen(row.original.id);
+                setSpaceSearch("");
+              } else {
+                setSpacePopoverOpen(null);
+              }
+            }}
+          >
+            <PopoverTrigger className="outline-none">
+              <div className="flex items-center gap-1 text-blue-600 cursor-pointer hover:underline">
+                <span className="text-sm">
+                  {selectedSpaces.length === 0
+                    ? "No spaces"
+                    : selectedSpaces.length === 1
+                      ? selectedSpaces[0].name || "Untitled"
+                      : `${selectedSpaces.length} spaces`}
+                </span>
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                />
+              </div>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-2" align="start">
+              {isWorkspacesLoading ? (
+                <div className="px-2 py-3 text-sm text-slate-500">
+                  Loading spaces...
+                </div>
+              ) : (
+                <>
+                  <Input
+                    placeholder="Search spaces..."
+                    value={spaceSearch}
+                    onChange={(e) => setSpaceSearch(e.target.value)}
+                    className="mb-2 h-8 text-sm"
+                  />
+                  <div className="max-h-48 overflow-y-auto">
+                    {filteredSpaces.length === 0 ? (
+                      <div className="px-2 py-3 text-sm text-slate-500">
+                        No spaces found
+                      </div>
+                    ) : (
+                      filteredSpaces.map((ws) => (
+                        <label
+                          key={ws.id}
+                          className={`flex items-center gap-2 px-2 py-2 rounded cursor-pointer hover:bg-slate-100 ${!canManageWorkspaceAccess ? "opacity-50 cursor-not-allowed" : ""}`}
+                          onClick={(e) => {
+                            if (!canManageWorkspaceAccess) {
+                              e.preventDefault();
+                              return;
+                            }
+                            e.preventDefault();
+                            const isChecked = memberWorkspaceIds.includes(
+                              ws.id
+                            );
+                            handleWorkspaceToggle(ws.id, !isChecked);
+                          }}
+                        >
+                          <Checkbox
+                            checked={memberWorkspaceIds.includes(ws.id)}
+                            disabled={!canManageWorkspaceAccess}
+                            onCheckedChange={(checked) =>
+                              handleWorkspaceToggle(ws.id, checked === true)
+                            }
+                          />
+                          <span className="text-sm">
+                            {ws.name || "Untitled"}
+                          </span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
+            </PopoverContent>
+          </Popover>
+        );
+      }
     },
     {
       accessorKey: "status",
@@ -411,7 +544,7 @@ const Members = () => {
               onClick={() => handleDeleteRow(row.original)}
             >
               <Trash2 className="h-4 w-4" />
-              {row.original.kind === "invite" ? "Cancel invite" : "Remove"}
+              {row.original.kind === "invite" ? "Cancel invite" : "Archive"}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

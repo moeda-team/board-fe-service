@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Navbar, Hero, Product, Solutions, Resources, Testimonials, FinalCTA, Footer } from "./home";
+import { Navbar, Hero, Product, Solutions, Resources, Testimonials, FinalCTA, Footer, FAQ } from "./home";
 import type { NavItem } from "./home";
 
 const NAV_ITEMS: NavItem[] = [
@@ -60,6 +60,7 @@ export default function Home() {
       <Solutions />
       <Resources />
       <Testimonials />
+      <FAQ />
       <FinalCTA />
       <Footer />
     </>

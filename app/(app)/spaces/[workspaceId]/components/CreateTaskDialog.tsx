@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Clock, X, Check, ChevronsUpDown } from "lucide-react";
+import { CalendarIcon, X, Check, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,12 +31,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Column } from "@/types/type-kanban-columns";
-import type { CreateTaskDto } from "@/types/api";
+import type { CreateTaskDto, Tag } from "@/types/api";
 import type { Member } from "@/types/api";
+import { useTags } from "@/hooks/api/useTags";
 
 interface CreateTaskDialogProps {
   columns: Column[];
   members: Member[];
+  tenantId: string;
+  workspaceId: string;
   onSubmit: (dto: CreateTaskDto) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -46,6 +49,8 @@ interface CreateTaskDialogProps {
 export function CreateTaskDialog({
   columns,
   members,
+  tenantId,
+  workspaceId,
   onSubmit,
   open,
   onOpenChange,
@@ -59,23 +64,22 @@ export function CreateTaskDialog({
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
   const [priority, setPriority] = useState<"LOW" | "MEDIUM" | "HIGH">("MEDIUM");
-  const [dueDate, setDueDate] = useState<Date | undefined>();
-  const [estimatedHours, setEstimatedHours] = useState("");
-  const [tagInput, setTagInput] = useState("");
-  const [tags, setTags] = useState<string[]>([]);
+  const [dueDate, setDueDate] = useState<Date | undefined>(new Date());
+  const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
-  const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && tagInput.trim()) {
-      e.preventDefault();
-      if (!tags.includes(tagInput.trim())) {
-        setTags([...tags, tagInput.trim()]);
-      }
-      setTagInput("");
-    }
+  const { data: tags = [] } = useTags(tenantId, workspaceId);
+
+  const toggleTag = (tagId: string) => {
+    setSelectedTagIds((prev) =>
+      prev.includes(tagId)
+        ? prev.filter((id) => id !== tagId)
+        : [...prev, tagId]
+    );
   };
 
-  const removeTag = (tagToRemove: string) => {
-    setTags(tags.filter((t) => t !== tagToRemove));
+  const removeTag = (tagId: string) => {
+    setSelectedTagIds((prev) => prev.filter((id) => id !== tagId));
   };
 
   const handleSubmit = () => {
@@ -88,17 +92,8 @@ export function CreateTaskDialog({
       ...(description.trim() ? { description: description.trim() } : {}),
       ...(dueDate ? { dueDate: dueDate.toISOString() } : {}),
       ...(assigneeIds.length > 0 ? { assigneeIds } : {}),
-      ...(tags.length > 0 ? { tagIds: tags } : {}) // Sending tags as strings, backend might expect IDs but if it creates them it might accept strings
+      ...(selectedTagIds.length > 0 ? { tagIds: selectedTagIds } : {})
     };
-
-    if (estimatedHours) {
-      dto.customFields = [
-        {
-          customFieldId: "estimated_time",
-          value: estimatedHours
-        }
-      ];
-    }
 
     onSubmit(dto);
 
@@ -106,9 +101,8 @@ export function CreateTaskDialog({
     setTitle("");
     setDescription("");
     setAssigneeIds([]);
-    setDueDate(undefined);
-    setEstimatedHours("");
-    setTags([]);
+    setDueDate(new Date());
+    setSelectedTagIds([]);
   };
 
   return (
@@ -154,7 +148,7 @@ export function CreateTaskDialog({
                   label: col.name
                 }))}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select column" />
                 </SelectTrigger>
                 <SelectContent>
@@ -282,7 +276,7 @@ export function CreateTaskDialog({
                   { value: "HIGH", label: "High" }
                 ]}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -303,14 +297,25 @@ export function CreateTaskDialog({
                     <Button
                       variant={"outline"}
                       className={cn(
-                        "justify-start text-left font-normal",
+                        "w-full justify-start text-left font-normal",
                         !dueDate && "text-muted-foreground"
                       )}
                     />
                   }
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dueDate ? format(dueDate, "PPP") : <span>Select date</span>}
+                  {dueDate ? (
+                    (() => {
+                      const today = new Date();
+                      const isToday =
+                        dueDate.getDate() === today.getDate() &&
+                        dueDate.getMonth() === today.getMonth() &&
+                        dueDate.getFullYear() === today.getFullYear();
+                      return isToday ? "Today" : format(dueDate, "PPP");
+                    })()
+                  ) : (
+                    <span>Select date</span>
+                  )}
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
                   <Calendar
@@ -321,59 +326,82 @@ export function CreateTaskDialog({
                 </PopoverContent>
               </Popover>
             </div>
-
-            <div className="grid gap-2">
-              <label className="text-sm font-medium text-muted-foreground">
-                Estimated time (Hours)
-              </label>
-              <div className="relative">
-                <Clock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="number"
-                  placeholder="0"
-                  className="pl-9 pr-12"
-                  value={estimatedHours}
-                  onChange={(e) => setEstimatedHours(e.target.value)}
-                />
-                <span className="absolute right-3 top-2.5 text-sm text-muted-foreground">
-                  Hour
-                </span>
-              </div>
-            </div>
-
-            <div className="grid gap-2">{/* Spacer for grid */}</div>
           </div>
 
           <div className="grid gap-2">
             <label className="text-sm font-medium text-muted-foreground">
               Tags
             </label>
-            <div className="flex flex-col gap-2">
-              {tags.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {tags.map((tag) => (
-                    <div
-                      key={tag}
-                      className="flex items-center gap-1 rounded bg-muted px-2 py-1 text-xs"
+            <Popover open={tagPopoverOpen} onOpenChange={setTagPopoverOpen}>
+              <PopoverTrigger
+                render={
+                  <Button variant="outline" className="justify-between">
+                    <span
+                      className={
+                        selectedTagIds.length === 0
+                          ? "text-muted-foreground"
+                          : ""
+                      }
                     >
-                      {tag}
-                      <button
-                        onClick={() => removeTag(tag)}
-                        className="text-muted-foreground hover:text-foreground"
-                      >
-                        &times;
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <Input
-                placeholder="Add new tags (Press Enter)"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={handleAddTag}
+                      {selectedTagIds.length === 0
+                        ? "Select tags"
+                        : `${selectedTagIds.length} selected`}
+                    </span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                }
               />
-            </div>
+              <PopoverContent className="w-[280px] p-2">
+                <div className="flex flex-col gap-1 max-h-[200px] overflow-auto">
+                  {tags.length === 0 && (
+                    <p className="text-sm text-muted-foreground p-2">
+                      No tags available
+                    </p>
+                  )}
+                  {tags.map((tag: Tag) => {
+                    const isSelected = selectedTagIds.includes(tag.id);
+                    return (
+                      <button
+                        key={tag.id}
+                        onClick={() => toggleTag(tag.id)}
+                        className="flex items-center gap-2 w-full px-2 py-2 rounded hover:bg-muted text-left"
+                      >
+                        <Checkbox checked={isSelected} />
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: tag.color }}
+                        />
+                        <span className="text-sm truncate">{tag.name}</span>
+                        {isSelected && <Check className="ml-auto h-4 w-4" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+            {selectedTagIds.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-1">
+                {selectedTagIds.map((tagId) => {
+                  const tag = tags.find((t: Tag) => t.id === tagId);
+                  if (!tag) return null;
+                  return (
+                    <Badge
+                      key={tagId}
+                      style={{ backgroundColor: tag.color }}
+                      className="flex items-center gap-1 text-white"
+                    >
+                      {tag.name}
+                      <button
+                        onClick={() => removeTag(tagId)}
+                        className="ml-1 hover:text-white/80"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
         <div className="flex justify-end">

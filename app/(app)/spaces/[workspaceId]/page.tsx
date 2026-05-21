@@ -43,6 +43,7 @@ import { ListView } from "./components/ListView";
 import { GanttView } from "./components/GanttView";
 import { CreateTaskDialog } from "./components/CreateTaskDialog";
 import { NameDialog } from "./components/NameDialog";
+import { RenameBoardDialog } from "./components/RenameBoardDialog";
 import { TaskDetailSheet } from "./components/TaskDetailSheet";
 import { useTenantMembers } from "@/hooks/api/useTenantMembers";
 import type { CreateTaskDto, Member } from "@/types/api";
@@ -80,6 +81,8 @@ export default function WorkspaceDetailPage() {
   const [creatingInColumnId, setCreatingInColumnId] = useState<
     string | undefined
   >(undefined);
+
+  const [isRenameBoardOpen, setIsRenameBoardOpen] = useState(false);
 
   // NameDialog state for folder/document operations
   const [nameDialog, setNameDialog] = useState<{
@@ -332,9 +335,21 @@ export default function WorkspaceDetailPage() {
         {/* Header */}
         <div className="flex items-center justify-between border-b px-6 py-3">
           <div className="flex items-center gap-4">
-            <h1 className="text-lg font-semibold">
-              {activeDocument?.name || "Select a document"}
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-semibold">
+                {activeDocument?.name || "Select a document"}
+              </h1>
+              {activeDocument && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setIsRenameBoardOpen(true)}
+                >
+                  Rename
+                </Button>
+              )}
+            </div>
             <ViewTabs activeView={activeView} onChange={setActiveView} />
           </div>
           <div className="flex items-center gap-2">
@@ -428,6 +443,8 @@ export default function WorkspaceDetailPage() {
         columns={columns}
         defaultColumnId={creatingInColumnId}
         members={members}
+        tenantId={tenantId}
+        workspaceId={workspaceId}
         onSubmit={(dto: CreateTaskDto) => {
           if (activeBoardId) {
             createTask({
@@ -451,6 +468,21 @@ export default function WorkspaceDetailPage() {
         defaultValue={nameDialog.defaultValue}
         submitLabel={nameDialog.submitLabel}
         onSubmit={nameDialog.onSubmit}
+      />
+      <RenameBoardDialog
+        open={isRenameBoardOpen}
+        onOpenChange={setIsRenameBoardOpen}
+        currentName={activeDocument?.name || ""}
+        onSubmit={(name) => {
+          if (activeBoardId) {
+            updateBoard({
+              tenantId,
+              workspaceId,
+              boardId: activeBoardId,
+              dto: { name }
+            });
+          }
+        }}
       />
       {activeDocumentId && (
         <TaskDetailSheet

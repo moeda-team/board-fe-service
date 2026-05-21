@@ -25,6 +25,11 @@ export interface TenantMemberRole {
   totalMember?: number;
 }
 
+export interface WorkspaceInfo {
+  id: string;
+  name: string;
+}
+
 export interface ActiveTenantMember {
   tenantId: string;
   userId: string;
@@ -34,7 +39,12 @@ export interface ActiveTenantMember {
   archivedAt: string | null;
   user: TenantMemberUser;
   role: TenantMemberRole;
-  workspaceIds?: string[];
+  workspaces: WorkspaceInfo[];
+}
+
+export interface PendingTenantWorkspace {
+  inviteId: string;
+  workspaceId: string;
 }
 
 export interface PendingTenantInvite {
@@ -46,12 +56,14 @@ export interface PendingTenantInvite {
   createdAt: string;
   role: TenantMemberRole;
   inviter: TenantMemberUser | null;
+  workspaces: PendingTenantWorkspace[];
 }
 
 export interface TenantMembersData {
   activeMembers: ActiveTenantMember[];
   pendingInvites: PendingTenantInvite[];
   archivedMembers?: ActiveTenantMember[];
+  items?: ActiveTenantMember[]; // For archived endpoint response
   meta?: {
     total: number;
     page: number;

@@ -15,18 +15,44 @@ import type {
 export const tenantMembersQueryKey = (tenantId: string, page?: number, limit?: number, search?: string) =>
   ["tenantMembers", tenantId, page, limit, search] as const;
 
-const invalidateTenantMembers = async (
+export const archivedTenantMembersQueryKey = (tenantId: string, page?: number, limit?: number, search?: string) =>
+  ["archivedTenantMembers", tenantId, page, limit, search] as const;
+
+const refetchAllMembers = async (
   queryClient: ReturnType<typeof useQueryClient>,
   tenantId: string
 ) => {
-  await Promise.all([
-    queryClient.invalidateQueries({
-      queryKey: tenantMembersQueryKey(tenantId)
-    }),
-    queryClient.invalidateQueries({
-      queryKey: ["roles", tenantId]
-    })
-  ]);
+  await queryClient.refetchQueries({
+    queryKey: ["tenantMembers", tenantId],
+    type: "all"
+  });
+  await queryClient.refetchQueries({
+    queryKey: ["archivedTenantMembers", tenantId],
+    type: "all"
+  });
+  await queryClient.invalidateQueries({
+    queryKey: ["roles", tenantId]
+  });
+};
+
+const refetchActiveMembers = async (
+  queryClient: ReturnType<typeof useQueryClient>,
+  tenantId: string
+) => {
+  await queryClient.refetchQueries({
+    queryKey: ["tenantMembers", tenantId],
+    type: "all"
+  });
+};
+
+const refetchArchivedMembers = async (
+  queryClient: ReturnType<typeof useQueryClient>,
+  tenantId: string
+) => {
+  await queryClient.refetchQueries({
+    queryKey: ["archivedTenantMembers", tenantId],
+    type: "all"
+  });
 };
 
 export const useTenantMembers = (tenantId: string, page: number = 1, limit: number = 15, search?: string) => useQuery({
@@ -56,6 +82,34 @@ export const useTenantMembers = (tenantId: string, page: number = 1, limit: numb
   enabled: !!tenantId && tenantId !== "undefined" && tenantId !== "null"
 });
 
+export const useArchivedTenantMembers = (tenantId: string, page: number = 1, limit: number = 15, search?: string) => useQuery({
+  queryKey: archivedTenantMembersQueryKey(tenantId, page, limit, search),
+  queryFn: async (): Promise<TenantMembersData> => {
+    const params = new URLSearchParams();
+    if (page) params.append("page", page.toString());
+    if (limit) params.append("limit", limit.toString());
+    if (search) params.append("search", search);
+
+    const { data } = await apiClient.get<TenantMembersEnvelope>(`/api/tenants/${tenantId}/members/archived?${params.toString()}`);
+    const members = unwrapApiData(data);
+
+    // Archived endpoint returns { items, meta } instead of { activeMembers, pendingInvites, archivedMembers }
+    const archivedMembers = Array.isArray(members.items)
+      ? members.items
+      : Array.isArray(members.archivedMembers)
+        ? members.archivedMembers
+        : [];
+
+    return {
+      activeMembers: [],
+      pendingInvites: [],
+      archivedMembers,
+      meta: members.meta
+    };
+  },
+  enabled: !!tenantId && tenantId !== "undefined" && tenantId !== "null"
+});
+
 export const useInviteMember = () => {
   const queryClient = useQueryClient();
 
@@ -66,7 +120,7 @@ export const useInviteMember = () => {
       return unwrapApiData(data);
     },
     onSuccess: async (_data, variables) => {
-      await invalidateTenantMembers(queryClient, variables.tenantId);
+      await refetchAllMembers(queryClient, variables.tenantId);
     }
   });
 };
@@ -81,7 +135,7 @@ export const useUpdateMemberRole = () => {
       return unwrapApiData(data);
     },
     onSuccess: async (_data, variables) => {
-      await invalidateTenantMembers(queryClient, variables.tenantId);
+      await refetchAllMembers(queryClient, variables.tenantId);
     }
   });
 };
@@ -95,7 +149,8 @@ export const useRemoveTenantMember = () => {
       await apiClient.delete(`/api/tenants/${tenantId}/members/${userId}`);
     },
     onSuccess: async (_data, variables) => {
-      await invalidateTenantMembers(queryClient, variables.tenantId);
+      // Only invalidate archived members when removing from archived tab
+      await refetchArchivedMembers(queryClient, variables.tenantId);
     }
   });
 };
@@ -109,7 +164,7 @@ export const useCancelTenantInvite = () => {
       await apiClient.delete(`/api/tenants/${tenantId}/members/invites/${inviteId}`);
     },
     onSuccess: async (_data, variables) => {
-      await invalidateTenantMembers(queryClient, variables.tenantId);
+      await refetchAllMembers(queryClient, variables.tenantId);
     }
   });
 };
@@ -130,7 +185,49 @@ export const useUpdateMemberWorkspaces = () => {
       return unwrapApiData(data);
     },
     onSuccess: async (_data, variables) => {
-      await invalidateTenantMembers(queryClient, variables.tenantId);
+      await refetchAllMembers(queryClient, variables.tenantId);
+    }
+  });
+};
+
+export interface ArchiveTenantMemberParams {
+  tenantId: string;
+  userId: string;
+}
+
+export const useArchiveTenantMember = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    meta: { successMessage: "Member archived", errorMessage: "Failed to archive member" },
+    mutationFn: async ({ tenantId, userId }: ArchiveTenantMemberParams): Promise<TenantMemberMutationResult> => {
+      const { data } = await apiClient.patch<TenantMemberEnvelope>(`/api/tenants/${tenantId}/members/${userId}/archive`);
+      return unwrapApiData(data);
+    },
+    onSuccess: async (_data, variables) => {
+      // Invalidate both lists since archiving moves from active to archived
+      await refetchAllMembers(queryClient, variables.tenantId);
+    }
+  });
+};
+
+export interface RestoreTenantMemberParams {
+  tenantId: string;
+  userId: string;
+}
+
+export const useRestoreTenantMember = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    meta: { successMessage: "Member restored", errorMessage: "Failed to restore member" },
+    mutationFn: async ({ tenantId, userId }: RestoreTenantMemberParams): Promise<TenantMemberMutationResult> => {
+      const { data } = await apiClient.patch<TenantMemberEnvelope>(`/api/tenants/${tenantId}/members/${userId}/restore`);
+      return unwrapApiData(data);
+    },
+    onSuccess: async (_data, variables) => {
+      // Invalidate both lists since restoring moves from archived to active
+      await refetchAllMembers(queryClient, variables.tenantId);
     }
   });
 };

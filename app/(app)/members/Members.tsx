@@ -22,11 +22,15 @@ import {
   useRemoveTenantMember,
   useTenantMembers,
   useUpdateMemberRole,
-  useUpdateMemberWorkspaces
+  useUpdateMemberWorkspaces,
+  useArchivedTenantMembers,
+  useArchiveTenantMember,
+  useRestoreTenantMember
 } from "@/hooks/api/useTenantMembers";
 import { useWorkspaces } from "@/hooks/api/useWorkspaces";
 import { useRoles } from "@/hooks/api/useTenantRoles";
 import { InviteMemberDialog } from "../components/member/InviteMemberDialog";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import type {
   ActiveTenantMember,
   PendingTenantInvite,
@@ -111,10 +115,13 @@ const mapActiveMemberToRow = (
   avatarUrl: member.user.avatarUrl,
   roleId: member.roleId,
   roleName: member.role?.name ?? "-",
-  space: "All spaces",
+  space:
+    member.workspaces?.length > 0
+      ? member.workspaces.map((w) => w.name).join(", ")
+      : "All spaces",
   status,
   joined: formatDate(member.joinedAt),
-  workspaceIds: member.workspaceIds || []
+  workspaceIds: member.workspaces?.map((w) => w.id) || []
 });
 
 const mapPendingInviteToRow = (
@@ -130,9 +137,13 @@ const mapPendingInviteToRow = (
   avatarUrl: null,
   roleId: invite.roleId,
   roleName: invite.role?.name ?? "-",
-  space: "-",
+  space:
+    invite.workspaces?.length > 0
+      ? `${invite.workspaces.length} workspace${invite.workspaces.length > 1 ? "s" : ""}`
+      : "-",
   status: "Pending",
-  joined: formatDate(invite.createdAt)
+  joined: formatDate(invite.createdAt),
+  workspaceIds: invite.workspaces?.map((w) => w.workspaceId) || []
 });
 
 const Members = () => {
@@ -140,9 +151,12 @@ const Members = () => {
   const tenantId = authMe?.tenants?.[0]?.tenant?.id ?? "";
   const [activeTab, setActiveTab] = useState("active");
   const [search, setSearch] = useState("");
+  const [archivedSearch, setArchivedSearch] = useState("");
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
+  const [archivedPageIndex, setArchivedPageIndex] = useState(0);
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [debouncedArchivedSearch, setDebouncedArchivedSearch] = useState("");
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -152,12 +166,28 @@ const Members = () => {
     return () => clearTimeout(timer);
   }, [search]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedArchivedSearch(archivedSearch);
+      setArchivedPageIndex(0); // Reset page on search
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [archivedSearch]);
+
   const { data: membersData, isLoading: isMembersLoading } = useTenantMembers(
     tenantId,
     pageIndex + 1,
     15,
     debouncedSearch
   );
+
+  const { data: archivedMembersData, isLoading: isArchivedMembersLoading } =
+    useArchivedTenantMembers(
+      tenantId,
+      archivedPageIndex + 1,
+      15,
+      debouncedArchivedSearch
+    );
   const { data: roles = [] } = useRoles(tenantId);
   const { mutate: updateMemberRole, isPending: isUpdatingMemberRole } =
     useUpdateMemberRole();
@@ -167,10 +197,23 @@ const Members = () => {
     useCancelTenantInvite();
   const { mutate: updateMemberWorkspaces, isPending: isUpdatingWorkspaces } =
     useUpdateMemberWorkspaces();
+  const { mutate: archiveTenantMember, isPending: isArchivingTenantMember } =
+    useArchiveTenantMember();
+  const { mutate: restoreTenantMember, isPending: isRestoringTenantMember } =
+    useRestoreTenantMember();
   const { data: workspaces = [], isLoading: isWorkspacesLoading } =
     useWorkspaces(tenantId);
   const [spacePopoverOpen, setSpacePopoverOpen] = useState<string | null>(null);
   const [spaceSearch, setSpaceSearch] = useState("");
+  const [pendingWorkspaceIds, setPendingWorkspaceIds] = useState<string[]>([]);
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+  }>({ open: false, title: "", description: "", onConfirm: () => {} });
   const activeTenant =
     authMe?.tenants?.find((tenant) => tenant.tenant?.id === tenantId) ??
     authMe?.tenants?.[0];
@@ -193,12 +236,16 @@ const Members = () => {
     [roles]
   );
 
-  const isLoading = isAuthLoading || isMembersLoading;
+  const isLoading =
+    isAuthLoading ||
+    (activeTab === "archived" ? isArchivedMembersLoading : isMembersLoading);
   const isMutatingRow =
     isUpdatingMemberRole ||
     isRemovingTenantMember ||
     isCancelingTenantInvite ||
-    isUpdatingWorkspaces;
+    isUpdatingWorkspaces ||
+    isArchivingTenantMember ||
+    isRestoringTenantMember;
 
   const activeRows = useMemo(() => {
     const activeMembers = membersData?.activeMembers ?? [];
@@ -213,18 +260,23 @@ const Members = () => {
   }, [membersData?.activeMembers, membersData?.pendingInvites]);
 
   const archivedRows = useMemo(() => {
-    const archivedMembers = membersData?.archivedMembers ?? [];
-    const archivedFromMembers = (membersData?.activeMembers ?? []).filter(
-      (member) => Boolean(member.archivedAt)
-    );
+    const archivedMembers = archivedMembersData?.archivedMembers ?? [];
 
-    return [...archivedMembers, ...archivedFromMembers].map((member) =>
+    return archivedMembers.map((member) =>
       mapActiveMemberToRow(member, "Archived")
     );
-  }, [membersData?.activeMembers, membersData?.archivedMembers]);
+  }, [archivedMembersData?.archivedMembers]);
 
-  const tableRows = activeTab === "archived" ? archivedRows : activeRows;
-  const filteredRows = tableRows; // Search is handled by the backend
+  const currentRows = activeTab === "archived" ? archivedRows : activeRows;
+  const currentPageIndex =
+    activeTab === "archived" ? archivedPageIndex : pageIndex;
+  const setCurrentPageIndex =
+    activeTab === "archived" ? setArchivedPageIndex : setPageIndex;
+  const currentSearch = activeTab === "archived" ? archivedSearch : search;
+  const setCurrentSearch =
+    activeTab === "archived" ? setArchivedSearch : setSearch;
+  const currentMembersData =
+    activeTab === "archived" ? archivedMembersData : membersData;
   const activeMemberCount = activeRows.filter(
     (member) => member.status === "Active"
   ).length;
@@ -268,21 +320,19 @@ const Members = () => {
         return;
       }
 
-      const confirmed = window.confirm(`Cancel invite for ${row.email}?`);
-
-      if (!confirmed) {
-        return;
-      }
-
-      cancelTenantInvite({
-        tenantId,
-        inviteId: row.inviteId
+      setConfirmDialog({
+        open: true,
+        title: "Cancel Invite",
+        description: `Cancel invite for ${row.email}?`,
+        onConfirm: () => {
+          if (!row.inviteId) return;
+          cancelTenantInvite({
+            tenantId,
+            inviteId: row.inviteId
+          });
+          setConfirmDialog((prev) => ({ ...prev, open: false }));
+        }
       });
-      return;
-    }
-
-    if (!canRemoveMember) {
-      toast.error("You don't have permission to remove members.");
       return;
     }
 
@@ -290,15 +340,75 @@ const Members = () => {
       return;
     }
 
-    const confirmed = window.confirm(`Remove ${row.name} from this tenant?`);
+    // Active tab: Archive member, Archived tab: Remove member
+    if (activeTab === "active") {
+      if (!canRemoveMember) {
+        toast.error("You don't have permission to archive members.");
+        return;
+      }
 
-    if (!confirmed) {
+      const memberId = row.userId;
+      setConfirmDialog({
+        open: true,
+        title: "Archive Member",
+        description: `Archive ${row.name}? They will be moved to the archived list.`,
+        onConfirm: () => {
+          archiveTenantMember({
+            tenantId,
+            userId: memberId
+          });
+          setConfirmDialog((prev) => ({ ...prev, open: false }));
+        }
+      });
+    } else {
+      // archived tab - permanently remove
+      if (!canRemoveMember) {
+        toast.error("You don't have permission to remove members.");
+        return;
+      }
+
+      const memberId = row.userId;
+      setConfirmDialog({
+        open: true,
+        title: "Remove Member",
+        description: `Permanently remove ${row.name} from this tenant?`,
+        onConfirm: () => {
+          removeTenantMember({
+            tenantId,
+            userId: memberId
+          });
+          setConfirmDialog((prev) => ({ ...prev, open: false }));
+        }
+      });
+    }
+  };
+
+  const handleRestoreRow = (row: TenantMemberTableRow) => {
+    if (!tenantId || isMutatingRow) {
       return;
     }
 
-    removeTenantMember({
-      tenantId,
-      userId: row.userId
+    if (!row.userId) {
+      return;
+    }
+
+    if (!canRemoveMember) {
+      toast.error("You don't have permission to restore members.");
+      return;
+    }
+
+    const memberId = row.userId;
+    setConfirmDialog({
+      open: true,
+      title: "Restore Member",
+      description: `Restore ${row.name}? They will be moved back to the active list.`,
+      onConfirm: () => {
+        restoreTenantMember({
+          tenantId,
+          userId: memberId
+        });
+        setConfirmDialog((prev) => ({ ...prev, open: false }));
+      }
     });
   };
 
@@ -381,7 +491,6 @@ const Members = () => {
       header: "Space Access",
       cell: ({ row }) => {
         const isOpen = spacePopoverOpen === row.original.id;
-        const memberWorkspaceIds = row.original.workspaceIds || [];
         const filteredSpaces = useMemo(() => {
           const q = spaceSearch.toLowerCase();
           return workspaces.filter((ws) =>
@@ -389,8 +498,11 @@ const Members = () => {
           );
         }, [workspaces, spaceSearch]);
         const selectedSpaces = useMemo(
-          () => workspaces.filter((ws) => memberWorkspaceIds.includes(ws.id)),
-          [workspaces, memberWorkspaceIds]
+          () =>
+            workspaces.filter((ws) =>
+              row.original.workspaceIds?.includes(ws.id)
+            ),
+          [workspaces, row.original.workspaceIds]
         );
         const canManageWorkspaceAccess =
           tenantPermissions.includes("member.manage") ||
@@ -400,22 +512,37 @@ const Members = () => {
           workspaceId: string,
           checked: boolean
         ) => {
-          if (!row.original.userId || !canManageWorkspaceAccess) return;
-          const nextIds = checked
-            ? [...memberWorkspaceIds, workspaceId]
-            : memberWorkspaceIds.filter((id) => id !== workspaceId);
-          updateMemberWorkspaces(
-            {
-              tenantId,
-              userId: row.original.userId,
-              workspaceIds: nextIds
-            },
-            {
-              onError: () => {
-                toast.error("Failed to update workspace access");
-              }
+          if (!canManageWorkspaceAccess) return;
+          setPendingWorkspaceIds((prev) => {
+            if (checked) {
+              return prev.includes(workspaceId) ? prev : [...prev, workspaceId];
+            } else {
+              return prev.filter((id) => id !== workspaceId);
             }
-          );
+          });
+        };
+
+        const handleSaveWorkspaces = () => {
+          if (!row.original.userId) return;
+          const hasChanges =
+            JSON.stringify(pendingWorkspaceIds.sort()) !==
+            JSON.stringify((row.original.workspaceIds || []).sort());
+          if (hasChanges) {
+            updateMemberWorkspaces(
+              {
+                tenantId,
+                userId: row.original.userId,
+                workspaceIds: pendingWorkspaceIds
+              },
+              {
+                onError: () => {
+                  toast.error("Failed to update workspace access");
+                }
+              }
+            );
+          }
+          setSpacePopoverOpen(null);
+          setEditingMemberId(null);
         };
 
         return (
@@ -425,20 +552,34 @@ const Members = () => {
               if (open) {
                 setSpacePopoverOpen(row.original.id);
                 setSpaceSearch("");
+                setPendingWorkspaceIds(row.original.workspaceIds || []);
+                setEditingMemberId(row.original.id);
               } else {
-                setSpacePopoverOpen(null);
+                handleSaveWorkspaces();
               }
             }}
           >
             <PopoverTrigger className="outline-none">
               <div className="flex items-center gap-1 text-blue-600 cursor-pointer hover:underline">
                 <span className="text-sm">
-                  {selectedSpaces.length === 0
-                    ? "No spaces"
-                    : selectedSpaces.length === 1
-                      ? selectedSpaces[0].name || "Untitled"
-                      : `${selectedSpaces.length} spaces`}
+                  {(() => {
+                    const displayIds = isOpen
+                      ? pendingWorkspaceIds
+                      : row.original.workspaceIds || [];
+                    const count = displayIds.length;
+                    if (count === 0) return "No spaces";
+                    if (count === 1) {
+                      const ws = workspaces.find((w) => displayIds[0] === w.id);
+                      return ws?.name || "Untitled";
+                    }
+                    return `${count} spaces`;
+                  })()}
                 </span>
+                {isOpen &&
+                  pendingWorkspaceIds.length !==
+                    (row.original.workspaceIds || []).length && (
+                    <span className="text-xs text-amber-600">*</span>
+                  )}
                 <ChevronDown
                   className={`h-4 w-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
                 />
@@ -473,14 +614,14 @@ const Members = () => {
                               return;
                             }
                             e.preventDefault();
-                            const isChecked = memberWorkspaceIds.includes(
+                            const isChecked = pendingWorkspaceIds.includes(
                               ws.id
                             );
                             handleWorkspaceToggle(ws.id, !isChecked);
                           }}
                         >
                           <Checkbox
-                            checked={memberWorkspaceIds.includes(ws.id)}
+                            checked={pendingWorkspaceIds.includes(ws.id)}
                             disabled={!canManageWorkspaceAccess}
                             onCheckedChange={(checked) =>
                               handleWorkspaceToggle(ws.id, checked === true)
@@ -493,6 +634,27 @@ const Members = () => {
                       ))
                     )}
                   </div>
+                  {canManageWorkspaceAccess && (
+                    <div className="mt-2 pt-2 border-t flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">
+                        {pendingWorkspaceIds.length} selected
+                      </span>
+                      <Button
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSaveWorkspaces();
+                        }}
+                        disabled={isUpdatingWorkspaces}
+                      >
+                        {isUpdatingWorkspaces ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          "Save"
+                        )}
+                      </Button>
+                    </div>
+                  )}
                 </>
               )}
             </PopoverContent>
@@ -534,6 +696,15 @@ const Members = () => {
             <MoreHorizontal className="w-4 h-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent>
+            {activeTab === "archived" && row.original.kind === "member" && (
+              <DropdownMenuItem
+                disabled={!canRemoveMember || isRestoringTenantMember}
+                onClick={() => handleRestoreRow(row.original)}
+              >
+                <span className="h-4 w-4 mr-2">↩</span>
+                Restore
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               variant="destructive"
               disabled={
@@ -544,7 +715,11 @@ const Members = () => {
               onClick={() => handleDeleteRow(row.original)}
             >
               <Trash2 className="h-4 w-4" />
-              {row.original.kind === "invite" ? "Cancel invite" : "Archive"}
+              {row.original.kind === "invite"
+                ? "Cancel invite"
+                : activeTab === "active"
+                  ? "Archive"
+                  : "Remove"}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -588,9 +763,9 @@ const Members = () => {
       actions={
         <div className="flex gap-2 items-center">
           <SearchBox
-            value={search}
-            onChange={setSearch}
-            resultCount={filteredRows.length}
+            value={currentSearch}
+            onChange={setCurrentSearch}
+            resultCount={currentRows.length}
           />
           {canInviteMember && (
             <Button
@@ -661,12 +836,12 @@ const Members = () => {
           </div>
         ) : (
           <DataTable<TenantMemberTableRow>
-            data={filteredRows}
+            data={currentRows}
             columns={memberColumns}
             manualPagination
-            pageCount={membersData?.meta?.lastPage ?? 1}
-            pageIndex={pageIndex}
-            onPageChange={setPageIndex}
+            pageCount={currentMembersData?.meta?.lastPage ?? 1}
+            pageIndex={currentPageIndex}
+            onPageChange={setCurrentPageIndex}
           />
         )}
       </div>
@@ -675,6 +850,22 @@ const Members = () => {
         open={isInviteOpen}
         onOpenChange={setIsInviteOpen}
         canInviteMember={canInviteMember}
+      />
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => setConfirmDialog((prev) => ({ ...prev, open }))}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        onConfirm={confirmDialog.onConfirm}
+        confirmLabel={
+          confirmDialog.title.includes("Archive")
+            ? "Archive"
+            : confirmDialog.title.includes("Remove")
+              ? "Remove"
+              : confirmDialog.title.includes("Restore")
+                ? "Restore"
+                : "Confirm"
+        }
       />
     </LayoutWrapper>
   );

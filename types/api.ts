@@ -310,3 +310,18 @@ export interface TaskComment {
     updatedAt?: string;
     attachments?: Attachment[];
 }
+
+export interface Tag {
+    id: string;
+    workspaceId: string;
+    name: string;
+    color: string;
+    createdBy: string;
+    updatedBy: string | null;
+    createdAt: string;
+    updatedAt: string;
+    creator?: {
+        id: string;
+        name: string;
+    };
+}

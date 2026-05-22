@@ -1,8 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, X, Check, ChevronsUpDown } from "lucide-react";
+import {
+  CalendarIcon,
+  X,
+  Check,
+  ChevronsUpDown,
+  Plus,
+  MoreHorizontal,
+  Trash2
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,7 +41,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Column } from "@/types/type-kanban-columns";
 import type { CreateTaskDto, Tag } from "@/types/api";
 import type { Member } from "@/types/api";
-import { useTags } from "@/hooks/api/useTags";
+import {
+  useTags,
+  useCreateTag,
+  useUpdateTag,
+  useDeleteTag
+} from "@/hooks/api/useTags";
 
 interface CreateTaskDialogProps {
   columns: Column[];
@@ -64,11 +77,54 @@ export function CreateTaskDialog({
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
   const [priority, setPriority] = useState<"LOW" | "MEDIUM" | "HIGH">("MEDIUM");
-  const [dueDate, setDueDate] = useState<Date | undefined>(new Date());
+  const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
+  const [columnPopoverOpen, setColumnPopoverOpen] = useState(false);
   const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [tagSearch, setTagSearch] = useState("");
+  const [editingTagId, setEditingTagId] = useState<string | null>(null);
+  const [editTagName, setEditTagName] = useState("");
+  const [editTagColor, setEditTagColor] = useState("#6366f1");
+  const [isCreatingTag, setIsCreatingTag] = useState(false);
 
   const { data: tags = [] } = useTags(tenantId, workspaceId);
+  const createTag = useCreateTag();
+  const updateTag = useUpdateTag();
+  const deleteTag = useDeleteTag();
+
+  // Reset columnId and dueDate when dialog opens
+  useEffect(() => {
+    if (open) {
+      setColumnId(defaultColumnId || columns[0]?.id || "");
+      setDueDate(new Date());
+    }
+  }, [open, defaultColumnId, columns]);
+
+  const tagColors = [
+    "#6366f1", // indigo
+    "#3b82f6", // blue
+    "#06b6d4", // cyan
+    "#10b981", // emerald
+    "#84cc16", // lime
+    "#eab308", // yellow
+    "#f59e0b", // amber
+    "#f97316", // orange
+    "#ef4444", // red
+    "#ec4899", // pink
+    "#a855f7", // purple
+    "#6b7280" // gray
+  ];
+
+  // Memoize date display to prevent hydration mismatch
+  const dueDateLabel = useMemo(() => {
+    if (!dueDate) return null;
+    const today = new Date();
+    const isToday =
+      dueDate.getDate() === today.getDate() &&
+      dueDate.getMonth() === today.getMonth() &&
+      dueDate.getFullYear() === today.getFullYear();
+    return isToday ? "Today" : format(dueDate, "PPP");
+  }, [dueDate]);
 
   const toggleTag = (tagId: string) => {
     setSelectedTagIds((prev) =>
@@ -82,8 +138,94 @@ export function CreateTaskDialog({
     setSelectedTagIds((prev) => prev.filter((id) => id !== tagId));
   };
 
+  const selectedTags = useMemo(() => {
+    return tags.filter((t: Tag) => selectedTagIds.includes(t.id));
+  }, [tags, selectedTagIds]);
+
+  const unselectedTags = useMemo(() => {
+    return tags.filter(
+      (t: Tag) =>
+        !selectedTagIds.includes(t.id) &&
+        t.name.toLowerCase().includes(tagSearch.toLowerCase())
+    );
+  }, [tags, selectedTagIds, tagSearch]);
+
+  const canCreateNewTag =
+    tagSearch.trim() &&
+    !tags.some(
+      (t: Tag) => t.name.toLowerCase() === tagSearch.trim().toLowerCase()
+    );
+
+  const handleCreateTag = async (nameOverride?: string) => {
+    const name = nameOverride?.trim() || editTagName.trim() || tagSearch.trim();
+    if (!name) return;
+    try {
+      const newTag = await createTag.mutateAsync({
+        tenantId,
+        workspaceId,
+        dto: { name, color: editTagColor }
+      });
+      setSelectedTagIds((prev) => [...prev, newTag.id]);
+      setTagSearch("");
+      setEditTagName("");
+      setIsCreatingTag(false);
+    } catch {
+      // Error handled by mutation meta
+    }
+  };
+
+  const handleTagSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (canCreateNewTag && !isCreatingTag) {
+        setEditTagColor(tagColors[0]);
+        handleCreateTag(tagSearch);
+      }
+    }
+  };
+
+  const handleUpdateTag = async (tagId: string) => {
+    try {
+      await updateTag.mutateAsync({
+        tenantId,
+        workspaceId,
+        tagId,
+        dto: { name: editTagName.trim(), color: editTagColor }
+      });
+      setEditingTagId(null);
+    } catch {
+      // Error handled by mutation meta
+    }
+  };
+
+  const handleDeleteTag = async (tagId: string) => {
+    try {
+      await deleteTag.mutateAsync({ tenantId, workspaceId, tagId });
+      setSelectedTagIds((prev) => prev.filter((id) => id !== tagId));
+      setEditingTagId(null);
+    } catch {
+      // Error handled by mutation meta
+    }
+  };
+
+  const startEditingTag = (tag: Tag) => {
+    setEditingTagId(tag.id);
+    setEditTagName(tag.name);
+    setEditTagColor(tag.color);
+  };
+
+  const startCreatingTag = () => {
+    setIsCreatingTag(true);
+    setEditTagColor(tagColors[0]);
+    if (tagSearch.trim()) {
+      setEditTagName(tagSearch.trim());
+    } else {
+      setEditTagName("");
+    }
+  };
+
   const handleSubmit = () => {
-    if (!title.trim() || !columnId) return;
+    if (!title.trim()) return;
 
     const dto: CreateTaskDto = {
       title: title.trim(),
@@ -101,7 +243,7 @@ export function CreateTaskDialog({
     setTitle("");
     setDescription("");
     setAssigneeIds([]);
-    setDueDate(new Date());
+    setDueDate(undefined);
     setSelectedTagIds([]);
   };
 
@@ -135,30 +277,77 @@ export function CreateTaskDialog({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 items-start">
             <div className="grid gap-2">
               <label className="text-sm font-medium text-muted-foreground">
                 Status / Column
               </label>
-              <Select
-                value={columnId}
-                onValueChange={(val) => val && setColumnId(val)}
-                items={columns.map((col) => ({
-                  value: col.id,
-                  label: col.name
-                }))}
+              <Popover
+                open={columnPopoverOpen}
+                onOpenChange={setColumnPopoverOpen}
               >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select column" />
-                </SelectTrigger>
-                <SelectContent>
-                  {columns.map((col) => (
-                    <SelectItem key={col.id} value={col.id}>
-                      {col.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <PopoverTrigger className="flex min-h-10 h-auto w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    {columnId ? (
+                      (() => {
+                        const col = columns.find((c) => c.id === columnId);
+                        if (!col)
+                          return (
+                            <span className="text-muted-foreground">
+                              Select column
+                            </span>
+                          );
+                        return (
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-2.5 h-2.5 rounded-full"
+                              style={{
+                                backgroundColor: col.color || "#6366f1"
+                              }}
+                            />
+                            <span>{col.name}</span>
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <span className="text-muted-foreground">
+                        Select column
+                      </span>
+                    )}
+                  </div>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </PopoverTrigger>
+                <PopoverContent className="w-[260px] p-1" align="start">
+                  <div className="flex flex-col max-h-[250px] overflow-auto">
+                    {columns.length === 0 && (
+                      <p className="text-sm text-muted-foreground p-3 text-center">
+                        No columns available
+                      </p>
+                    )}
+                    {columns.map((col) => (
+                      <button
+                        key={col.id}
+                        onClick={() => {
+                          setColumnId(col.id);
+                          setColumnPopoverOpen(false);
+                        }}
+                        className={`flex items-center gap-2 w-full px-3 py-2 rounded-md text-left text-sm hover:bg-muted transition-colors ${
+                          columnId === col.id ? "bg-muted" : ""
+                        }`}
+                      >
+                        <div
+                          className="w-2.5 h-2.5 rounded-full"
+                          style={{ backgroundColor: col.color || "#6366f1" }}
+                        />
+                        <span className="flex-1">{col.name}</span>
+                        {columnId === col.id && (
+                          <Check className="h-4 w-4 text-primary" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="grid gap-2">
@@ -169,24 +358,55 @@ export function CreateTaskDialog({
                 open={assigneePopoverOpen}
                 onOpenChange={setAssigneePopoverOpen}
               >
-                <PopoverTrigger
-                  render={
-                    <Button variant="outline" className="justify-between">
-                      <span
-                        className={
-                          assigneeIds.length === 0
-                            ? "text-muted-foreground"
-                            : ""
-                        }
-                      >
-                        {assigneeIds.length === 0
-                          ? "Select assignees"
-                          : `${assigneeIds.length} selected`}
-                      </span>
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  }
-                />
+                <PopoverTrigger>
+                  <div className="flex min-h-10 h-auto w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      {assigneeIds.length === 0 ? (
+                        <span className="text-muted-foreground">
+                          Select assignees
+                        </span>
+                      ) : (
+                        <div className="flex items-center">
+                          <div className="flex -space-x-2">
+                            {assigneeIds.slice(0, 3).map((id, idx) => {
+                              const member = members.find((m) => m.id === id);
+                              if (!member) return null;
+                              return (
+                                <Avatar
+                                  key={id}
+                                  className="h-6 w-6 border-2 border-background"
+                                  style={{ zIndex: assigneeIds.length - idx }}
+                                >
+                                  <AvatarImage src={member.avatarUrl || ""} />
+                                  <AvatarFallback className="text-[10px]">
+                                    {(member.fullName || member.username || "U")
+                                      .split(" ")
+                                      .map((n) => n[0])
+                                      .join("")
+                                      .slice(0, 2)
+                                      .toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                              );
+                            })}
+                          </div>
+                          {assigneeIds.length > 3 && (
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              +{assigneeIds.length - 3}
+                            </span>
+                          )}
+                          {assigneeIds.length > 0 &&
+                            assigneeIds.length <= 3 && (
+                              <span className="ml-2 text-xs text-muted-foreground">
+                                {assigneeIds.length} selected
+                              </span>
+                            )}
+                        </div>
+                      )}
+                    </div>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </div>
+                </PopoverTrigger>
                 <PopoverContent className="w-[280px] p-2">
                   <div className="flex flex-col gap-1 max-h-[200px] overflow-auto">
                     {members.length === 0 && (
@@ -210,9 +430,7 @@ export function CreateTaskDialog({
                         >
                           <Checkbox checked={isSelected} />
                           <Avatar className="h-6 w-6">
-                            <AvatarImage
-                              src={(member as any).avatarUrl || ""}
-                            />
+                            <AvatarImage src={member.avatarUrl || ""} />
                             <AvatarFallback className="text-xs">
                               {(member.fullName || member.username || "U")
                                 .split(" ")
@@ -233,28 +451,40 @@ export function CreateTaskDialog({
                 </PopoverContent>
               </Popover>
               {assigneeIds.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1">
+                <div className="flex flex-wrap gap-1.5 mt-2 max-h-[72px] overflow-y-auto pr-1">
                   {assigneeIds.map((id) => {
                     const member = members.find((m) => m.id === id);
                     if (!member) return null;
                     return (
-                      <Badge
+                      <div
                         key={id}
-                        variant="secondary"
-                        className="flex items-center gap-1"
+                        className="group flex items-center gap-1.5 rounded-full bg-muted px-2 py-1 pr-1 text-sm shrink-0"
                       >
-                        {member.fullName || member.username || member.email}
-                        <button
+                        <Avatar className="h-5 w-5">
+                          <AvatarImage src={member.avatarUrl || ""} />
+                          <AvatarFallback className="text-[10px]">
+                            {(member.fullName || member.username || "U")
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")
+                              .slice(0, 2)
+                              .toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="truncate max-w-24">
+                          {member.fullName || member.username || member.email}
+                        </span>
+                        <span
                           onClick={() =>
                             setAssigneeIds((prev) =>
                               prev.filter((x) => x !== id)
                             )
                           }
-                          className="ml-1 hover:text-destructive"
+                          className="ml-0.5 p-0.5 rounded-full hover:bg-muted-foreground/20 cursor-pointer opacity-60 group-hover:opacity-100 transition-opacity"
                         >
                           <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
+                        </span>
+                      </div>
                     );
                   })}
                 </div>
@@ -304,18 +534,7 @@ export function CreateTaskDialog({
                   }
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dueDate ? (
-                    (() => {
-                      const today = new Date();
-                      const isToday =
-                        dueDate.getDate() === today.getDate() &&
-                        dueDate.getMonth() === today.getMonth() &&
-                        dueDate.getFullYear() === today.getFullYear();
-                      return isToday ? "Today" : format(dueDate, "PPP");
-                    })()
-                  ) : (
-                    <span>Select date</span>
-                  )}
+                  {dueDateLabel || <span>Select date</span>}
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
                   <Calendar
@@ -332,80 +551,248 @@ export function CreateTaskDialog({
             <label className="text-sm font-medium text-muted-foreground">
               Tags
             </label>
-            <Popover open={tagPopoverOpen} onOpenChange={setTagPopoverOpen}>
-              <PopoverTrigger
-                render={
-                  <Button variant="outline" className="justify-between">
-                    <span
-                      className={
-                        selectedTagIds.length === 0
-                          ? "text-muted-foreground"
-                          : ""
-                      }
-                    >
-                      {selectedTagIds.length === 0
-                        ? "Select tags"
-                        : `${selectedTagIds.length} selected`}
-                    </span>
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                }
-              />
-              <PopoverContent className="w-[280px] p-2">
-                <div className="flex flex-col gap-1 max-h-[200px] overflow-auto">
-                  {tags.length === 0 && (
-                    <p className="text-sm text-muted-foreground p-2">
-                      No tags available
-                    </p>
-                  )}
-                  {tags.map((tag: Tag) => {
-                    const isSelected = selectedTagIds.includes(tag.id);
-                    return (
-                      <button
+            <Popover
+              open={tagPopoverOpen}
+              onOpenChange={(open) => {
+                if (!open && (editingTagId || isCreatingTag)) return;
+                setTagPopoverOpen(open);
+              }}
+            >
+              <PopoverTrigger className="flex min-h-10 h-auto w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer">
+                <div className="flex flex-wrap gap-1 items-center">
+                  {selectedTags.length === 0 ? (
+                    <span className="text-muted-foreground">Select tags</span>
+                  ) : (
+                    selectedTags.map((tag: Tag) => (
+                      <Badge
                         key={tag.id}
-                        onClick={() => toggleTag(tag.id)}
-                        className="flex items-center gap-2 w-full px-2 py-2 rounded hover:bg-muted text-left"
+                        style={{ backgroundColor: tag.color }}
+                        className="flex items-center gap-1 text-white text-xs"
                       >
-                        <Checkbox checked={isSelected} />
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: tag.color }}
-                        />
-                        <span className="text-sm truncate">{tag.name}</span>
-                        {isSelected && <Check className="ml-auto h-4 w-4" />}
+                        {tag.name}
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeTag(tag.id);
+                          }}
+                          className="ml-0.5 hover:text-white/80 cursor-pointer"
+                        >
+                          <X className="h-3 w-3" />
+                        </span>
+                      </Badge>
+                    ))
+                  )}
+                </div>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </PopoverTrigger>
+              <PopoverContent className="w-[320px] p-0" align="start">
+                <div className="flex flex-col max-h-[350px]">
+                  {/* Selected tags section */}
+                  {selectedTags.length > 0 && (
+                    <div className="p-2 border-b">
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedTags.map((tag: Tag) => (
+                          <Badge
+                            key={tag.id}
+                            style={{ backgroundColor: tag.color }}
+                            className="flex items-center gap-1 text-white text-xs pr-1"
+                          >
+                            {tag.name}
+                            <button
+                              onClick={() => toggleTag(tag.id)}
+                              className="hover:text-white/80"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Search/Create input */}
+                  <div className="p-2 border-b">
+                    <Input
+                      placeholder="Search or create tag..."
+                      value={tagSearch}
+                      onChange={(e) => setTagSearch(e.target.value)}
+                      onKeyDown={handleTagSearchKeyDown}
+                      className="h-8"
+                    />
+                  </div>
+
+                  {/* Tag list */}
+                  <div className="flex-1 overflow-auto">
+                    {/* Create new tag option */}
+                    {canCreateNewTag && (
+                      <button
+                        onClick={startCreatingTag}
+                        className="flex items-center gap-2 w-full px-2 py-2 rounded hover:bg-muted text-left text-sm"
+                      >
+                        <Plus className="h-4 w-4 text-muted-foreground" />
+                        <span>Create "{tagSearch.trim()}"</span>
                       </button>
-                    );
-                  })}
+                    )}
+
+                    {/* Unselected tags */}
+                    {unselectedTags.length > 0 && (
+                      <>
+                        <div className="px-2 py-0.5 text-xs text-muted-foreground">
+                          Select an option
+                        </div>
+                        {unselectedTags.map((tag: Tag) => (
+                          <div
+                            key={tag.id}
+                            className="group flex items-center gap-1.5 px-2 h-6 rounded hover:bg-muted cursor-pointer"
+                          >
+                            <div
+                              onClick={() => toggleTag(tag.id)}
+                              className="flex items-center gap-1.5 flex-1 text-left"
+                            >
+                              <div
+                                className="w-2.5 h-2.5 rounded-full"
+                                style={{ backgroundColor: tag.color }}
+                              />
+                              <span className="text-sm truncate leading-none">
+                                {tag.name}
+                              </span>
+                            </div>
+                            <Popover
+                              open={editingTagId === tag.id}
+                              onOpenChange={(open) => {
+                                if (open) {
+                                  startEditingTag(tag);
+                                } else {
+                                  setEditingTagId(null);
+                                }
+                              }}
+                            >
+                              <PopoverTrigger>
+                                <span className="opacity-0 group-hover:opacity-100 rounded hover:bg-muted-foreground/10 transition-opacity cursor-pointer flex items-center justify-center w-5 h-5">
+                                  <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+                                </span>
+                              </PopoverTrigger>
+                              <PopoverContent
+                                className="w-[220px] p-3"
+                                align="end"
+                              >
+                                <div className="grid gap-3">
+                                  <Input
+                                    value={editTagName}
+                                    onChange={(e) =>
+                                      setEditTagName(e.target.value)
+                                    }
+                                    className="h-8"
+                                    placeholder="Tag name"
+                                  />
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {tagColors.map((color) => (
+                                      <button
+                                        key={color}
+                                        onClick={() => setEditTagColor(color)}
+                                        className={`w-6 h-6 rounded-full transition-all ${editTagColor === color ? "ring-2 ring-offset-1 ring-primary" : ""}`}
+                                        style={{ backgroundColor: color }}
+                                      />
+                                    ))}
+                                  </div>
+                                  <div className="flex items-center gap-2 pt-1 border-t">
+                                    <button
+                                      onClick={() => handleDeleteTag(tag.id)}
+                                      className="flex items-center gap-1.5 text-sm text-destructive hover:text-destructive/80 px-2 py-1.5 rounded hover:bg-destructive/10 transition-colors"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                      Delete
+                                    </button>
+                                    <div className="flex-1" />
+                                    <Button
+                                      size="sm"
+                                      className="h-8"
+                                      onClick={() => handleUpdateTag(tag.id)}
+                                      disabled={
+                                        !editTagName.trim() ||
+                                        updateTag.isPending
+                                      }
+                                    >
+                                      Save
+                                    </Button>
+                                  </div>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                        ))}
+                      </>
+                    )}
+
+                    {unselectedTags.length === 0 &&
+                      !canCreateNewTag &&
+                      tags.length > 0 && (
+                        <p className="text-sm text-muted-foreground p-3 text-center">
+                          No matching tags
+                        </p>
+                      )}
+
+                    {tags.length === 0 && !canCreateNewTag && (
+                      <p className="text-sm text-muted-foreground p-3 text-center">
+                        No tags available. Type to create one.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Create tag inline form */}
+                  {isCreatingTag && (
+                    <div className="p-3 border-t bg-muted/50">
+                      <div className="grid gap-3">
+                        <Input
+                          value={editTagName}
+                          onChange={(e) => setEditTagName(e.target.value)}
+                          className="h-8"
+                          placeholder="Tag name"
+                          autoFocus
+                        />
+                        <div className="flex flex-wrap gap-1.5">
+                          {tagColors.map((color) => (
+                            <button
+                              key={color}
+                              onClick={() => setEditTagColor(color)}
+                              className={`w-6 h-6 rounded-full transition-all ${editTagColor === color ? "ring-2 ring-offset-1 ring-primary" : ""}`}
+                              style={{ backgroundColor: color }}
+                            />
+                          ))}
+                        </div>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8"
+                            onClick={() => {
+                              setIsCreatingTag(false);
+                              setEditTagName("");
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="h-8"
+                            onClick={() => handleCreateTag()}
+                            disabled={
+                              !editTagName.trim() || createTag.isPending
+                            }
+                          >
+                            Create
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </PopoverContent>
             </Popover>
-            {selectedTagIds.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-1">
-                {selectedTagIds.map((tagId) => {
-                  const tag = tags.find((t: Tag) => t.id === tagId);
-                  if (!tag) return null;
-                  return (
-                    <Badge
-                      key={tagId}
-                      style={{ backgroundColor: tag.color }}
-                      className="flex items-center gap-1 text-white"
-                    >
-                      {tag.name}
-                      <button
-                        onClick={() => removeTag(tagId)}
-                        className="ml-1 hover:text-white/80"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  );
-                })}
-              </div>
-            )}
           </div>
         </div>
         <div className="flex justify-end">
-          <Button onClick={handleSubmit} disabled={!title.trim() || !columnId}>
+          <Button onClick={handleSubmit} disabled={!title.trim()}>
             Create Task
           </Button>
         </div>

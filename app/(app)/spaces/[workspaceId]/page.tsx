@@ -131,6 +131,8 @@ export default function WorkspaceDetailPage() {
     workspaceId,
     activeBoardId || ""
   );
+
+  console.log("columns:", columns);
   const { data: tasks = [] } = useTasks(
     tenantId,
     workspaceId,
@@ -150,9 +152,12 @@ export default function WorkspaceDetailPage() {
       userId: m.userId,
       email: m.user.email,
       username: m.user.username,
-      fullName: m.user.fullName
+      fullName: m.user.fullName,
+      avatarUrl: m.user.avatarUrl
     }));
   }, [membersData]);
+
+  console.log("membersData123:", membersData);
 
   // Mutations
   const { mutate: createFolder } = useCreateFolder();

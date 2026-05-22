@@ -45,6 +45,7 @@ import { GanttView } from "./components/GanttView";
 import { CreateTaskDialog } from "./components/CreateTaskDialog";
 import { NameDialog } from "./components/NameDialog";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { RenameBoardDialog } from "./components/RenameBoardDialog";
 import { TaskDetailSheet } from "./components/TaskDetailSheet";
 import { useTenantMembers } from "@/hooks/api/useTenantMembers";
@@ -284,7 +285,7 @@ export default function WorkspaceDetailPage() {
   }
 
   return (
-    <div className="flex h-full w-full gap-2 px-2">
+    <div className="flex h-full w-full gap-2 pr-2 overflow-hidden">
       {/* Secondary Sidebar */}
       <WorkspaceSidebar
         workspaceName={workspace?.name || "Workspace"}
@@ -358,6 +359,7 @@ export default function WorkspaceDetailPage() {
         {/* Header */}
         <div className="flex items-center justify-between border-b px-6 py-3">
           <div className="flex items-center gap-4">
+            <SidebarTrigger className="-ml-1" />
             <div className="flex items-center gap-2">
               <h1 className="text-lg font-semibold">
                 {activeDocument?.name || "Select a document"}

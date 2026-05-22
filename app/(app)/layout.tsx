@@ -5,9 +5,11 @@ import { ApiAuthProvider } from "@/providers/api-auth-provider";
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <ApiAuthProvider>
-      <SidebarProvider>
+      <SidebarProvider className="p-2">
         <AppSidebar />
-        <SidebarInset className="overflow-x-hidden">{children}</SidebarInset>
+        <SidebarInset className="overflow-x-hidden rounded-xl border shadow-xs">
+          {children}
+        </SidebarInset>
       </SidebarProvider>
     </ApiAuthProvider>
   );

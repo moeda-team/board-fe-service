@@ -228,7 +228,7 @@ export function BoardView({
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          className={`flex w-72 shrink-0 flex-col rounded-xl border bg-card/50 shadow-sm ${
+                          className={`flex w-72 shrink-0 flex-col rounded-xl border border-border/60 bg-card shadow-sm max-h-[calc(100vh-200px)] ${
                             snapshot.isDragging
                               ? "shadow-2xl scale-[1.02] opacity-90 z-40 border-primary"
                               : ""
@@ -336,7 +336,7 @@ export function BoardView({
                             {(provided, snapshot) => (
                               <div
                                 data-scroll-y
-                                className={`relative flex flex-col gap-2 px-3 pb-2 min-h-2.5 flex-1 max-h-[75vh] overflow-y-auto transition-colors ${
+                                className={`relative flex flex-col gap-2 px-3 pb-2 min-h-2.5 flex-1 overflow-y-auto transition-colors ${
                                   snapshot.isDraggingOver
                                     ? "bg-primary/5 rounded-lg border-2 border-dashed border-primary/40"
                                     : "border-2 border-transparent"

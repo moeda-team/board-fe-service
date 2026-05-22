@@ -8,16 +8,17 @@ import "./globals.css";
 
 const inter = Inter({
   variable: "--font-sans",
-  subsets: ["latin"],
+  subsets: ["latin"]
 });
 
 export const metadata: Metadata = {
-  title: "ChronoTask",
-  description: "Project management board — manage spaces, tasks, members, and track developer KPIs",
+  title: "Papanclip",
+  description:
+    "Project management board — manage spaces, tasks, members, and track developer KPIs"
 };
 
 export default function RootLayout({
-  children,
+  children
 }: Readonly<{
   children: React.ReactNode;
 }>) {

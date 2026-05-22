@@ -1,4 +1,4 @@
-# ChronoTask
+# Papanclip
 
 Project management board application — manage spaces, tasks, members, and track developer KPIs.
 

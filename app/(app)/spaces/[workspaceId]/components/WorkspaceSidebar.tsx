@@ -70,21 +70,20 @@ export function WorkspaceSidebar({
                 onDeleteDocument={onDeleteDocument}
               />
             ))}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-1 w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+              onClick={onCreateFolder}
+            >
+              <Plus className="h-4 w-4" />
+              New Folder
+            </Button>
           </div>
         )}
       </div>
 
       <div className="flex flex-col gap-4 p-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
-          onClick={onCreateFolder}
-        >
-          <Plus className="h-4 w-4" />
-          New Folder
-        </Button>
-
         <div className="flex flex-col gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent/50 p-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium">Storage</span>

@@ -161,6 +161,7 @@ export interface Member {
     email?: string;
     username?: string;
     fullName?: string;
+    avatarUrl?: string | null;
     role?: AuthMeTenantRole | string | null;
     status?: string;
     joinedAt?: string | null;
@@ -204,6 +205,7 @@ export interface Column {
     id: string;
     boardId?: string;
     name?: string;
+    color?: string;
     order?: number;
     isDone?: boolean;
     [key: string]: unknown;

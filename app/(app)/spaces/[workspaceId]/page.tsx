@@ -31,7 +31,8 @@ import {
   tasksQueryKey,
   useTasks,
   useCreateTask,
-  useMoveTask
+  useMoveTask,
+  useDeleteTask
 } from "@/hooks/api/useTasks";
 import type { Board } from "@/types/type-boards";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,8 @@ import { ListView } from "./components/ListView";
 import { GanttView } from "./components/GanttView";
 import { CreateTaskDialog } from "./components/CreateTaskDialog";
 import { NameDialog } from "./components/NameDialog";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { RenameBoardDialog } from "./components/RenameBoardDialog";
 import { TaskDetailSheet } from "./components/TaskDetailSheet";
 import { useTenantMembers } from "@/hooks/api/useTenantMembers";
@@ -83,6 +86,13 @@ export default function WorkspaceDetailPage() {
   >(undefined);
 
   const [isRenameBoardOpen, setIsRenameBoardOpen] = useState(false);
+
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+  }>({ open: false, title: "", description: "", onConfirm: () => {} });
 
   // NameDialog state for folder/document operations
   const [nameDialog, setNameDialog] = useState<{
@@ -172,6 +182,7 @@ export default function WorkspaceDetailPage() {
   const { mutate: reorderColumns } = useReorderColumns();
   const { mutate: createTask } = useCreateTask();
   const { mutate: moveTask } = useMoveTask();
+  const { mutate: deleteTask } = useDeleteTask();
   const queryClient = useQueryClient();
   const socket = useTenantSocket(tenantId || null);
 
@@ -274,7 +285,7 @@ export default function WorkspaceDetailPage() {
   }
 
   return (
-    <div className="flex h-full w-full gap-2 px-2">
+    <div className="flex h-full w-full gap-2 pr-2 overflow-hidden">
       {/* Secondary Sidebar */}
       <WorkspaceSidebar
         workspaceName={workspace?.name || "Workspace"}
@@ -315,9 +326,13 @@ export default function WorkspaceDetailPage() {
           });
         }}
         onDeleteDocument={(board) => {
-          if (window.confirm(`Delete board "${board.name}"?`)) {
-            deleteBoard({ tenantId, workspaceId, boardId: board.id });
-          }
+          setConfirmDialog({
+            open: true,
+            title: "Delete Document",
+            description: `Are you sure you want to delete "${board.name}"? This action cannot be undone.`,
+            onConfirm: () =>
+              deleteBoard({ tenantId, workspaceId, boardId: board.id })
+          });
         }}
         onRenameFolderSubmit={(folderId, name) => {
           updateFolder({
@@ -328,9 +343,13 @@ export default function WorkspaceDetailPage() {
           });
         }}
         onDeleteFolder={(folder) => {
-          if (window.confirm(`Delete folder "${folder.name}"?`)) {
-            deleteFolder({ tenantId, workspaceId, folderId: folder.id });
-          }
+          setConfirmDialog({
+            open: true,
+            title: "Delete Folder",
+            description: `Are you sure you want to delete "${folder.name}"? This action cannot be undone.`,
+            onConfirm: () =>
+              deleteFolder({ tenantId, workspaceId, folderId: folder.id })
+          });
         }}
         isLoading={isFoldersLoading || isBoardsLoading}
       />
@@ -340,6 +359,7 @@ export default function WorkspaceDetailPage() {
         {/* Header */}
         <div className="flex items-center justify-between border-b px-6 py-3">
           <div className="flex items-center gap-4">
+            <SidebarTrigger className="-ml-1" />
             <div className="flex items-center gap-2">
               <h1 className="text-lg font-semibold">
                 {activeDocument?.name || "Select a document"}
@@ -435,6 +455,15 @@ export default function WorkspaceDetailPage() {
               }}
               onMoveTask={handleMoveTask}
               onTaskClick={(taskId) => setSelectedTaskId(taskId)}
+              onDeleteTask={(taskId) =>
+                activeBoardId &&
+                deleteTask({
+                  tenantId,
+                  workspaceId,
+                  boardId: activeBoardId,
+                  taskId
+                })
+              }
             />
           )}
           {activeView === "list" && <ListView tasks={filteredTasks} />}
@@ -488,6 +517,16 @@ export default function WorkspaceDetailPage() {
             });
           }
         }}
+      />
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={(open: boolean) =>
+          setConfirmDialog((prev) => ({ ...prev, open }))
+        }
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        confirmLabel="Delete"
+        onConfirm={confirmDialog.onConfirm}
       />
       {activeDocumentId && (
         <TaskDetailSheet

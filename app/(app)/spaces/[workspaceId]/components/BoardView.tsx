@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { TaskCard } from "./TaskCard";
+import { ConfirmDialog } from "../../../components/ConfirmDialog";
 import {
   DragDropContext,
   Droppable,
@@ -37,6 +38,7 @@ interface BoardViewProps {
     position?: number
   ) => void;
   onTaskClick?: (taskId: string) => void;
+  onDeleteTask?: (taskId: string) => void;
 }
 
 export function BoardView({
@@ -48,7 +50,8 @@ export function BoardView({
   onReorderColumns,
   onCreateTask,
   onMoveTask,
-  onTaskClick
+  onTaskClick,
+  onDeleteTask
 }: BoardViewProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [newColumnName, setNewColumnName] = useState("");
@@ -62,6 +65,12 @@ export function BoardView({
   const boardScrollRef = useRef<HTMLDivElement>(null);
 
   const [localColumns, setLocalColumns] = useState<Column[]>(columns);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+  }>({ open: false, title: "", description: "", onConfirm: () => {} });
   const [localTasks, setLocalTasks] = useState<Task[]>(tasks);
   const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null);
 
@@ -99,18 +108,6 @@ export function BoardView({
     },
     {}
   );
-
-  const getColumnColor = (name: string) => {
-    const lowerName = name.toLowerCase();
-    if (lowerName.includes("backlog")) return "bg-slate-500";
-    if (lowerName.includes("to do") || lowerName.includes("todo"))
-      return "bg-blue-500";
-    if (lowerName.includes("progress")) return "bg-amber-500";
-    if (lowerName.includes("review")) return "bg-purple-500";
-    if (lowerName.includes("complete") || lowerName.includes("done"))
-      return "bg-green-500";
-    return "bg-slate-300";
-  };
 
   const handleAddColumn = () => {
     if (newColumnName.trim()) {
@@ -231,7 +228,7 @@ export function BoardView({
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          className={`flex w-72 shrink-0 flex-col rounded-xl border bg-card/50 shadow-sm ${
+                          className={`flex w-72 shrink-0 flex-col rounded-xl border border-border/60 bg-card shadow-sm max-h-[calc(100vh-200px)] ${
                             snapshot.isDragging
                               ? "shadow-2xl scale-[1.02] opacity-90 z-40 border-primary"
                               : ""
@@ -266,9 +263,10 @@ export function BoardView({
                           >
                             <div className="flex items-center gap-2">
                               <div
-                                className={`h-2.5 w-2.5 rounded-full ${getColumnColor(
-                                  col.name || ""
-                                )}`}
+                                className="h-2.5 w-2.5 rounded-full"
+                                style={{
+                                  backgroundColor: col.color || "#94a3b8"
+                                }}
                               />
                               <span className="text-sm font-semibold cursor-grab active:cursor-grabbing">
                                 {col.name || "Untitled"}
@@ -319,13 +317,12 @@ export function BoardView({
                                 <DropdownMenuItem
                                   variant="destructive"
                                   onClick={() => {
-                                    if (
-                                      window.confirm(
-                                        `Delete column "${col.name}"?`
-                                      )
-                                    ) {
-                                      onDeleteColumn(col.id);
-                                    }
+                                    setConfirmDialog({
+                                      open: true,
+                                      title: "Delete Column",
+                                      description: `Are you sure you want to delete "${col.name}"? This action cannot be undone.`,
+                                      onConfirm: () => onDeleteColumn(col.id)
+                                    });
                                   }}
                                 >
                                   <Trash2 className="mr-2 h-3.5 w-3.5" />
@@ -334,13 +331,12 @@ export function BoardView({
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
-
                           {/* Tasks Droppable Area */}
                           <Droppable droppableId={col.id} type="task">
                             {(provided, snapshot) => (
                               <div
                                 data-scroll-y
-                                className={`relative flex flex-col gap-2 px-3 pb-2 min-h-2.5 flex-1 max-h-[75vh] overflow-y-auto transition-colors ${
+                                className={`relative flex flex-col gap-2 px-3 pb-2 min-h-2.5 flex-1 overflow-y-auto transition-colors ${
                                   snapshot.isDraggingOver
                                     ? "bg-primary/5 rounded-lg border-2 border-dashed border-primary/40"
                                     : "border-2 border-transparent"
@@ -405,6 +401,23 @@ export function BoardView({
                                                     {targetCol.name}
                                                   </DropdownMenuItem>
                                                 ))}
+                                              {onDeleteTask && (
+                                                <DropdownMenuItem
+                                                  variant="destructive"
+                                                  onClick={() => {
+                                                    setConfirmDialog({
+                                                      open: true,
+                                                      title: "Delete Task",
+                                                      description: `Are you sure you want to delete this task? This action cannot be undone.`,
+                                                      onConfirm: () =>
+                                                        onDeleteTask(task.id)
+                                                    });
+                                                  }}
+                                                >
+                                                  <Trash2 className="mr-2 h-3.5 w-3.5" />
+                                                  Delete
+                                                </DropdownMenuItem>
+                                              )}
                                             </DropdownMenuContent>
                                           </DropdownMenu>
                                         )}
@@ -416,7 +429,6 @@ export function BoardView({
                               </div>
                             )}
                           </Droppable>
-
                           {/* Add task */}
                           <div className="px-3 pb-3 mt-auto">
                             <Button
@@ -541,10 +553,15 @@ export function BoardView({
               const colName = localColumns.find(
                 (c) => c.id === contextMenu.columnId
               )?.name;
-              if (colName && window.confirm(`Delete column "${colName}"?`)) {
-                onDeleteColumn(contextMenu.columnId);
-              }
               setContextMenu(null);
+              if (colName) {
+                setConfirmDialog({
+                  open: true,
+                  title: "Delete Column",
+                  description: `Are you sure you want to delete "${colName}"? This action cannot be undone.`,
+                  onConfirm: () => onDeleteColumn(contextMenu.columnId)
+                });
+              }
             }}
           >
             <Trash2 className="mr-2 h-3.5 w-3.5" />
@@ -552,6 +569,16 @@ export function BoardView({
           </button>
         </div>
       )}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={(open: boolean) =>
+          setConfirmDialog((prev) => ({ ...prev, open }))
+        }
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        confirmLabel="Delete"
+        onConfirm={confirmDialog.onConfirm}
+      />
     </DragDropContext>
   );
 }

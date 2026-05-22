@@ -5,6 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DataTable } from "@/app/(app)/components/table/DataTable";
 import { EditRoleDialog } from "@/app/(app)/components/role/EditRoleDialog";
+import { ConfirmDialog } from "@/app/(app)/components/ConfirmDialog";
 import {
   BarChart3,
   Layers,
@@ -110,6 +111,12 @@ export function PermissionTablePanel({
     );
   const canUpdatePermissions = canEditPermissions;
   const [isEditRoleOpen, setIsEditRoleOpen] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+  }>({ open: false, title: "", description: "", onConfirm: () => {} });
 
   const handleDeleteRole = () => {
     if (
@@ -123,33 +130,32 @@ export function PermissionTablePanel({
       return;
     }
 
-    const confirmed = window.confirm(
-      `Delete role \"${role.name as string}\"? This action cannot be undone.`
-    );
+    setConfirmDialog({
+      open: true,
+      title: "Delete Role",
+      description: `Are you sure you want to delete "${role.name as string}"? This action cannot be undone.`,
+      onConfirm: () => {
+        deleteRole(
+          {
+            tenantId,
+            roleId
+          },
+          {
+            onSuccess: async () => {
+              const nextRole = (roles as Array<{ id?: string }>).find(
+                (item) => item.id && item.id !== roleId
+              );
 
-    if (!confirmed) {
-      return;
-    }
+              onSelectRole(nextRole?.id ?? null);
 
-    deleteRole(
-      {
-        tenantId,
-        roleId
-      },
-      {
-        onSuccess: async () => {
-          const nextRole = (roles as Array<{ id?: string }>).find(
-            (item) => item.id && item.id !== roleId
-          );
-
-          onSelectRole(nextRole?.id ?? null);
-
-          await queryClient.invalidateQueries({
-            queryKey: ["roles", tenantId]
-          });
-        }
+              await queryClient.invalidateQueries({
+                queryKey: ["roles", tenantId]
+              });
+            }
+          }
+        );
       }
-    );
+    });
   };
 
   const permissionCatalog = useMemo(() => {
@@ -631,6 +637,16 @@ export function PermissionTablePanel({
         roleDescription={role?.description as string}
         open={isEditRoleOpen}
         onOpenChange={setIsEditRoleOpen}
+      />
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={(open: boolean) =>
+          setConfirmDialog((prev) => ({ ...prev, open }))
+        }
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        confirmLabel="Delete"
+        onConfirm={confirmDialog.onConfirm}
       />
     </Card>
   );

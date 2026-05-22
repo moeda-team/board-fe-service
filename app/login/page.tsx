@@ -14,7 +14,7 @@ function LoginForm() {
 
   useEffect(() => {
     if (status === "authenticated") {
-      router.replace("/dashboard");
+      router.replace("/spaces");
     }
   }, [status, router]);
 

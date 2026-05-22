@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { TaskCard } from "./TaskCard";
+import { ConfirmDialog } from "../../../components/ConfirmDialog";
 import {
   DragDropContext,
   Droppable,
@@ -62,6 +63,12 @@ export function BoardView({
   const boardScrollRef = useRef<HTMLDivElement>(null);
 
   const [localColumns, setLocalColumns] = useState<Column[]>(columns);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+  }>({ open: false, title: "", description: "", onConfirm: () => {} });
   const [localTasks, setLocalTasks] = useState<Task[]>(tasks);
   const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null);
 
@@ -319,13 +326,12 @@ export function BoardView({
                                 <DropdownMenuItem
                                   variant="destructive"
                                   onClick={() => {
-                                    if (
-                                      window.confirm(
-                                        `Delete column "${col.name}"?`
-                                      )
-                                    ) {
-                                      onDeleteColumn(col.id);
-                                    }
+                                    setConfirmDialog({
+                                      open: true,
+                                      title: "Delete Column",
+                                      description: `Are you sure you want to delete "${col.name}"? This action cannot be undone.`,
+                                      onConfirm: () => onDeleteColumn(col.id)
+                                    });
                                   }}
                                 >
                                   <Trash2 className="mr-2 h-3.5 w-3.5" />
@@ -541,10 +547,15 @@ export function BoardView({
               const colName = localColumns.find(
                 (c) => c.id === contextMenu.columnId
               )?.name;
-              if (colName && window.confirm(`Delete column "${colName}"?`)) {
-                onDeleteColumn(contextMenu.columnId);
-              }
               setContextMenu(null);
+              if (colName) {
+                setConfirmDialog({
+                  open: true,
+                  title: "Delete Column",
+                  description: `Are you sure you want to delete "${colName}"? This action cannot be undone.`,
+                  onConfirm: () => onDeleteColumn(contextMenu.columnId)
+                });
+              }
             }}
           >
             <Trash2 className="mr-2 h-3.5 w-3.5" />
@@ -552,6 +563,16 @@ export function BoardView({
           </button>
         </div>
       )}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={(open: boolean) =>
+          setConfirmDialog((prev) => ({ ...prev, open }))
+        }
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        confirmLabel="Delete"
+        onConfirm={confirmDialog.onConfirm}
+      />
     </DragDropContext>
   );
 }

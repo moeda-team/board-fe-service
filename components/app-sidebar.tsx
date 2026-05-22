@@ -37,15 +37,15 @@ import { useAuthMe } from "@/hooks/api/useAuth";
 import { authService } from "@/lib/auth";
 
 const mainNavItems = [
-  { title: "Home", href: "/dashboard", icon: Home },
-  { title: "Dev KPI", href: "/developers-kpi", icon: BarChart3 },
+  // { title: "Home", href: "/dashboard", icon: Home },
+  // { title: "Dev KPI", href: "/developers-kpi", icon: BarChart3 },
   { title: "Spaces", href: "/spaces", icon: Layers }
 ];
 
 const securityNavItems = [
   { title: "Access", href: "/role-access", icon: ShieldCheck },
-  { title: "Members", href: "/members", icon: Users },
-  { title: "Settings", href: "/settings", icon: Settings }
+  { title: "Members", href: "/members", icon: Users }
+  // { title: "Settings", href: "/settings", icon: Settings }
 ];
 
 export function AppSidebar() {

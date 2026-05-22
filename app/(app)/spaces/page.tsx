@@ -19,6 +19,7 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import CreateSpaceDrawer from "./CreateSpaceDrawer";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import LayoutWrapper from "../components/Layout/LayoutWrapper";
 import SearchBox from "../components/input/SearchBox";
 
@@ -143,6 +144,12 @@ export default function SpacesPage() {
   const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(
     null
   );
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+  }>({ open: false, title: "", description: "", onConfirm: () => {} });
 
   const filteredWorkspaces = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -164,11 +171,12 @@ export default function SpacesPage() {
 
   const handleDelete = (workspace: Workspace) => {
     if (!tenantId || !workspace.id || isDeleting) return;
-    const confirmed = window.confirm(
-      `Delete workspace "${workspace.name}"? This action cannot be undone.`
-    );
-    if (!confirmed) return;
-    deleteWorkspace({ tenantId, workspaceId: workspace.id });
+    setConfirmDialog({
+      open: true,
+      title: "Delete Workspace",
+      description: `Are you sure you want to delete "${workspace.name}"? This action cannot be undone.`,
+      onConfirm: () => deleteWorkspace({ tenantId, workspaceId: workspace.id })
+    });
   };
 
   const isLoading = isAuthLoading || isWorkspacesLoading;
@@ -260,6 +268,16 @@ export default function SpacesPage() {
         onOpenChange={setIsSheetOpen}
         editingWorkspace={editingWorkspace}
         tenantId={tenantId}
+      />
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={(open: boolean) =>
+          setConfirmDialog((prev) => ({ ...prev, open }))
+        }
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        confirmLabel="Delete"
+        onConfirm={confirmDialog.onConfirm}
       />
     </LayoutWrapper>
   );

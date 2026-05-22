@@ -43,6 +43,7 @@ import { ListView } from "./components/ListView";
 import { GanttView } from "./components/GanttView";
 import { CreateTaskDialog } from "./components/CreateTaskDialog";
 import { NameDialog } from "./components/NameDialog";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { RenameBoardDialog } from "./components/RenameBoardDialog";
 import { TaskDetailSheet } from "./components/TaskDetailSheet";
 import { useTenantMembers } from "@/hooks/api/useTenantMembers";
@@ -83,6 +84,13 @@ export default function WorkspaceDetailPage() {
   >(undefined);
 
   const [isRenameBoardOpen, setIsRenameBoardOpen] = useState(false);
+
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+  }>({ open: false, title: "", description: "", onConfirm: () => {} });
 
   // NameDialog state for folder/document operations
   const [nameDialog, setNameDialog] = useState<{
@@ -315,9 +323,13 @@ export default function WorkspaceDetailPage() {
           });
         }}
         onDeleteDocument={(board) => {
-          if (window.confirm(`Delete board "${board.name}"?`)) {
-            deleteBoard({ tenantId, workspaceId, boardId: board.id });
-          }
+          setConfirmDialog({
+            open: true,
+            title: "Delete Document",
+            description: `Are you sure you want to delete "${board.name}"? This action cannot be undone.`,
+            onConfirm: () =>
+              deleteBoard({ tenantId, workspaceId, boardId: board.id })
+          });
         }}
         onRenameFolderSubmit={(folderId, name) => {
           updateFolder({
@@ -328,9 +340,13 @@ export default function WorkspaceDetailPage() {
           });
         }}
         onDeleteFolder={(folder) => {
-          if (window.confirm(`Delete folder "${folder.name}"?`)) {
-            deleteFolder({ tenantId, workspaceId, folderId: folder.id });
-          }
+          setConfirmDialog({
+            open: true,
+            title: "Delete Folder",
+            description: `Are you sure you want to delete "${folder.name}"? This action cannot be undone.`,
+            onConfirm: () =>
+              deleteFolder({ tenantId, workspaceId, folderId: folder.id })
+          });
         }}
         isLoading={isFoldersLoading || isBoardsLoading}
       />
@@ -488,6 +504,16 @@ export default function WorkspaceDetailPage() {
             });
           }
         }}
+      />
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={(open: boolean) =>
+          setConfirmDialog((prev) => ({ ...prev, open }))
+        }
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        confirmLabel="Delete"
+        onConfirm={confirmDialog.onConfirm}
       />
       {activeDocumentId && (
         <TaskDetailSheet

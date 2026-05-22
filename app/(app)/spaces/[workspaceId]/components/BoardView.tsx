@@ -38,6 +38,7 @@ interface BoardViewProps {
     position?: number
   ) => void;
   onTaskClick?: (taskId: string) => void;
+  onDeleteTask?: (taskId: string) => void;
 }
 
 export function BoardView({
@@ -49,7 +50,8 @@ export function BoardView({
   onReorderColumns,
   onCreateTask,
   onMoveTask,
-  onTaskClick
+  onTaskClick,
+  onDeleteTask
 }: BoardViewProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [newColumnName, setNewColumnName] = useState("");
@@ -106,18 +108,6 @@ export function BoardView({
     },
     {}
   );
-
-  const getColumnColor = (name: string) => {
-    const lowerName = name.toLowerCase();
-    if (lowerName.includes("backlog")) return "bg-slate-500";
-    if (lowerName.includes("to do") || lowerName.includes("todo"))
-      return "bg-blue-500";
-    if (lowerName.includes("progress")) return "bg-amber-500";
-    if (lowerName.includes("review")) return "bg-purple-500";
-    if (lowerName.includes("complete") || lowerName.includes("done"))
-      return "bg-green-500";
-    return "bg-slate-300";
-  };
 
   const handleAddColumn = () => {
     if (newColumnName.trim()) {
@@ -273,9 +263,10 @@ export function BoardView({
                           >
                             <div className="flex items-center gap-2">
                               <div
-                                className={`h-2.5 w-2.5 rounded-full ${getColumnColor(
-                                  col.name || ""
-                                )}`}
+                                className="h-2.5 w-2.5 rounded-full"
+                                style={{
+                                  backgroundColor: col.color || "#94a3b8"
+                                }}
                               />
                               <span className="text-sm font-semibold cursor-grab active:cursor-grabbing">
                                 {col.name || "Untitled"}
@@ -340,7 +331,6 @@ export function BoardView({
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
-
                           {/* Tasks Droppable Area */}
                           <Droppable droppableId={col.id} type="task">
                             {(provided, snapshot) => (
@@ -411,6 +401,23 @@ export function BoardView({
                                                     {targetCol.name}
                                                   </DropdownMenuItem>
                                                 ))}
+                                              {onDeleteTask && (
+                                                <DropdownMenuItem
+                                                  variant="destructive"
+                                                  onClick={() => {
+                                                    setConfirmDialog({
+                                                      open: true,
+                                                      title: "Delete Task",
+                                                      description: `Are you sure you want to delete this task? This action cannot be undone.`,
+                                                      onConfirm: () =>
+                                                        onDeleteTask(task.id)
+                                                    });
+                                                  }}
+                                                >
+                                                  <Trash2 className="mr-2 h-3.5 w-3.5" />
+                                                  Delete
+                                                </DropdownMenuItem>
+                                              )}
                                             </DropdownMenuContent>
                                           </DropdownMenu>
                                         )}
@@ -422,7 +429,6 @@ export function BoardView({
                               </div>
                             )}
                           </Droppable>
-
                           {/* Add task */}
                           <div className="px-3 pb-3 mt-auto">
                             <Button

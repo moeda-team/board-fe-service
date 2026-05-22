@@ -31,7 +31,8 @@ import {
   tasksQueryKey,
   useTasks,
   useCreateTask,
-  useMoveTask
+  useMoveTask,
+  useDeleteTask
 } from "@/hooks/api/useTasks";
 import type { Board } from "@/types/type-boards";
 import { Button } from "@/components/ui/button";
@@ -180,6 +181,7 @@ export default function WorkspaceDetailPage() {
   const { mutate: reorderColumns } = useReorderColumns();
   const { mutate: createTask } = useCreateTask();
   const { mutate: moveTask } = useMoveTask();
+  const { mutate: deleteTask } = useDeleteTask();
   const queryClient = useQueryClient();
   const socket = useTenantSocket(tenantId || null);
 
@@ -451,6 +453,15 @@ export default function WorkspaceDetailPage() {
               }}
               onMoveTask={handleMoveTask}
               onTaskClick={(taskId) => setSelectedTaskId(taskId)}
+              onDeleteTask={(taskId) =>
+                activeBoardId &&
+                deleteTask({
+                  tenantId,
+                  workspaceId,
+                  boardId: activeBoardId,
+                  taskId
+                })
+              }
             />
           )}
           {activeView === "list" && <ListView tasks={filteredTasks} />}

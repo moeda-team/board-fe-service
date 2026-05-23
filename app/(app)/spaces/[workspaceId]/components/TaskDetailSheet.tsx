@@ -48,7 +48,7 @@ import { useAuthMe } from "@/hooks/api/useAuth";
 
 import {
   Plus,
-  Paperclip,
+  Paperclip as Papanclip,
   CheckCircle2,
   Circle,
   Clock,
@@ -533,7 +533,7 @@ export function TaskDetailSheet({
                       onChange={handleFileUpload}
                     />
 
-                    <Paperclip className="h-6 w-6 text-brand-blue mb-2" />
+                    <Papanclip className="h-6 w-6 text-brand-blue mb-2" />
 
                     <span className="text-sm text-brand-blue font-medium">
                       Drag or click your attachment
@@ -547,7 +547,7 @@ export function TaskDetailSheet({
                           key={att.id}
                           className="flex items-center gap-2 p-2 border rounded bg-muted/20 text-sm group relative pr-8"
                         >
-                          <Paperclip className="w-4 h-4 text-muted-foreground shrink-0" />
+                          <Papanclip className="w-4 h-4 text-muted-foreground shrink-0" />
 
                           <a
                             href={att.fileUrl}

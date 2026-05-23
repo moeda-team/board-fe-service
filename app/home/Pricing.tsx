@@ -61,7 +61,13 @@ function DimCheckDark() {
 function ArrowUpRight() {
   return (
     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="shrink-0">
-      <path d="M2.5 9.5L9.5 2.5M9.5 2.5H4M9.5 2.5V8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M2.5 9.5L9.5 2.5M9.5 2.5H4M9.5 2.5V8"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -79,11 +85,12 @@ export function Pricing({ standalone = false }: PricingProps) {
       className={`bg-[#f5f6fa] flex items-center px-6 ${standalone ? "py-12 pt-28 min-h-screen" : "py-24 min-h-screen"}`}
     >
       <div ref={r.ref} className="max-w-5xl mx-auto w-full">
-
         {/* ── Header ─────────────────────────────────────────── */}
         <div className={`text-center ${standalone ? "mb-8" : "mb-12"} reveal-up ${r.visible ? "revealed" : ""}`}>
           <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Pricing</p>
-          <h2 className={`font-serif font-bold text-gray-900 ${standalone ? "text-3xl md:text-4xl" : "text-4xl md:text-5xl"}`}>
+          <h2
+            className={`font-serif font-bold text-gray-900 ${standalone ? "text-3xl md:text-4xl" : "text-4xl md:text-5xl"}`}
+          >
             Simple, transparent pricing.
           </h2>
           <p className="text-gray-500 max-w-md mx-auto mt-3 text-[15px]">
@@ -95,15 +102,18 @@ export function Pricing({ standalone = false }: PricingProps) {
             <span className="text-base">🚀</span>
             <span className="font-semibold text-blue-600">Beta Testing Phase</span>
             <span className="text-gray-400 hidden sm:inline">|</span>
-            <span className="text-gray-500 hidden sm:inline">All features are open for real users. Try everything for free during beta!</span>
+            <span className="text-gray-500 hidden sm:inline">
+              All features are open for real users. Try everything for free during beta!
+            </span>
           </div>
         </div>
 
         {/* ── Cards grid ─────────────────────────────────────── */}
         <div className="grid md:grid-cols-3 gap-5 items-center">
-
           {/* ── Card 1: Free ─────────────────────────────────── */}
-          <div className={`bg-white rounded-2xl border border-gray-200 flex flex-col shadow-sm p-6 reveal-up stagger-1 ${r.visible ? "revealed" : ""}`}>
+          <div
+            className={`bg-white rounded-2xl border border-gray-200 flex flex-col shadow-sm p-6 reveal-up stagger-1 ${r.visible ? "revealed" : ""}`}
+          >
             {/* Label */}
             <span className="inline-block text-[10px] font-bold uppercase tracking-widest text-blue-500 bg-blue-50 border border-blue-100 rounded-full px-3 py-1 mb-4 w-fit">
               Beta Testing
@@ -157,7 +167,9 @@ export function Pricing({ standalone = false }: PricingProps) {
           </div>
 
           {/* ── Card 2: Pro (dark, recommended, elevated) ────── */}
-          <div className={`rounded-2xl flex flex-col bg-[#111827] shadow-2xl overflow-hidden -my-5 z-10 reveal-up stagger-2 ${r.visible ? "revealed" : ""}`}>
+          <div
+            className={`rounded-2xl flex flex-col bg-[#111827] shadow-2xl overflow-hidden -my-5 z-10 reveal-up stagger-2 ${r.visible ? "revealed" : ""}`}
+          >
             {/* Recommended banner — inside the dark card at the very top */}
             <div className="flex items-center justify-center gap-1.5 pt-4 pb-3 px-6">
               <span className="text-sm">⭐</span>
@@ -172,7 +184,7 @@ export function Pricing({ standalone = false }: PricingProps) {
             <div className="flex flex-col flex-1 px-6 pb-6">
               <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Pro</span>
               <div className="flex items-end gap-1.5 mb-1">
-                <span className="text-3xl font-bold text-white leading-none">Rp 1.900.000</span>
+                <span className="text-3xl font-bold text-white leading-none">Coming Soon</span>
                 <span className="text-sm text-gray-400 mb-0.5">/month</span>
               </div>
               <p className="text-sm text-gray-400 mb-5">Everything in Free, plus more.</p>
@@ -180,7 +192,13 @@ export function Pricing({ standalone = false }: PricingProps) {
               {/* Testing box */}
               <div className="flex items-start gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-3 mb-5">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="shrink-0 mt-0.5 opacity-60">
-                  <path d="M7 3h6M8 3v4l-3 5a2 2 0 002 3h6a2 2 0 002-3l-3-5V3" stroke="#9ca3af" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                  <path
+                    d="M7 3h6M8 3v4l-3 5a2 2 0 002 3h6a2 2 0 002-3l-3-5V3"
+                    stroke="#9ca3af"
+                    strokeWidth="1.4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
                 <div>
                   <p className="text-xs font-semibold text-gray-300 mb-0.5">Features are being tested</p>
@@ -226,7 +244,9 @@ export function Pricing({ standalone = false }: PricingProps) {
           </div>
 
           {/* ── Card 3: Enterprise ────────────────────────────── */}
-          <div className={`bg-white rounded-2xl border border-gray-200 flex flex-col shadow-sm p-6 reveal-up stagger-3 ${r.visible ? "revealed" : ""}`}>
+          <div
+            className={`bg-white rounded-2xl border border-gray-200 flex flex-col shadow-sm p-6 reveal-up stagger-3 ${r.visible ? "revealed" : ""}`}
+          >
             <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-4">Enterprise</span>
             <h3 className="text-4xl font-bold text-gray-900 mb-1">Custom</h3>
             <p className="text-sm text-gray-500 mb-5">For organizations with advanced needs.</p>
@@ -234,7 +254,13 @@ export function Pricing({ standalone = false }: PricingProps) {
             {/* Testing box */}
             <div className="flex items-start gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mb-5">
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="shrink-0 mt-0.5 opacity-50">
-                <path d="M4 4h12v2l-4 5v5l-4-2v-3L4 6V4z" stroke="#9ca3af" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                <path
+                  d="M4 4h12v2l-4 5v5l-4-2v-3L4 6V4z"
+                  stroke="#9ca3af"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
               <div>
                 <p className="text-xs font-semibold text-gray-500 mb-0.5">Features are being tested</p>
@@ -274,7 +300,9 @@ export function Pricing({ standalone = false }: PricingProps) {
         </div>
 
         {/* ── Bottom notice ───────────────────────────────────── */}
-        <div className={`flex flex-col sm:flex-row items-start sm:items-center justify-between mt-8 pt-6 border-t border-gray-200 gap-3 reveal-up stagger-4 ${r.visible ? "revealed" : ""}`}>
+        <div
+          className={`flex flex-col sm:flex-row items-start sm:items-center justify-between mt-8 pt-6 border-t border-gray-200 gap-3 reveal-up stagger-4 ${r.visible ? "revealed" : ""}`}
+        >
           <p className="flex items-center gap-2 text-xs text-gray-400">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0">
               <circle cx="7" cy="7" r="6.5" stroke="#9ca3af" />
@@ -289,7 +317,6 @@ export function Pricing({ standalone = false }: PricingProps) {
             </a>
           </p>
         </div>
-
       </div>
     </section>
   );
@@ -297,4 +324,6 @@ export function Pricing({ standalone = false }: PricingProps) {
 
 /* ── Keep named export for backward compat ──────────────── */
 export const PLANS = [] as never[];
-export function Check() { return null; }
+export function Check() {
+  return null;
+}

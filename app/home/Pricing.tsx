@@ -185,7 +185,7 @@ export function Pricing({ standalone = false }: PricingProps) {
               <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Pro</span>
               <div className="flex items-end gap-1.5 mb-1">
                 <span className="text-3xl font-bold text-white leading-none">Coming Soon</span>
-                <span className="text-sm text-gray-400 mb-0.5">/month</span>
+                {/* <span className="text-sm text-gray-400 mb-0.5">/month</span> */}
               </div>
               <p className="text-sm text-gray-400 mb-5">Everything in Free, plus more.</p>
 

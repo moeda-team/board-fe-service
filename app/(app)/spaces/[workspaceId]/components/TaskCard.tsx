@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageSquare, Paperclip, Clock } from "lucide-react";
+import { MessageSquare, Paperclip as Papanclip, Clock } from "lucide-react";
 import type { Task } from "@/types/type-tasks";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
@@ -116,7 +116,7 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
 
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <MessageSquare className="h-3 w-3" />
-          <Paperclip className="h-3 w-3" />
+          <Papanclip className="h-3 w-3" />
           <span className="flex items-center gap-0.5">
             <Clock className="h-3 w-3" />
             8h

@@ -8,20 +8,20 @@ const FAQS = [
     category: "Umum",
     items: [
       {
-        q: "Gimana cara coba gratis Paperclip?",
-        a: "Saat ini Paperclip masih dalam fase Beta Testing, jadi kamu bisa akses dan coba semua fitur secara gratis. Tinggal buka website Paperclip dan langsung mulai pakai tanpa ribet.",
+        q: "Gimana cara coba gratis Papanclip?",
+        a: "Saat ini Papanclip masih dalam fase Beta Testing, jadi kamu bisa akses dan coba semua fitur secara gratis. Tinggal buka website Papanclip dan langsung mulai pakai tanpa ribet.",
       },
       {
-        q: "Fitur apa saja yang ada di Paperclip?",
-        a: "Paperclip menyediakan fitur task management, board sprint, monitoring progress, collaboration team, AI summary, attachment file, dan berbagai fitur productivity lainnya yang terus dikembangkan berdasarkan feedback user.",
+        q: "Fitur apa saja yang ada di Papanclip?",
+        a: "Papanclip menyediakan fitur task management, board sprint, monitoring progress, collaboration team, AI summary, attachment file, dan berbagai fitur productivity lainnya yang terus dikembangkan berdasarkan feedback user.",
       },
       {
-        q: "Apakah Paperclip bisa dipakai untuk banyak project dan user?",
-        a: "Bisa. Paperclip dirancang untuk kebutuhan tim dan perusahaan dengan jumlah project maupun user yang fleksibel tanpa batasan penggunaan normal.",
+        q: "Apakah Papanclip bisa dipakai untuk banyak project dan user?",
+        a: "Bisa. Papanclip dirancang untuk kebutuhan tim dan perusahaan dengan jumlah project maupun user yang fleksibel tanpa batasan penggunaan normal.",
       },
       {
-        q: "Apakah Paperclip bisa dipakai di mobile?",
-        a: "Bisa. Paperclip dapat diakses melalui browser di desktop maupun mobile sehingga tetap nyaman digunakan di mana saja.",
+        q: "Apakah Papanclip bisa dipakai di mobile?",
+        a: "Bisa. Papanclip dapat diakses melalui browser di desktop maupun mobile sehingga tetap nyaman digunakan di mana saja.",
       },
     ],
   },
@@ -33,8 +33,8 @@ const FAQS = [
         a: "Maksimal ukuran upload per file adalah 50 MB. Untuk total penyimpanan saat ini masih unlimited untuk penggunaan normal pekerjaan dan tidak disalahgunakan.",
       },
       {
-        q: "Sampai kapan data saya tersimpan di Paperclip?",
-        a: "Selama subscription Paperclip kamu masih aktif, data perusahaan akan tetap tersimpan dengan aman. Jika berhenti berlangganan, data masih akan disimpan selama 3 bulan sebelum dihapus permanen.",
+        q: "Sampai kapan data saya tersimpan di Papanclip?",
+        a: "Selama subscription Papanclip kamu masih aktif, data perusahaan akan tetap tersimpan dengan aman. Jika berhenti berlangganan, data masih akan disimpan selama 3 bulan sebelum dihapus permanen.",
       },
     ],
   },
@@ -43,11 +43,11 @@ const FAQS = [
     items: [
       {
         q: "Kalau ada kendala bisa tanya ke mana?",
-        a: "Kamu bisa hubungi tim support Paperclip via email: support.paperclip@gmail.com",
+        a: "Kamu bisa hubungi tim support Papanclip via email: support.papanclip@gmail.com",
       },
       {
-        q: "Support Paperclip tersedia jam berapa?",
-        a: "Tim support Paperclip siap membantu 24 jam.",
+        q: "Support Papanclip tersedia jam berapa?",
+        a: "Tim support Papanclip siap membantu 24 jam.",
       },
     ],
   },
@@ -92,7 +92,7 @@ export function FAQ({ standalone = false }: FAQProps) {
           </h2>
           <p className="text-gray-500 mt-4 max-w-md mx-auto">
             Tidak menemukan jawaban yang kamu cari?{" "}
-            <a href="mailto:support.paperclip@gmail.com" className="text-blue-500 hover:underline">
+            <a href="mailto:support.papanclip@gmail.com" className="text-blue-500 hover:underline">
               Hubungi kami
             </a>
             .
@@ -146,7 +146,7 @@ export function FAQ({ standalone = false }: FAQProps) {
             <p className="text-sm text-gray-400 mt-0.5">Tim kami siap membantu kamu 24 jam.</p>
           </div>
           <a
-            href="mailto:support.paperclip@gmail.com"
+            href="mailto:support.papanclip@gmail.com"
             className="shrink-0 text-sm font-semibold bg-white text-gray-900 px-5 py-2.5 rounded-xl hover:bg-gray-100 transition-colors"
           >
             Hubungi support

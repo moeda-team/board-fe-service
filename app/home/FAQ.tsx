@@ -3,166 +3,181 @@
 import { useState } from "react";
 import { useReveal } from "./hooks";
 
-const TESTIMONIALS = {
-  en: [
-    {
-      quote:
-        "Papanclip finally made our sprint planning feel effortless. We cut meeting time in half and everyone actually knows what they're working on now.",
-      name: "Daniel R.",
-      role: "Engineering Lead",
-      category: "Engineering Team"
-    },
-    {
-      quote:
-        "The developer KPI dashboard changed how we evaluate performance. We can now track delivery speed, workload, and blockers without micromanaging.",
-      name: "Michael T.",
-      role: "CTO",
-      category: "Developer KPI Tracking"
-    },
-    {
-      quote:
-        "I've tried dozens of productivity tools, but this is the first one my whole team adopted without complaints.",
-      name: "Sarah M.",
-      role: "Operations Manager",
-      category: "Operations Team"
-    },
-    {
-      quote:
-        "We replaced three separate apps with Papanclip. Cleaner workflow, fewer mistakes, faster delivery.",
-      name: "Kevin T.",
-      role: "Founder",
-      category: "Startup Founder"
-    },
-    {
-      quote:
-        "The client collaboration features are ridiculously good. No more lost feedback or confusing revisions.",
-      name: "Amelia C.",
-      role: "Creative Director",
-      category: "Agency Team"
-    },
-    {
-      quote:
-        "It feels like Notion and Jira had a smarter, faster child. The UI is insanely smooth.",
-      name: "Lyc F.",
-      role: "Product Manager",
-      category: "Product Team"
-    }
-  ],
-  id: [
-    {
-      quote:
-        "Sejak pakai Papanclip, koordinasi antar tim jadi jauh lebih rapi. Progress project sekarang bisa dipantau tanpa harus chat terus.",
-      name: "Rizky A.",
-      role: "Tech Lead",
-      category: "Tim Engineering"
-    },
-    {
-      quote:
-        "Fitur KPI developer-nya membantu banget buat lihat performa tim secara real-time. Jadi lebih gampang evaluasi productivity tanpa bikin developer merasa diawasi berlebihan.",
-      name: "Andra P.",
-      role: "Engineering Manager",
-      category: "KPI Developer"
-    },
-    {
-      quote:
-        "Awalnya tim saya susah adaptasi tools baru, tapi Papanclip justru langsung dipakai semua orang dari hari pertama.",
-      name: "Nadia P.",
-      role: "Operations Supervisor",
-      category: "Operasional"
-    },
-    {
-      quote:
-        "Fitur role access-nya ngebantu banget buat misahin data internal dan client. Aman dan tetap simpel dipakai.",
-      name: "Fajar H.",
-      role: "Founder Startup",
-      category: "Startup"
-    },
-    {
-      quote:
-        "Task management-nya enak banget buat agency. Semua revisi client jadi lebih jelas dan gak ada yang kelewat.",
-      name: "Dinda K.",
-      role: "Project Coordinator",
-      category: "Creative Agency"
-    },
-    {
-      quote:
-        "UI-nya clean, cepat, dan bikin kerjaan terasa lebih ringan. Client saya juga suka karena semuanya keliatan profesional.",
-      name: "Bagus N.",
-      role: "Consultant",
-      category: "Freelancer / Consultant"
-    }
-  ]
-};
+const FAQS = [
+  {
+    category: "General",
+    items: [
+      {
+        q: "What is Papanclip?",
+        a: "Papanclip is an all-in-one project management platform built for engineering teams. It combines task management, developer KPI tracking, role-based access control, and team collaboration into a single, fast workspace.",
+      },
+      {
+        q: "Is Papanclip free to use?",
+        a: "Yes — during the beta testing phase, all features are completely free with no limits. You get unlimited members, unlimited spaces, and access to every feature. Paid plans will be introduced after the beta period ends.",
+      },
+      {
+        q: "Who is Papanclip built for?",
+        a: "Papanclip is built for engineering teams, startups, agencies, and any team that needs a structured, scalable way to manage work. Whether you're a solo founder or a 100-person engineering org, Papanclip adapts to your workflow.",
+      },
+    ],
+  },
+  {
+    category: "Features",
+    items: [
+      {
+        q: "What features are available right now?",
+        a: "All core features are live: task boards, spaces, member management, role-based access control (RBAC), activity logs, document collaboration, and developer KPI dashboards. Advanced features like SSO, audit trails, and custom integrations are currently in development.",
+      },
+      {
+        q: "What are Spaces?",
+        a: "Spaces are isolated workspaces within your organization — think of them as projects or teams. Each Space has its own board, members, permissions, and settings. You can create unlimited Spaces during the beta phase.",
+      },
+      {
+        q: "How does RBAC (role-based access control) work?",
+        a: "You can assign custom roles to members with granular permissions — controlling who can view, create, edit, or delete content across your entire workspace or within specific Spaces. This keeps client-facing and internal work cleanly separated.",
+      },
+      {
+        q: "What is the developer KPI dashboard?",
+        a: "The developer KPI dashboard tracks delivery metrics per developer — including task completion rate, workload distribution, velocity, and blockers — giving team leads visibility without micromanaging individuals.",
+      },
+    ],
+  },
+  {
+    category: "Pricing & Beta",
+    items: [
+      {
+        q: "When will the beta testing phase end?",
+        a: "We haven't announced a specific end date yet. We'll give users advance notice before any pricing changes take effect. You can follow our updates or contact us at support@papanclip.com to stay informed.",
+      },
+      {
+        q: "Will my data be safe when paid plans launch?",
+        a: "Absolutely. Your data stays intact regardless of plan changes. If you're on a free plan when pricing launches, you'll keep access to your existing data and have time to upgrade or export.",
+      },
+      {
+        q: "What will Pro and Enterprise plans include?",
+        a: "Pro will include advanced team management, advanced permissions & roles, activity logs & audit trail, custom integrations, advanced security, and priority support. Enterprise adds SSO & SAML, dedicated account management, custom security & compliance, and SLA support. Both tiers are currently under development.",
+      },
+    ],
+  },
+  {
+    category: "Account & Security",
+    items: [
+      {
+        q: "How do I invite team members?",
+        a: "From your workspace settings, go to Members and click Invite. You can invite by email and assign a role immediately. Invited members receive an email to join your workspace.",
+      },
+      {
+        q: "Can I use Papanclip with my existing tools?",
+        a: "Custom integrations are coming soon as part of the Pro plan. In the meantime, Papanclip's core features cover the full project lifecycle — from planning to delivery — so many teams find they need fewer external tools.",
+      },
+      {
+        q: "How do I contact support?",
+        a: "Reach us any time at support@papanclip.com. During the beta phase, we aim to respond within 24 hours. Priority support is also available for Pro plan users once it launches.",
+      },
+    ],
+  },
+];
 
-export function FAQ() {
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 18 18"
+      fill="none"
+      className={`shrink-0 transition-transform duration-300 ${open ? "rotate-180" : ""}`}
+    >
+      <path d="M4.5 6.75L9 11.25L13.5 6.75" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+interface FAQProps {
+  standalone?: boolean;
+}
+
+export function FAQ({ standalone = false }: FAQProps) {
   const reveal = useReveal();
-  const [lang, setLang] = useState<"en" | "id">("en");
+  const [open, setOpen] = useState<string | null>("0-0");
 
-  const testimonials = TESTIMONIALS[lang];
+  const toggle = (key: string) => setOpen((prev) => (prev === key ? null : key));
 
   return (
-    <section id="testimonials" className="py-24 px-8 bg-gray-50">
-      <div ref={reveal.ref} className="max-w-6xl mx-auto w-full">
-        <div
-          className={`text-center mb-14 reveal-up ${reveal.visible ? "revealed" : ""}`}
-        >
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
-            Testimonials
-          </p>
-          <h2 className="text-4xl md:text-5xl font-serif font-bold text-gray-900 leading-tight">
-            Loved by <span style={{ color: "#53A3FF" }}>teams.</span>
+    <section
+      id="faq"
+      className={`bg-white px-6 ${standalone ? "py-12 pt-28 min-h-screen" : "py-24"}`}
+    >
+      <div ref={reveal.ref} className="max-w-3xl mx-auto w-full">
+
+        {/* Header */}
+        <div className={`text-center mb-14 reveal-up ${reveal.visible ? "revealed" : ""}`}>
+          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">FAQ</p>
+          <h2 className="text-4xl md:text-5xl font-serif font-bold text-gray-900">
+            Frequently asked questions.
           </h2>
-          <div className="mt-6 inline-flex items-center bg-white border border-gray-200 rounded-xl p-1 gap-1">
-            <button
-              onClick={() => setLang("en")}
-              className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                lang === "en"
-                  ? "bg-gray-900 text-white"
-                  : "text-gray-500 hover:text-gray-800"
-              }`}
-            >
-              English
-            </button>
-            <button
-              onClick={() => setLang("id")}
-              className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                lang === "id"
-                  ? "bg-gray-900 text-white"
-                  : "text-gray-500 hover:text-gray-800"
-              }`}
-            >
-              Indonesia
-            </button>
-          </div>
+          <p className="text-gray-500 mt-4 max-w-md mx-auto">
+            Can&apos;t find what you&apos;re looking for?{" "}
+            <a href="mailto:support@papanclip.com" className="text-blue-500 hover:underline">
+              Contact us
+            </a>
+            .
+          </p>
         </div>
 
-        <div
-          className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 reveal-up stagger-2 ${reveal.visible ? "revealed" : ""}`}
-        >
-          {testimonials.map((t, i) => (
-            <div
-              key={`${lang}-${i}`}
-              className="bg-white border border-gray-100 rounded-2xl p-6 flex flex-col gap-4 hover:shadow-md transition-shadow"
-            >
-              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
-                {t.category}
+        {/* Accordion by category */}
+        <div className={`space-y-10 reveal-up stagger-2 ${reveal.visible ? "revealed" : ""}`}>
+          {FAQS.map((group, gi) => (
+            <div key={group.category}>
+              <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4 pb-2 border-b border-gray-100">
+                {group.category}
               </p>
-              <svg
-                className="w-6 h-6 shrink-0"
-                style={{ color: "#53A3FF" }}
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
-              </svg>
-              <p className="text-gray-700 leading-relaxed flex-1">{t.quote}</p>
-              <div className="pt-2 border-t border-gray-100">
-                <p className="font-semibold text-gray-900 text-sm">{t.name}</p>
-                <p className="text-gray-500 text-xs mt-0.5">{t.role}</p>
+              <div className="space-y-2">
+                {group.items.map((item, ii) => {
+                  const key = `${gi}-${ii}`;
+                  const isOpen = open === key;
+                  return (
+                    <div
+                      key={key}
+                      className={`rounded-xl border transition-colors duration-200 ${
+                        isOpen ? "border-gray-200 bg-gray-50" : "border-gray-100 bg-white"
+                      }`}
+                    >
+                      <button
+                        onClick={() => toggle(key)}
+                        className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left"
+                      >
+                        <span className={`text-sm font-semibold ${isOpen ? "text-gray-900" : "text-gray-700"}`}>
+                          {item.q}
+                        </span>
+                        <ChevronIcon open={isOpen} />
+                      </button>
+                      {isOpen && (
+                        <div className="px-5 pb-4">
+                          <p className="text-sm text-gray-500 leading-relaxed">{item.a}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}
         </div>
+
+        {/* CTA strip */}
+        <div className={`mt-16 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-900 rounded-2xl px-8 py-6 reveal-up stagger-3 ${reveal.visible ? "revealed" : ""}`}>
+          <div>
+            <p className="font-semibold text-white">Still have questions?</p>
+            <p className="text-sm text-gray-400 mt-0.5">We&apos;re happy to help you get started.</p>
+          </div>
+          <a
+            href="mailto:support@papanclip.com"
+            className="shrink-0 text-sm font-semibold bg-white text-gray-900 px-5 py-2.5 rounded-xl hover:bg-gray-100 transition-colors"
+          >
+            Contact support
+          </a>
+        </div>
+
       </div>
     </section>
   );

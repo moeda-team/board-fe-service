@@ -1,25 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Navbar, Hero, Product, Solutions, Resources, Testimonials, FinalCTA, Footer, FAQ } from "./home";
+import { Navbar, Hero, Product, Solutions, Resources, Testimonials, FinalCTA, Footer } from "./home";
 import type { NavItem } from "./home";
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Product", href: "#product" },
   { label: "Solutions", href: "#solutions" },
   { label: "Resources", href: "#resources" },
+  { label: "Testimonials", href: "#testimonials" },
   { label: "Pricing", href: "/pricing" },
+  { label: "FAQ", href: "/faq" },
 ];
 
 export default function Home() {
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
   return (
     <>
       <style>{`
@@ -54,13 +47,12 @@ export default function Home() {
         .btn-shine:hover::after { left:140%; }
       `}</style>
 
-      <Navbar scrolled={scrolled} navItems={NAV_ITEMS} />
+      <Navbar navItems={NAV_ITEMS} />
       <Hero />
       <Product />
       <Solutions />
       <Resources />
       <Testimonials />
-      <FAQ />
       <FinalCTA />
       <Footer />
     </>

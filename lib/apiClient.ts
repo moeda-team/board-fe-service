@@ -30,9 +30,9 @@ apiClient.interceptors.response.use(
     (error) => {
         const status = error.response?.status;
         const responseData = error.response?.data;
-        if (status) {
+        if (status && status !== 404) {
             console.error(`[apiClient] HTTP ${status}`, responseData ?? error.message);
-        } else {
+        } else if (!status) {
             console.error("[apiClient] Network/Request error:", error.message);
         }
         if (status === 401 && !isRedirecting401) {

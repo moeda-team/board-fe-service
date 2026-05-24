@@ -291,6 +291,51 @@ function RegenerateDialog({
   );
 }
 
+// ── AuthSnippet ───────────────────────────────────────────────────────────────
+
+const CURL_SNIPPET = `curl https://api-board.hompimpa.biz.id/api/... \\
+  -H 'x-api-key: YOUR_API_KEY'`;
+
+function AuthSnippet() {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(CURL_SNIPPET).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <div className="relative">
+      <pre className="rounded-lg bg-slate-900 px-4 py-3 text-xs font-mono text-slate-300 overflow-x-auto">
+        <span className="text-slate-500">curl </span>
+        <span className="text-blue-400">
+          https://api-board.hompimpa.biz.id/api/...
+        </span>
+        {" \\\n  "}
+        <span className="text-slate-400">-H </span>
+        <span className="text-yellow-300">
+          &apos;x-api-key: YOUR_API_KEY&apos;
+        </span>
+      </pre>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="absolute top-2 right-2 size-7 text-slate-400 hover:text-white hover:bg-white/10"
+        onClick={handleCopy}
+        title="Copy"
+      >
+        {copied ? (
+          <CheckCircle2 className="size-3.5 text-emerald-400" />
+        ) : (
+          <Copy className="size-3.5" />
+        )}
+      </Button>
+    </div>
+  );
+}
+
 // ── main page ─────────────────────────────────────────────────────────────────
 
 export default function ApiKeysPage() {
@@ -501,41 +546,15 @@ export default function ApiKeysPage() {
 
           {/* Usage guide */}
           <div className="rounded-xl border bg-white shadow-sm px-5 py-4 space-y-3">
-            <p className="text-sm font-semibold text-slate-700">Usage</p>
+            <p className="text-sm font-semibold text-slate-700">Authentication</p>
             <p className="text-xs text-slate-500">
-              Include your API key in the{" "}
+              Pass your API key in the{" "}
               <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-slate-700">
-                Authorization
+                x-api-key
               </code>{" "}
-              header of every request:
+              header on every request:
             </p>
-            <div className="relative">
-              <pre className="rounded-lg bg-slate-900 px-4 py-3 text-xs font-mono text-slate-300 overflow-x-auto">
-                <span className="text-slate-500"># Example cURL request</span>
-                {"\n"}curl -H{" "}
-                <span className="text-emerald-400">
-                  &apos;Authorization: Bearer YOUR_API_KEY&apos;
-                </span>{" "}
-                \{"\n"}
-                {"     "}
-                <span className="text-blue-400">
-                  https://api-board.hompimpa.biz.id/api/...
-                </span>
-              </pre>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute top-2 right-2 size-7 text-slate-400 hover:text-white hover:bg-white/10"
-                onClick={() =>
-                  copyToClipboard(
-                    `curl -H 'Authorization: Bearer YOUR_API_KEY' \\\n     https://api-board.hompimpa.biz.id/api/...`
-                  )
-                }
-                title="Copy snippet"
-              >
-                <Copy className="size-3.5" />
-              </Button>
-            </div>
+            <AuthSnippet />
           </div>
         </div>
       </LayoutWrapper>

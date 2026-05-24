@@ -44,3 +44,6 @@ next-env.d.ts
 # socket.io message
 message.txt
 message socket.io2.txt
+
+# email
+email-invitation.html

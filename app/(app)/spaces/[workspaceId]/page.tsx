@@ -289,6 +289,7 @@ export default function WorkspaceDetailPage() {
       {/* Secondary Sidebar */}
       <WorkspaceSidebar
         workspaceName={workspace?.name || "Workspace"}
+        tenantId={tenantId}
         folders={folders}
         boardsByFolder={boardsByFolder}
         activeDocumentId={activeDocumentId}

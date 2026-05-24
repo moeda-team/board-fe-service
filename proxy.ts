@@ -30,7 +30,8 @@ export default async function proxy(req: NextRequest) {
     nextUrl.pathname === "/" ||
     nextUrl.pathname === "/login" ||
     nextUrl.pathname === "/auth/callback" ||
-    nextUrl.pathname === "/pricing";
+    nextUrl.pathname === "/pricing" ||
+    nextUrl.pathname === "/faq";
 
   if (isApiAuthRoute) return NextResponse.next();
   if (!isLoggedIn && !isPublicRoute) {

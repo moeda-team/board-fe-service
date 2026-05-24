@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Navbar, Pricing, Footer } from "../home";
 import type { NavItem } from "../home";
 
@@ -8,18 +7,12 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Product", href: "/#product" },
   { label: "Solutions", href: "/#solutions" },
   { label: "Resources", href: "/#resources" },
+  { label: "Testimonials", href: "/#testimonials" },
   { label: "Pricing", href: "/pricing" },
+  { label: "FAQ", href: "/faq" },
 ];
 
 export default function PricingPage() {
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
   return (
     <>
       <style>{`
@@ -54,7 +47,7 @@ export default function PricingPage() {
         .btn-shine:hover::after { left:140%; }
       `}</style>
 
-      <Navbar scrolled={scrolled} navItems={NAV_ITEMS} />
+      <Navbar navItems={NAV_ITEMS} />
       <Pricing standalone />
       <Footer />
     </>

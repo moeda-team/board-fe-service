@@ -1,49 +1,57 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { anim } from "./hooks";
 import type { NavItem } from "./types";
 
 interface NavbarProps {
-  scrolled: boolean;
   navItems: NavItem[];
 }
 
-export function Navbar({ scrolled, navItems }: NavbarProps) {
+export function Navbar({ navItems }: NavbarProps) {
+  // Initialise from current scrollY so hash-links load with the correct style
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const check = () => setScrolled(window.scrollY > 20);
+    check(); // run immediately on mount
+    window.addEventListener("scroll", check, { passive: true });
+    return () => window.removeEventListener("scroll", check);
+  }, []);
+
   return (
     <div
       className="fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300"
       style={{
         backdropFilter: scrolled ? "blur(16px)" : "blur(8px)",
         WebkitBackdropFilter: scrolled ? "blur(16px)" : "blur(8px)",
-        background: scrolled
-          ? "rgba(255,255,255,0.92)"
-          : "rgba(255,255,255,0.2)",
+        background: scrolled ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.85)",
         borderBottom: scrolled
           ? "1px solid rgba(0,0,0,0.08)"
           : "1px solid rgba(255,255,255,0.3)",
-        boxShadow: scrolled ? "0 2px 20px rgba(0,0,0,0.06)" : "none"
+        boxShadow: scrolled ? "0 2px 20px rgba(0,0,0,0.06)" : "none",
       }}
     >
       <nav
         className="flex items-center justify-between px-8 py-4 max-w-7xl mx-auto"
         style={anim("0ms")}
       >
-        <Link
-          href="/"
-          className="flex items-center gap-2 font-semibold text-lg text-gray-900"
-        >
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <circle cx="5" cy="5" r="4" fill="#53A3FF" />
-            <circle cx="15" cy="5" r="4" fill="#14100A" />
-            <circle cx="5" cy="15" r="4" fill="#14100A" />
-            <circle cx="15" cy="15" r="4" fill="#14100A" />
-          </svg>
-          Papanclip
+        <Link href="/" className="flex items-center">
+          <Image
+            src="/assets/papanclip_logo.png"
+            alt="Papanclip"
+            width={200}
+            height={60}
+            className="h-14 w-auto object-contain"
+            priority
+          />
         </Link>
+
         <div
           className="hidden md:flex items-center gap-7 text-sm font-medium transition-colors"
-          style={{ color: scrolled ? "#374151" : "#4b5563" }}
+          style={{ color: "#374151" }}
         >
           {navItems.map((n) => (
             <a
@@ -55,11 +63,11 @@ export function Navbar({ scrolled, navItems }: NavbarProps) {
             </a>
           ))}
         </div>
+
         <div className="flex items-center gap-3">
           <Link
             href="/login"
-            className="text-sm font-medium transition-colors hover:text-gray-900"
-            style={{ color: scrolled ? "#374151" : "#4b5563" }}
+            className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
           >
             Login
           </Link>

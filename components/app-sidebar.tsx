@@ -126,8 +126,8 @@ export function AppSidebar() {
       <Sidebar
         collapsible="icon"
         variant="floating"
-        className="[&_[data-sidebar=sidebar]]:bg-[#3B82F6] [&_[data-sidebar=sidebar]]:text-white [&_[data-sidebar=sidebar]]:border-none [&_[data-sidebar=sidebar]]:shadow-lg
-        [&_[data-sidebar=menu-button]]:text-white [&_[data-sidebar=menu-button]]:hover:bg-white/20 [&_[data-sidebar=menu-button]]:hover:text-white
+        className="**:data-[sidebar=sidebar]:bg-[#3B82F6] **:data-[sidebar=sidebar]:text-white **:data-[sidebar=sidebar]:border-none **:data-[sidebar=sidebar]:shadow-lg
+        **:data-[sidebar=menu-button]:text-white **:data-[sidebar=menu-button]:hover:bg-white/20 **:data-[sidebar=menu-button]:hover:text-white
         [&_[data-sidebar=menu-button][data-active]]:bg-white [&_[data-sidebar=menu-button][data-active]]:text-[#3B82F6]!
         [&_[data-sidebar=menu-button][data-active]]:hover:bg-white [&_[data-sidebar=menu-button][data-active]]:hover:text-[#3B82F6]!
      "
@@ -195,28 +195,50 @@ export function AppSidebar() {
         </SidebarContent>
 
         {/* Footer — User */}
-        <SidebarFooter className="px-3 py-3">
+        <SidebarFooter className="p-2">
           <DropdownMenu>
-            <DropdownMenuTrigger className="w-full rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-white/50 hover:bg-white/10 transition-colors">
-              <div className="flex items-center gap-3 p-1.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0">
-                <Avatar className="size-9 border-2 border-white/30">
+            {/*
+              Use Base UI's `render` prop to swap the <button> for a <div>.
+              Buttons default to inline / centered layout; a div is a plain
+              block element so our flex card naturally left-aligns content.
+            */}
+            <DropdownMenuTrigger
+              render={<div />}
+              nativeButton={false}
+              className="w-full cursor-pointer select-none rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+            >
+              {/* Expanded — full profile card */}
+              <div className="flex items-center gap-3 rounded-xl bg-white/12 px-3 py-2.5 transition-colors hover:bg-white/20 group-data-[collapsible=icon]:hidden">
+                <Avatar className="size-8 shrink-0 ring-2 ring-white/25 shadow-sm">
                   <AvatarImage
                     src={user?.avatarUrl ?? ""}
                     alt={user?.fullName ?? ""}
                   />
-                  <AvatarFallback className="bg-white/20 text-white text-xs font-semibold">
+                  <AvatarFallback className="bg-white/20 text-white text-[11px] font-bold">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex flex-1 flex-col items-start min-w-0 group-data-[collapsible=icon]:hidden">
-                  <span className="text-sm font-semibold leading-tight text-white truncate w-full">
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="truncate text-[13px] font-semibold leading-none text-white">
                     {user?.fullName ?? "User"}
                   </span>
-                  <span className="text-[11px] text-white/60 font-medium uppercase tracking-wide">
+                  <span className="text-[11px] font-medium uppercase tracking-wide leading-none text-white/55">
                     {userRole}
                   </span>
                 </div>
-                <ChevronsUpDown className="ml-1 size-4 text-white/50 shrink-0 group-data-[collapsible=icon]:hidden" />
+                <ChevronsUpDown className="size-3.5 shrink-0 text-white/40" />
+              </div>
+              {/* Collapsed (icon-only) — avatar only, centered */}
+              <div className="hidden items-center justify-center rounded-xl py-1 transition-colors hover:bg-white/10 group-data-[collapsible=icon]:flex">
+                <Avatar className="size-8 ring-2 ring-white/25 shadow-sm">
+                  <AvatarImage
+                    src={user?.avatarUrl ?? ""}
+                    alt={user?.fullName ?? ""}
+                  />
+                  <AvatarFallback className="bg-white/20 text-white text-[11px] font-bold">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
               </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent

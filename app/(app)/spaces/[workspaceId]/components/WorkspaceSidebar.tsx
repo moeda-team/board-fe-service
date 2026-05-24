@@ -5,9 +5,11 @@ import type { Folder } from "@/types/type-folders";
 import type { Board } from "@/types/type-boards";
 import { Button } from "@/components/ui/button";
 import { FolderTree } from "./FolderTree";
+import { useTenantStorage } from "@/hooks/api/useTenantStorage";
 
 interface WorkspaceSidebarProps {
   workspaceName: string;
+  tenantId: string;
   folders: Folder[];
   boardsByFolder: Record<string, Board[]>;
   activeDocumentId: string | null;
@@ -21,8 +23,17 @@ interface WorkspaceSidebarProps {
   isLoading?: boolean;
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+}
+
 export function WorkspaceSidebar({
   workspaceName,
+  tenantId,
   folders,
   boardsByFolder,
   activeDocumentId,
@@ -35,6 +46,8 @@ export function WorkspaceSidebar({
   onDeleteDocument,
   isLoading
 }: WorkspaceSidebarProps) {
+  const { data: storage, isLoading: isStorageLoading } =
+    useTenantStorage(tenantId);
   return (
     <aside className="flex h-full w-64 flex-col rounded-xl border bg-sidebar text-sidebar-foreground shadow-sm overflow-hidden">
       {/* Workspace Title */}
@@ -87,13 +100,24 @@ export function WorkspaceSidebar({
         <div className="flex flex-col gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent/50 p-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium">Storage</span>
-            <span className="text-[10px] text-muted-foreground">40% used</span>
+            <span className="text-[10px] text-muted-foreground">
+              {isStorageLoading
+                ? "..."
+                : `${storage?.percentageUsed ?? 0}% used`}
+            </span>
           </div>
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-sidebar-accent border border-sidebar-border">
-            <div className="h-full w-[40%] rounded-full bg-brand-blue" />
+            <div
+              className="h-full rounded-full bg-brand-blue transition-all"
+              style={{ width: `${storage?.percentageUsed ?? 0}%` }}
+            />
           </div>
           <span className="text-[10px] text-muted-foreground">
-            2.50GB / 6 GB
+            {isStorageLoading
+              ? "Loading..."
+              : storage
+                ? `${formatBytes(storage.usedBytes)} / ${formatBytes(storage.totalLimitBytes)}`
+                : "-- / --"}
           </span>
         </div>
       </div>

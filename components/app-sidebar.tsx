@@ -84,19 +84,23 @@ export function AppSidebar() {
     lastPathnameRef.current = pathname;
   }, [pathname, isWorkspaceDetail, setOpen]);
 
-  // Hover to expand handlers
+  // Hover to expand handlers - only allow hover collapse on workspace detail pages
   const handleMouseEnter = () => {
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
       hoverTimeoutRef.current = null;
     }
-    if (!open) {
+    // Only auto-expand via hover when on workspace detail (where sidebar can be collapsed)
+    if (!open && isWorkspaceDetail) {
       setOpen(true);
     }
   };
 
   const handleMouseLeave = () => {
-    // Auto-collapse after delay when mouse leaves
+    // Only auto-collapse when on workspace detail pages
+    // On other pages, sidebar stays wide open
+    if (!isWorkspaceDetail) return;
+
     hoverTimeoutRef.current = setTimeout(() => {
       setOpen(false);
     }, 300);

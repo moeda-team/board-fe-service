@@ -82,7 +82,18 @@ export interface CreateTaskDto {
     tagIds?: string[];
     customFields?: { customFieldId: string; value: string }[];
 }
-export type UpdateTaskDto = Record<string, unknown>;
+export interface UpdateTaskDto {
+    columnId?: string;
+    title?: string;
+    description?: string;
+    priority?: "LOW" | "MEDIUM" | "HIGH";
+    dueDate?: string;
+    storyPoints?: number;
+    assigneeIds?: string[];
+    watcherIds?: string[];
+    tagIds?: string[];
+    customFields?: { customFieldId: string; value: string }[];
+}
 export type MoveTaskDto = Record<string, unknown>;
 
 // Auth Me

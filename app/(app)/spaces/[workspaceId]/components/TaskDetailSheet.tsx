@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 import { format } from "date-fns";
 
@@ -21,9 +21,35 @@ import { Button } from "@/components/ui/button";
 
 import { Input } from "@/components/ui/input";
 
+import { Textarea } from "@/components/ui/textarea";
+
 import { Separator } from "@/components/ui/separator";
 
-import { useTaskDetail } from "@/hooks/api/useTasks";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger
+} from "@/components/ui/popover";
+
+import { Calendar } from "@/components/ui/calendar";
+
+import { Badge } from "@/components/ui/badge";
+
+import { cn } from "@/lib/utils";
+
+import {
+  useTaskDetail,
+  useUpdateTask,
+  taskDetailQueryKey
+} from "@/hooks/api/useTasks";
 
 import {
   useTaskSubtasks,
@@ -56,43 +82,59 @@ import {
   X,
   Send,
   Trash2,
-  Loader2
+  Loader2,
+  CalendarIcon,
+  Check,
+  ChevronsUpDown,
+  Edit2,
+  Save
 } from "lucide-react";
 
-import { cn } from "@/lib/utils";
-
 import type { TaskActivity } from "@/types/type-tasks";
+import type { Column } from "@/types/type-kanban-columns";
+import type { Member, Tag as TagType } from "@/types/api";
+import { useQueryClient } from "@tanstack/react-query";
+import { useTags } from "@/hooks/api/useTags";
 
 interface TaskDetailSheetProps {
   tenantId: string;
-
   workspaceId: string;
-
   boardId: string;
-
   taskId: string | null;
-
   open: boolean;
-
   onOpenChange: (open: boolean) => void;
+  columns: Column[];
+  members: Member[];
 }
 
 export function TaskDetailSheet({
   tenantId,
-
   workspaceId,
-
   boardId,
-
   taskId,
-
   open,
-
-  onOpenChange
+  onOpenChange,
+  columns,
+  members
 }: TaskDetailSheetProps) {
+  const queryClient = useQueryClient();
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
-
   const [commentContent, setCommentContent] = useState("");
+
+  // Edit mode state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editPriority, setEditPriority] = useState<"LOW" | "MEDIUM" | "HIGH">(
+    "MEDIUM"
+  );
+  const [editDueDate, setEditDueDate] = useState<Date | undefined>(undefined);
+  const [editColumnId, setEditColumnId] = useState<string>("");
+  const [editAssigneeIds, setEditAssigneeIds] = useState<string[]>([]);
+  const [editTagIds, setEditTagIds] = useState<string[]>([]);
+  const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
+  const [columnPopoverOpen, setColumnPopoverOpen] = useState(false);
+  const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
 
   const { data: authMe } = useAuthMe();
 
@@ -132,6 +174,21 @@ export function TaskDetailSheet({
     useTaskActivities(tenantId, workspaceId, boardId, taskId || "");
 
   // Activity feed combines comments and task activities
+
+  // Deduplicate members by normalized name to prevent showing same person multiple times
+  const uniqueMembers = useMemo(() => {
+    const seen = new Set<string>();
+    return members.filter((m) => {
+      // Normalize name: lowercase, remove extra spaces
+      const nameKey = (m.fullName || m.username || m.email || m.id)
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, " ");
+      if (seen.has(nameKey)) return false;
+      seen.add(nameKey);
+      return true;
+    });
+  }, [members]);
 
   const { mutate: createSubtask } = useCreateSubtask();
 
@@ -284,6 +341,97 @@ export function TaskDetailSheet({
     return groups;
   }, [activities]);
 
+  // Tags for editing
+  const { data: tags = [] } = useTags(tenantId, workspaceId);
+
+  // Update task mutation
+  const { mutate: updateTask, isPending: isUpdating } = useUpdateTask();
+
+  // Initialize edit state when task loads or edit mode opens
+  useEffect(() => {
+    if (task && isEditing) {
+      setEditTitle(task.title || "");
+      setEditDescription(task.description || "");
+      setEditPriority((task.priority as "LOW" | "MEDIUM" | "HIGH") || "MEDIUM");
+      setEditDueDate(task.dueDate ? new Date(task.dueDate) : undefined);
+      setEditColumnId(task.columnId || "");
+      // Derive assigneeIds from assignees array if assigneeIds is not available
+      const assigneeIds = task.assigneeIds?.length
+        ? task.assigneeIds
+        : (task.assignees || []).map(
+            (a: any) => a.userId || a.user?.id || a.id
+          );
+      setEditAssigneeIds(assigneeIds);
+      const taskTagIds = (task.tags || []).map(
+        (t: any) => t.tag?.id || t.id || t
+      );
+      setEditTagIds(taskTagIds);
+    }
+  }, [task, isEditing]);
+
+  // Reset edit mode when sheet closes
+  useEffect(() => {
+    if (!open) {
+      setIsEditing(false);
+    }
+  }, [open]);
+
+  const handleSave = () => {
+    if (!taskId || !editTitle.trim()) return;
+
+    const dto = {
+      title: editTitle.trim(),
+      description: editDescription.trim() || undefined,
+      priority: editPriority,
+      columnId: editColumnId,
+      dueDate: editDueDate?.toISOString(),
+      assigneeIds: editAssigneeIds.length > 0 ? editAssigneeIds : undefined,
+      tagIds: editTagIds.length > 0 ? editTagIds : undefined
+    };
+
+    updateTask(
+      { tenantId, workspaceId, boardId, taskId, dto },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({
+            queryKey: taskDetailQueryKey(tenantId, workspaceId, boardId, taskId)
+          });
+          setIsEditing(false);
+        }
+      }
+    );
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+  };
+
+  const toggleTag = (tagId: string) => {
+    setEditTagIds((prev) =>
+      prev.includes(tagId)
+        ? prev.filter((id) => id !== tagId)
+        : [...prev, tagId]
+    );
+  };
+
+  const selectedTags = useMemo(() => {
+    return tags.filter((t: TagType) => editTagIds.includes(t.id));
+  }, [tags, editTagIds]);
+
+  const unselectedTags = useMemo(() => {
+    return tags.filter((t: TagType) => !editTagIds.includes(t.id));
+  }, [tags, editTagIds]);
+
+  const dueDateLabel = useMemo(() => {
+    if (!editDueDate) return null;
+    const today = new Date();
+    const isToday =
+      editDueDate.getDate() === today.getDate() &&
+      editDueDate.getMonth() === today.getMonth() &&
+      editDueDate.getFullYear() === today.getFullYear();
+    return isToday ? "Today" : format(editDueDate, "PPP");
+  }, [editDueDate]);
+
   if (!taskId) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -299,10 +447,48 @@ export function TaskDetailSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full data-[side=right]:sm:max-w-4xl p-0 flex flex-col gap-0 border-l">
-        <SheetHeader className="px-6 py-4 border-b">
-          <SheetTitle className="text-xl font-semibold">
-            Task Information
-          </SheetTitle>
+        <SheetHeader className="px-6 py-4 border-b pr-12">
+          <div className="flex items-center justify-between">
+            <SheetTitle className="text-xl font-semibold">
+              Task Information
+            </SheetTitle>
+            {!isLoadingTask && !isEditing && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEditing(true)}
+                className="gap-2"
+              >
+                <Edit2 className="h-4 w-4" />
+                Edit
+              </Button>
+            )}
+            {isEditing && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCancel}
+                  disabled={isUpdating}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSave}
+                  disabled={!editTitle.trim() || isUpdating}
+                  className="gap-2"
+                >
+                  {isUpdating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  Save
+                </Button>
+              </div>
+            )}
+          </div>
         </SheetHeader>
 
         {isLoadingTask ? (
@@ -317,69 +503,443 @@ export function TaskDetailSheet({
               <div className="p-6 flex flex-col gap-8">
                 {/* Header & Properties */}
 
-                <div className="flex flex-col gap-4">
-                  <h2 className="text-2xl font-bold">{task?.title}</h2>
-
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                    {task?.description || "No description provided."}
-                  </p>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-2">
-                    {/* Status / Column (We would need columns passed down to show name, for now just show a placeholder or nothing, since task only has columnId) */}
-
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs text-muted-foreground font-medium">
-                        Status
-                      </span>
-
-                      <div className="flex items-center gap-2 text-sm">
-                        <div className="h-2 w-2 rounded-full bg-brand-blue" />
-                        <span>{task?.priority || "Default"}</span>{" "}
-                        {/* We might want to pass column name here */}
-                      </div>
+                {isEditing ? (
+                  // EDIT MODE
+                  <div className="flex flex-col gap-6">
+                    {/* Title */}
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Task title
+                      </label>
+                      <Input
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        placeholder="Task title"
+                      />
                     </div>
 
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs text-muted-foreground font-medium">
-                        Priority
-                      </span>
-
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="rounded bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
-                          {task?.priority || "None"}
-                        </span>
-                      </div>
+                    {/* Description */}
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Description
+                      </label>
+                      <Textarea
+                        value={editDescription}
+                        onChange={(e) => setEditDescription(e.target.value)}
+                        placeholder="Description"
+                        className="min-h-[100px]"
+                      />
                     </div>
 
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs text-muted-foreground font-medium">
-                        Est time
-                      </span>
-
-                      <div className="flex items-center gap-1.5 text-sm">
-                        <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-
-                        <span>
-                          {task?.customFieldValues?.find((f: any) =>
-                            f.customField?.name?.toLowerCase()?.includes("time")
-                          )?.value || "N/A"}
-                        </span>
+                    {/* Grid for Column, Priority, Due Date, Assignees, Tags */}
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Column/Status */}
+                      <div className="grid gap-2">
+                        <label className="text-sm font-medium text-muted-foreground">
+                          Status / Column
+                        </label>
+                        <Popover
+                          open={columnPopoverOpen}
+                          onOpenChange={setColumnPopoverOpen}
+                        >
+                          <PopoverTrigger className="flex min-h-10 h-auto w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer">
+                            <div className="flex items-center gap-2">
+                              {editColumnId ? (
+                                (() => {
+                                  const col = columns.find(
+                                    (c) => c.id === editColumnId
+                                  );
+                                  if (!col)
+                                    return (
+                                      <span className="text-muted-foreground">
+                                        Select column
+                                      </span>
+                                    );
+                                  return (
+                                    <div className="flex items-center gap-2">
+                                      <div
+                                        className="w-2.5 h-2.5 rounded-full"
+                                        style={{
+                                          backgroundColor:
+                                            col.color || "#6366f1"
+                                        }}
+                                      />
+                                      <span>{col.name}</span>
+                                    </div>
+                                  );
+                                })()
+                              ) : (
+                                <span className="text-muted-foreground">
+                                  Select column
+                                </span>
+                              )}
+                            </div>
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </PopoverTrigger>
+                          <PopoverContent
+                            className="w-[260px] p-1"
+                            align="start"
+                          >
+                            <div className="flex flex-col max-h-[250px] overflow-auto">
+                              {columns.length === 0 && (
+                                <p className="text-sm text-muted-foreground p-3 text-center">
+                                  No columns available
+                                </p>
+                              )}
+                              {columns.map((col) => (
+                                <button
+                                  key={col.id}
+                                  onClick={() => {
+                                    setEditColumnId(col.id);
+                                    setColumnPopoverOpen(false);
+                                  }}
+                                  className={`flex items-center gap-2 w-full px-3 py-2 rounded-md text-left text-sm hover:bg-muted transition-colors ${
+                                    editColumnId === col.id ? "bg-muted" : ""
+                                  }`}
+                                >
+                                  <div
+                                    className="w-2.5 h-2.5 rounded-full"
+                                    style={{
+                                      backgroundColor: col.color || "#6366f1"
+                                    }}
+                                  />
+                                  <span className="flex-1">{col.name}</span>
+                                  {editColumnId === col.id && (
+                                    <Check className="h-4 w-4 text-primary" />
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
                       </div>
-                    </div>
 
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs text-muted-foreground font-medium">
-                        Due Date
-                      </span>
+                      {/* Priority */}
+                      <div className="grid gap-2">
+                        <label className="text-sm font-medium text-muted-foreground">
+                          Priority
+                        </label>
+                        <Select
+                          value={editPriority}
+                          onValueChange={(val) =>
+                            val &&
+                            setEditPriority(val as "LOW" | "MEDIUM" | "HIGH")
+                          }
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="LOW">Low</SelectItem>
+                            <SelectItem value="MEDIUM">Medium</SelectItem>
+                            <SelectItem value="HIGH">High</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                      <div className="text-sm">
-                        {task?.dueDate
-                          ? format(new Date(task.dueDate), "dd MMM yyyy")
-                          : "No date"}
+                      {/* Due Date */}
+                      <div className="grid gap-2">
+                        <label className="text-sm font-medium text-muted-foreground">
+                          Due Date
+                        </label>
+                        <Popover>
+                          <PopoverTrigger>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !editDueDate && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {dueDateLabel || <span>Select date</span>}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={editDueDate}
+                              onSelect={setEditDueDate}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+
+                      {/* Assignees */}
+                      <div className="grid gap-2">
+                        <label className="text-sm font-medium text-muted-foreground">
+                          Assignees
+                        </label>
+                        <Popover
+                          open={assigneePopoverOpen}
+                          onOpenChange={setAssigneePopoverOpen}
+                        >
+                          <PopoverTrigger>
+                            <Button
+                              variant="outline"
+                              className="w-full justify-between font-normal"
+                            >
+                              <div className="flex items-center gap-2">
+                                {editAssigneeIds.length === 0 ? (
+                                  <span className="text-muted-foreground">
+                                    Select assignees
+                                  </span>
+                                ) : (
+                                  <span>{editAssigneeIds.length} selected</span>
+                                )}
+                              </div>
+                              <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[280px] p-2">
+                            <div className="flex flex-col gap-1 max-h-[200px] overflow-auto">
+                              {uniqueMembers.length === 0 && (
+                                <p className="text-sm text-muted-foreground p-2">
+                                  No members available
+                                </p>
+                              )}
+                              {uniqueMembers
+                                .filter((m) => !editAssigneeIds.includes(m.id))
+                                .map((member) => (
+                                  <button
+                                    key={member.id}
+                                    onClick={() => {
+                                      setEditAssigneeIds((prev) => [
+                                        ...prev,
+                                        member.id
+                                      ]);
+                                    }}
+                                    className="flex items-center gap-2 w-full px-2 py-2 rounded hover:bg-muted text-left"
+                                  >
+                                    <Avatar className="h-6 w-6">
+                                      <AvatarImage
+                                        src={member.avatarUrl || ""}
+                                      />
+                                      <AvatarFallback className="text-xs">
+                                        {(
+                                          member.fullName ||
+                                          member.username ||
+                                          "U"
+                                        )
+                                          .split(" ")
+                                          .map((n) => n[0])
+                                          .join("")
+                                          .slice(0, 2)
+                                          .toUpperCase()}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-sm truncate">
+                                      {member.fullName ||
+                                        member.username ||
+                                        member.email}
+                                    </span>
+                                  </button>
+                                ))}
+                              {uniqueMembers.filter(
+                                (m) => !editAssigneeIds.includes(m.id)
+                              ).length === 0 &&
+                                uniqueMembers.length > 0 && (
+                                  <p className="text-sm text-muted-foreground p-2 text-center">
+                                    All members assigned
+                                  </p>
+                                )}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                        {editAssigneeIds.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                            {editAssigneeIds.map((id) => {
+                              const member = uniqueMembers.find(
+                                (m) => m.id === id
+                              );
+                              if (!member) return null;
+                              return (
+                                <div
+                                  key={id}
+                                  className="group flex items-center gap-1.5 rounded-full bg-muted px-2 py-1 pr-1 text-xs"
+                                >
+                                  <Avatar className="h-4 w-4">
+                                    <AvatarImage src={member.avatarUrl || ""} />
+                                    <AvatarFallback className="text-[8px]">
+                                      {(
+                                        member.fullName ||
+                                        member.username ||
+                                        "U"
+                                      )
+                                        .split(" ")
+                                        .map((n) => n[0])
+                                        .join("")
+                                        .slice(0, 2)
+                                        .toUpperCase()}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="truncate max-w-20">
+                                    {member.fullName || member.username}
+                                  </span>
+                                  <span
+                                    onClick={() =>
+                                      setEditAssigneeIds((prev) =>
+                                        prev.filter((x) => x !== id)
+                                      )
+                                    }
+                                    className="ml-0.5 p-0.5 rounded-full hover:bg-muted-foreground/20 cursor-pointer"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Tags */}
+                      <div className="grid gap-2 col-span-2">
+                        <label className="text-sm font-medium text-muted-foreground">
+                          Tags
+                        </label>
+                        <Popover
+                          open={tagPopoverOpen}
+                          onOpenChange={setTagPopoverOpen}
+                        >
+                          <PopoverTrigger>
+                            <Button
+                              variant="outline"
+                              className="w-full justify-between font-normal h-auto min-h-10 py-2"
+                            >
+                              <div className="flex flex-wrap gap-1 items-center">
+                                {selectedTags.length === 0 ? (
+                                  <span className="text-muted-foreground">
+                                    Select tags
+                                  </span>
+                                ) : (
+                                  selectedTags.map((tag: TagType) => (
+                                    <Badge
+                                      key={tag.id}
+                                      style={{ backgroundColor: tag.color }}
+                                      className="text-white text-xs"
+                                    >
+                                      {tag.name}
+                                    </Badge>
+                                  ))
+                                )}
+                              </div>
+                              <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50 ml-2" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[280px] p-2">
+                            <div className="flex flex-col gap-1 max-h-[200px] overflow-auto">
+                              {tags.length === 0 && (
+                                <p className="text-sm text-muted-foreground p-2">
+                                  No tags available
+                                </p>
+                              )}
+                              {unselectedTags.map((tag: TagType) => (
+                                <button
+                                  key={tag.id}
+                                  onClick={() => toggleTag(tag.id)}
+                                  className="flex items-center gap-2 w-full px-2 py-2 rounded hover:bg-muted text-left"
+                                >
+                                  <div
+                                    className="w-2.5 h-2.5 rounded-full"
+                                    style={{ backgroundColor: tag.color }}
+                                  />
+                                  <span className="text-sm">{tag.name}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                        {selectedTags.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                            {selectedTags.map((tag: TagType) => (
+                              <Badge
+                                key={tag.id}
+                                style={{ backgroundColor: tag.color }}
+                                className="text-white text-xs pr-1"
+                              >
+                                {tag.name}
+                                <button
+                                  onClick={() => toggleTag(tag.id)}
+                                  className="ml-1 hover:text-white/80"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  // VIEW MODE
+                  <div className="flex flex-col gap-4">
+                    <h2 className="text-2xl font-bold">{task?.title}</h2>
+
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                      {task?.description || "No description provided."}
+                    </p>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-2">
+                      {/* Status / Column */}
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs text-muted-foreground font-medium">
+                          Status
+                        </span>
+                        <div className="flex items-center gap-2 text-sm">
+                          <div className="h-2 w-2 rounded-full bg-brand-blue" />
+                          <span>
+                            {columns.find((c) => c.id === task?.columnId)
+                              ?.name || "Unknown"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs text-muted-foreground font-medium">
+                          Priority
+                        </span>
+
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="rounded bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                            {task?.priority || "None"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs text-muted-foreground font-medium">
+                          Est time
+                        </span>
+
+                        <div className="flex items-center gap-1.5 text-sm">
+                          <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+
+                          <span>
+                            {task?.customFieldValues?.find((f: any) =>
+                              f.customField?.name
+                                ?.toLowerCase()
+                                ?.includes("time")
+                            )?.value || "N/A"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs text-muted-foreground font-medium">
+                          Due Date
+                        </span>
+
+                        <div className="text-sm">
+                          {task?.dueDate
+                            ? format(new Date(task.dueDate), "dd MMM yyyy")
+                            : "No date"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Assignees & Tags */}
 

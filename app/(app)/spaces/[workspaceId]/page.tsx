@@ -537,6 +537,8 @@ export default function WorkspaceDetailPage() {
           taskId={selectedTaskId}
           open={!!selectedTaskId}
           onOpenChange={(open) => !open && setSelectedTaskId(null)}
+          columns={columns}
+          members={members}
         />
       )}
     </div>

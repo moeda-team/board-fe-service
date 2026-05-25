@@ -59,28 +59,24 @@ export function FolderTree({
 
   return (
     <div className="flex flex-col">
-      <div
-        ref={folderRef}
-        className="group flex items-center gap-1 rounded-md px-1 py-1 hover:bg-muted"
-        onContextMenu={handleContextMenu}
-      >
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-foreground"
-        >
-          <ChevronRight
-            className={`h-3.5 w-3.5 transition-transform ${isExpanded ? "rotate-90" : ""}`}
-          />
-        </button>
-        {isExpanded ? (
-          <FolderOpen className="h-4 w-4 shrink-0 text-amber-500" />
-        ) : (
-          <FolderIcon className="h-4 w-4 shrink-0 text-amber-500" />
-        )}
-        {isRenaming ? (
+      {isRenaming ? (
+        <div className="flex items-center gap-1 rounded-md px-1 py-1 bg-background">
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+          >
+            <ChevronRight
+              className={`h-3.5 w-3.5 transition-transform ${isExpanded ? "rotate-90" : ""}`}
+            />
+          </button>
+          {isExpanded ? (
+            <FolderOpen className="h-4 w-4 shrink-0 text-amber-500" />
+          ) : (
+            <FolderIcon className="h-4 w-4 shrink-0 text-amber-500" />
+          )}
           <input
             ref={renameInputRef}
-            className="flex-1 truncate rounded-sm border border-ring bg-transparent px-1 py-0 text-sm font-medium outline-none"
+            className="flex-1 min-w-0 truncate rounded border border-input bg-background px-2 py-0.5 text-sm font-medium leading-tight outline-none focus-visible:ring-1 focus-visible:ring-ring h-6"
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
             onKeyDown={(e) => {
@@ -103,25 +99,44 @@ export function FolderTree({
               setIsRenaming(false);
             }}
           />
-        ) : (
+        </div>
+      ) : (
+        <div
+          ref={folderRef}
+          className="group flex items-center gap-1 rounded-md px-1 py-1 hover:bg-muted"
+          onContextMenu={handleContextMenu}
+        >
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+          >
+            <ChevronRight
+              className={`h-3.5 w-3.5 transition-transform ${isExpanded ? "rotate-90" : ""}`}
+            />
+          </button>
+          {isExpanded ? (
+            <FolderOpen className="h-4 w-4 shrink-0 text-amber-500" />
+          ) : (
+            <FolderIcon className="h-4 w-4 shrink-0 text-amber-500" />
+          )}
           <span
             className="flex-1 truncate text-sm font-medium"
             title={folder.name || "Untitled"}
           >
             {folder.name || "Untitled"}
           </span>
-        )}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onCreateDocument(folder.id);
-          }}
-          className="inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
-          title="New Document"
-        >
-          <Plus className="h-3.5 w-3.5" />
-        </button>
-      </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onCreateDocument(folder.id);
+            }}
+            className="inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
+            title="New Document"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       {menuOpen && (
         <div

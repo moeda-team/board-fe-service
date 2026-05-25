@@ -41,24 +41,20 @@ export function DocumentNavItem({
 
   return (
     <div className="relative">
-      <button
-        ref={containerRef}
-        onClick={isRenaming ? undefined : onClick}
-        onContextMenu={handleContextMenu}
-        className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
-          isActive
-            ? "bg-accent text-accent-foreground"
-            : "text-muted-foreground hover:bg-muted hover:text-foreground"
-        }`}
-      >
-        <FileText className="h-3.5 w-3.5 shrink-0" />
-        {isRenaming ? (
+      {isRenaming ? (
+        <div
+          className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm ${
+            isActive
+              ? "bg-accent text-accent-foreground"
+              : "bg-background text-muted-foreground"
+          }`}
+        >
+          <FileText className="h-3.5 w-3.5 shrink-0" />
           <input
             ref={renameInputRef}
-            className="flex-1 truncate rounded-sm border border-ring bg-transparent px-1 py-0 text-sm outline-none"
+            className="flex-1 min-w-0 truncate rounded border border-input bg-background px-2 py-0.5 text-sm leading-tight outline-none focus-visible:ring-1 focus-visible:ring-ring h-6"
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
-            onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -79,12 +75,24 @@ export function DocumentNavItem({
               setIsRenaming(false);
             }}
           />
-        ) : (
+        </div>
+      ) : (
+        <button
+          ref={containerRef}
+          onClick={onClick}
+          onContextMenu={handleContextMenu}
+          className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
+            isActive
+              ? "bg-accent text-accent-foreground"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          }`}
+        >
+          <FileText className="h-3.5 w-3.5 shrink-0" />
           <span className="truncate" title={board.name || "Untitled"}>
             {board.name || "Untitled"}
           </span>
-        )}
-      </button>
+        </button>
+      )}
 
       {menuOpen && (
         <div

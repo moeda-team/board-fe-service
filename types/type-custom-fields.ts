@@ -8,6 +8,29 @@ export interface CustomFieldDropdownOption {
   color?: string;
 }
 
+export type CustomFieldDropdownOptionInput = {
+  label: string;
+  value: string;
+  color: string;
+};
+
+export type CustomFieldTextOptionsInput = {
+  placeholder?: string;
+  maxLength?: number;
+};
+
+export type CustomFieldNumberOptionsInput = {
+  min?: number;
+  max?: number;
+};
+
+export type CustomFieldOptionsInput =
+  | CustomFieldDropdownOptionInput[]
+  | CustomFieldTextOptionsInput
+  | CustomFieldNumberOptionsInput
+  | Record<string, unknown>
+  | null;
+
 export type CustomFieldOptions =
   | (string | CustomFieldDropdownOption)[]
   | Record<string, unknown>
@@ -18,6 +41,7 @@ export interface CustomField {
   name: string;
   type: CustomFieldType;
   options?: CustomFieldOptions;
+  color?: string | null;
   createdAt?: string;
   updatedAt?: string;
   [key: string]: unknown;
@@ -26,13 +50,15 @@ export interface CustomField {
 export interface CreateCustomFieldDto {
   name: string;
   type: CustomFieldType;
-  options?: string[];
+  color: string;
+  options?: CustomFieldOptionsInput;
 }
 
 export interface UpdateCustomFieldDto {
   name?: string;
   type?: CustomFieldType;
-  options?: string[];
+  color?: string;
+  options?: CustomFieldOptionsInput;
 }
 
 export type CustomFieldsEnvelope = ApiEnvelope<CustomField[] | CustomField>;

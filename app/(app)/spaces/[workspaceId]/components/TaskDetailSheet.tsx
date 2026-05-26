@@ -530,8 +530,44 @@ export function TaskDetailSheet({
   const renderCustomFieldInput = (field: CustomField) => {
     const value = editCustomFieldValues[field.id] ?? "";
 
+    const optionsObj =
+      field.options && typeof field.options === "object" && !Array.isArray(field.options)
+        ? (field.options as Record<string, unknown>)
+        : null;
+
+    const placeholder =
+      field.type === "text" && typeof optionsObj?.placeholder === "string"
+        ? optionsObj.placeholder
+        : field.type === "number"
+          ? "0"
+          : "Enter value";
+
+    const maxLength =
+      field.type === "text" && typeof optionsObj?.maxLength === "number"
+        ? optionsObj.maxLength
+        : undefined;
+
+    const min =
+      field.type === "number" && typeof optionsObj?.min === "number" ? optionsObj.min : undefined;
+
+    const max =
+      field.type === "number" && typeof optionsObj?.max === "number" ? optionsObj.max : undefined;
+
     if (field.type === "dropdown") {
       const dropdownOptions = Array.isArray(field.options) ? field.options : [];
+      const normalizedDropdownOptions = dropdownOptions
+        .map((opt) =>
+          typeof opt === "string"
+            ? { label: opt, value: opt, color: undefined as string | undefined }
+            : {
+                label: typeof opt.label === "string" ? opt.label : "",
+                value: typeof opt.value === "string" ? opt.value : "",
+                color: typeof opt.color === "string" ? opt.color : undefined
+              }
+        )
+        .filter((opt) => opt.label.trim() && opt.value.trim());
+
+      const selectedOption = normalizedDropdownOptions.find((o) => o.value === value);
 
       return (
         <Select
@@ -542,21 +578,26 @@ export function TaskDetailSheet({
           }}
         >
           <SelectTrigger className="w-full">
+            {selectedOption && (
+              <div
+                className="w-3 h-3 rounded-full border"
+                style={{ backgroundColor: selectedOption.color || "transparent" }}
+              />
+            )}
             <SelectValue placeholder="Select option" />
           </SelectTrigger>
           <SelectContent>
-            {dropdownOptions.map((opt) => {
-              const normalized =
-                typeof opt === "string"
-                  ? { value: opt, label: opt }
-                  : { value: opt.value, label: opt.label };
-
-              return (
-                <SelectItem key={normalized.value} value={normalized.value}>
-                  {normalized.label}
-                </SelectItem>
-              );
-            })}
+            {normalizedDropdownOptions.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-3 h-3 rounded-full border"
+                    style={{ backgroundColor: opt.color || "transparent" }}
+                  />
+                  <span>{opt.label}</span>
+                </div>
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       );
@@ -615,9 +656,51 @@ export function TaskDetailSheet({
       );
     }
 
+    if (field.type === "text") {
+      return (
+        <div className="grid gap-1">
+          <Input
+            type="text"
+            value={value}
+            onChange={(e) =>
+              setEditCustomFieldValues((prev) => ({
+                ...prev,
+                [field.id]: e.target.value
+              }))
+            }
+            placeholder={placeholder}
+            maxLength={maxLength}
+          />
+          {typeof maxLength === "number" && (
+            <p className="text-xs text-muted-foreground text-right">
+              {value.length}/{maxLength}
+            </p>
+          )}
+        </div>
+      );
+    }
+
+    if (field.type === "number") {
+      return (
+        <Input
+          type="number"
+          value={value}
+          onChange={(e) =>
+            setEditCustomFieldValues((prev) => ({
+              ...prev,
+              [field.id]: e.target.value
+            }))
+          }
+          placeholder={placeholder}
+          min={min}
+          max={max}
+        />
+      );
+    }
+
     return (
       <Input
-        type={field.type === "number" ? "number" : "text"}
+        type="text"
         value={value}
         onChange={(e) =>
           setEditCustomFieldValues((prev) => ({
@@ -625,7 +708,7 @@ export function TaskDetailSheet({
             [field.id]: e.target.value
           }))
         }
-        placeholder={field.type === "number" ? "0" : "Enter value"}
+        placeholder={placeholder}
       />
     );
   };

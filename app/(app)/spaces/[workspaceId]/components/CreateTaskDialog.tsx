@@ -47,6 +47,7 @@ import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Controller, useForm } from "react-hook-form";
 import type { Column } from "@/types/type-kanban-columns";
 import type { CreateTaskDto, Tag } from "@/types/api";
 import type { Member } from "@/types/api";
@@ -71,6 +72,9 @@ interface CreateTaskDialogProps {
   defaultColumnId?: string;
 }
 
+type CustomFieldsFormValues = { customFieldValues: Record<string, string> };
+type CustomFieldValuePath = `customFieldValues.${string}`;
+
 export function CreateTaskDialog({
   columns,
   members,
@@ -82,6 +86,11 @@ export function CreateTaskDialog({
   onOpenChange,
   defaultColumnId
 }: CreateTaskDialogProps) {
+  const customFieldsForm = useForm<CustomFieldsFormValues>({
+    defaultValues: { customFieldValues: {} },
+    mode: "onSubmit"
+  });
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [columnId, setColumnId] = useState(
@@ -99,9 +108,6 @@ export function CreateTaskDialog({
   const [editTagName, setEditTagName] = useState("");
   const [editTagColor, setEditTagColor] = useState("#6366f1");
   const [isCreatingTag, setIsCreatingTag] = useState(false);
-  const [customFieldValues, setCustomFieldValues] = useState<
-    Record<string, string>
-  >({});
   const [selectedCustomFieldIds, setSelectedCustomFieldIds] = useState<string[]>(
     []
   );
@@ -122,10 +128,10 @@ export function CreateTaskDialog({
     if (open) {
       setColumnId(defaultColumnId || columns[0]?.id || "");
       setDueDate(new Date());
-      setCustomFieldValues({});
+      customFieldsForm.reset({ customFieldValues: {} });
       setSelectedCustomFieldIds([]);
     }
-  }, [open, defaultColumnId, columns]);
+  }, [open, defaultColumnId, columns, customFieldsForm]);
 
   const tagColors = [
     "#6366f1", // indigo
@@ -254,6 +260,8 @@ export function CreateTaskDialog({
   const handleSubmit = () => {
     if (!title.trim()) return;
 
+    const customFieldValues = customFieldsForm.getValues("customFieldValues") || {};
+
     const customFieldsPayload = selectedCustomFieldIds
       .map((customFieldId) => ({
         customFieldId,
@@ -282,7 +290,7 @@ export function CreateTaskDialog({
     setAssigneeIds([]);
     setDueDate(undefined);
     setSelectedTagIds([]);
-    setCustomFieldValues({});
+    customFieldsForm.reset({ customFieldValues: {} });
     setSelectedCustomFieldIds([]);
   };
 
@@ -292,110 +300,187 @@ export function CreateTaskDialog({
         ? prev.filter((id) => id !== customFieldId)
         : [...prev, customFieldId]
     );
-    setCustomFieldValues((prev) =>
-      prev[customFieldId] == null ? { ...prev, [customFieldId]: "" } : prev
-    );
+
+    const path = `customFieldValues.${customFieldId}` as CustomFieldValuePath;
+    const current = customFieldsForm.getValues(path);
+    if (current == null) {
+      customFieldsForm.setValue(path, "", { shouldDirty: false });
+    }
   };
 
   const renderCustomFieldInput = (field: CustomField) => {
-    const value = customFieldValues[field.id] ?? "";
+    const optionsObj =
+      field.options && typeof field.options === "object" && !Array.isArray(field.options)
+        ? (field.options as Record<string, unknown>)
+        : null;
 
-    if (field.type === "dropdown") {
-      const dropdownOptions = Array.isArray(field.options) ? field.options : [];
+    const placeholder =
+      field.type === "text" && typeof optionsObj?.placeholder === "string"
+        ? optionsObj.placeholder
+        : field.type === "number"
+          ? "0"
+          : "Enter value";
 
-      return (
-        <Select
-          value={value || undefined}
-          onValueChange={(val) => {
-            if (val == null) return;
-            setCustomFieldValues((prev) => ({ ...prev, [field.id]: val }));
-          }}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select option" />
-          </SelectTrigger>
-          <SelectContent>
-            {dropdownOptions.map((opt) => {
-              const normalized =
-                typeof opt === "string"
-                  ? { value: opt, label: opt }
-                  : { value: opt.value, label: opt.label };
+    const maxLength =
+      field.type === "text" && typeof optionsObj?.maxLength === "number"
+        ? optionsObj.maxLength
+        : undefined;
 
-              return (
-                <SelectItem key={normalized.value} value={normalized.value}>
-                  {normalized.label}
-                </SelectItem>
-              );
-            })}
-          </SelectContent>
-        </Select>
-      );
-    }
+    const min =
+      field.type === "number" && typeof optionsObj?.min === "number"
+        ? optionsObj.min
+        : undefined;
 
-    if (field.type === "date") {
-      const selected = value ? new Date(`${value}T00:00:00`) : undefined;
-      const label = value ? format(new Date(`${value}T00:00:00`), "PPP") : null;
-      return (
-        <Popover>
-          <PopoverTrigger
-            render={
-              <Button
-                variant={"outline"}
-                className={cn(
-                  "w-full justify-start text-left font-normal",
-                  !value && "text-muted-foreground"
-                )}
-              />
+    const max =
+      field.type === "number" && typeof optionsObj?.max === "number"
+        ? optionsObj.max
+        : undefined;
+
+    const dropdownOptions = Array.isArray(field.options) ? field.options : [];
+    const normalizedDropdownOptions = dropdownOptions
+      .map((opt) =>
+        typeof opt === "string"
+          ? { label: opt, value: opt, color: undefined as string | undefined }
+          : {
+              label: typeof opt.label === "string" ? opt.label : "",
+              value: typeof opt.value === "string" ? opt.value : "",
+              color: typeof opt.color === "string" ? opt.color : undefined
             }
-          >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {label || <span>Select date</span>}
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0">
-            <Calendar
-              mode="single"
-              selected={selected}
-              onSelect={(date) => {
-                if (!date) return;
-                const formatted = format(date, "yyyy-MM-dd");
-                setCustomFieldValues((prev) => ({
-                  ...prev,
-                  [field.id]: formatted
-                }));
-              }}
-            />
-          </PopoverContent>
-        </Popover>
-      );
-    }
-
-    if (field.type === "checkbox") {
-      return (
-        <button
-          type="button"
-          className="flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-accent"
-          onClick={() => {
-            const next = value === "true" ? "false" : "true";
-            setCustomFieldValues((prev) => ({ ...prev, [field.id]: next }));
-          }}
-        >
-          <Checkbox checked={value === "true"} />
-          <span className="text-muted-foreground">{value === "true" ? "Yes" : "No"}</span>
-        </button>
-      );
-    }
+      )
+      .filter((opt) => opt.label.trim() && opt.value.trim());
 
     return (
-      <Input
-        type={field.type === "number" ? "number" : "text"}
-        value={value}
-        onChange={(e) =>
-          setCustomFieldValues((prev) => ({
-            ...prev,
-            [field.id]: e.target.value
-          }))
-        }
-        placeholder={field.type === "number" ? "0" : "Enter value"}
+      <Controller
+        control={customFieldsForm.control}
+        name={`customFieldValues.${field.id}` as CustomFieldValuePath}
+        render={({ field: rhfField }) => {
+          const value = (rhfField.value ?? "") as string;
+          const selectedOption =
+            field.type === "dropdown"
+              ? normalizedDropdownOptions.find((o) => o.value === value)
+              : undefined;
+
+          if (field.type === "dropdown") {
+            return (
+              <Select
+                value={value || undefined}
+                onValueChange={(val) => {
+                  if (val == null) return;
+                  rhfField.onChange(val);
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  {selectedOption && (
+                    <div
+                      className="w-3 h-3 rounded-full border"
+                      style={{
+                        backgroundColor: selectedOption.color || "transparent"
+                      }}
+                    />
+                  )}
+                  <SelectValue placeholder="Select option" />
+                </SelectTrigger>
+                <SelectContent>
+                  {normalizedDropdownOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full border"
+                          style={{ backgroundColor: opt.color || "transparent" }}
+                        />
+                        <span>{opt.label}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            );
+          }
+
+          if (field.type === "date") {
+            const selected = value ? new Date(`${value}T00:00:00`) : undefined;
+            const label = value
+              ? format(new Date(`${value}T00:00:00`), "PPP")
+              : null;
+            return (
+              <Popover>
+                <PopoverTrigger
+                  render={
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !value && "text-muted-foreground"
+                      )}
+                    />
+                  }
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {label || <span>Select date</span>}
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={selected}
+                    onSelect={(date) => {
+                      if (!date) return;
+                      const formatted = format(date, "yyyy-MM-dd");
+                      rhfField.onChange(formatted);
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
+            );
+          }
+
+          if (field.type === "checkbox") {
+            return (
+              <button
+                type="button"
+                className="flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-accent"
+                onClick={() => {
+                  const next = value === "true" ? "false" : "true";
+                  rhfField.onChange(next);
+                }}
+              >
+                <Checkbox checked={value === "true"} />
+                <span className="text-muted-foreground">
+                  {value === "true" ? "Yes" : "No"}
+                </span>
+              </button>
+            );
+          }
+
+          if (field.type === "text") {
+            return (
+              <div className="grid gap-1">
+                <Input
+                  type="text"
+                  value={value}
+                  onChange={(e) => rhfField.onChange(e.target.value)}
+                  placeholder={placeholder}
+                  maxLength={maxLength}
+                />
+                {typeof maxLength === "number" && (
+                  <p className="text-xs text-muted-foreground text-right">
+                    {value.length}/{maxLength}
+                  </p>
+                )}
+              </div>
+            );
+          }
+
+          return (
+            <Input
+              type="number"
+              value={value}
+              onChange={(e) => rhfField.onChange(e.target.value)}
+              placeholder={placeholder}
+              min={min}
+              max={max}
+            />
+          );
+        }}
       />
     );
   };

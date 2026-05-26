@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
-import { Loader2, Plus, Search } from "lucide-react";
+import { Loader2, Plus, Search, Settings2 } from "lucide-react";
 import { useAuthMe } from "@/hooks/api/useAuth";
 import { useWorkspaces } from "@/hooks/api/useWorkspaces";
 import {
@@ -47,6 +47,7 @@ import { NameDialog } from "./components/NameDialog";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { RenameBoardDialog } from "./components/RenameBoardDialog";
+import { CustomFieldManager } from "./components/CustomFieldManager";
 import { TaskDetailSheet } from "./components/TaskDetailSheet";
 import { useTenantMembers } from "@/hooks/api/useTenantMembers";
 import type { CreateTaskDto, Member } from "@/types/api";
@@ -86,6 +87,7 @@ export default function WorkspaceDetailPage() {
   >(undefined);
 
   const [isRenameBoardOpen, setIsRenameBoardOpen] = useState(false);
+  const [isCustomFieldManagerOpen, setIsCustomFieldManagerOpen] = useState(false);
 
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
@@ -388,6 +390,17 @@ export default function WorkspaceDetailPage() {
                 className="h-8 w-64 pl-8 text-sm"
               />
             </div>
+            {activeBoardId && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5 text-xs"
+                onClick={() => setIsCustomFieldManagerOpen(true)}
+              >
+                <Settings2 className="h-3.5 w-3.5" />
+                Custom Fields
+              </Button>
+            )}
             <Button
               size="sm"
               className="h-8 gap-1 text-xs"
@@ -480,6 +493,7 @@ export default function WorkspaceDetailPage() {
         members={members}
         tenantId={tenantId}
         workspaceId={workspaceId}
+        boardId={activeBoardId || ""}
         onSubmit={(dto: CreateTaskDto) => {
           if (activeBoardId) {
             createTask({
@@ -529,6 +543,15 @@ export default function WorkspaceDetailPage() {
         confirmLabel="Delete"
         onConfirm={confirmDialog.onConfirm}
       />
+      {activeBoardId && (
+        <CustomFieldManager
+          tenantId={tenantId}
+          workspaceId={workspaceId}
+          boardId={activeBoardId}
+          open={isCustomFieldManagerOpen}
+          onOpenChange={setIsCustomFieldManagerOpen}
+        />
+      )}
       {activeDocumentId && (
         <TaskDetailSheet
           tenantId={tenantId}

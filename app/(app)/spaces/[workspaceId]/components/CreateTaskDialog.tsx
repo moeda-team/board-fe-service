@@ -29,6 +29,15 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuGroup,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger
@@ -41,6 +50,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Column } from "@/types/type-kanban-columns";
 import type { CreateTaskDto, Tag } from "@/types/api";
 import type { Member } from "@/types/api";
+import { useCustomFields } from "@/hooks/api/useCustomFields";
+import type { CustomField } from "@/types/type-custom-fields";
 import {
   useTags,
   useCreateTag,
@@ -53,6 +64,7 @@ interface CreateTaskDialogProps {
   members: Member[];
   tenantId: string;
   workspaceId: string;
+  boardId: string;
   onSubmit: (dto: CreateTaskDto) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -64,6 +76,7 @@ export function CreateTaskDialog({
   members,
   tenantId,
   workspaceId,
+  boardId,
   onSubmit,
   open,
   onOpenChange,
@@ -86,6 +99,18 @@ export function CreateTaskDialog({
   const [editTagName, setEditTagName] = useState("");
   const [editTagColor, setEditTagColor] = useState("#6366f1");
   const [isCreatingTag, setIsCreatingTag] = useState(false);
+  const [customFieldValues, setCustomFieldValues] = useState<
+    Record<string, string>
+  >({});
+  const [selectedCustomFieldIds, setSelectedCustomFieldIds] = useState<string[]>(
+    []
+  );
+
+  const { data: customFields = [] } = useCustomFields(
+    tenantId,
+    workspaceId,
+    boardId
+  );
 
   const { data: tags = [] } = useTags(tenantId, workspaceId);
   const createTag = useCreateTag();
@@ -97,6 +122,8 @@ export function CreateTaskDialog({
     if (open) {
       setColumnId(defaultColumnId || columns[0]?.id || "");
       setDueDate(new Date());
+      setCustomFieldValues({});
+      setSelectedCustomFieldIds([]);
     }
   }, [open, defaultColumnId, columns]);
 
@@ -227,6 +254,13 @@ export function CreateTaskDialog({
   const handleSubmit = () => {
     if (!title.trim()) return;
 
+    const customFieldsPayload = selectedCustomFieldIds
+      .map((customFieldId) => ({
+        customFieldId,
+        value: String(customFieldValues[customFieldId] ?? "")
+      }))
+      .filter((x) => x.value.trim() !== "");
+
     const dto: CreateTaskDto = {
       title: title.trim(),
       columnId,
@@ -234,7 +268,10 @@ export function CreateTaskDialog({
       ...(description.trim() ? { description: description.trim() } : {}),
       ...(dueDate ? { dueDate: dueDate.toISOString() } : {}),
       ...(assigneeIds.length > 0 ? { assigneeIds } : {}),
-      ...(selectedTagIds.length > 0 ? { tagIds: selectedTagIds } : {})
+      ...(selectedTagIds.length > 0 ? { tagIds: selectedTagIds } : {}),
+      ...(customFieldsPayload.length > 0
+        ? { customFields: customFieldsPayload }
+        : {})
     };
 
     onSubmit(dto);
@@ -245,6 +282,122 @@ export function CreateTaskDialog({
     setAssigneeIds([]);
     setDueDate(undefined);
     setSelectedTagIds([]);
+    setCustomFieldValues({});
+    setSelectedCustomFieldIds([]);
+  };
+
+  const toggleCustomFieldSelection = (customFieldId: string) => {
+    setSelectedCustomFieldIds((prev) =>
+      prev.includes(customFieldId)
+        ? prev.filter((id) => id !== customFieldId)
+        : [...prev, customFieldId]
+    );
+    setCustomFieldValues((prev) =>
+      prev[customFieldId] == null ? { ...prev, [customFieldId]: "" } : prev
+    );
+  };
+
+  const renderCustomFieldInput = (field: CustomField) => {
+    const value = customFieldValues[field.id] ?? "";
+
+    if (field.type === "dropdown") {
+      const dropdownOptions = Array.isArray(field.options) ? field.options : [];
+
+      return (
+        <Select
+          value={value || undefined}
+          onValueChange={(val) => {
+            if (val == null) return;
+            setCustomFieldValues((prev) => ({ ...prev, [field.id]: val }));
+          }}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select option" />
+          </SelectTrigger>
+          <SelectContent>
+            {dropdownOptions.map((opt) => {
+              const normalized =
+                typeof opt === "string"
+                  ? { value: opt, label: opt }
+                  : { value: opt.value, label: opt.label };
+
+              return (
+                <SelectItem key={normalized.value} value={normalized.value}>
+                  {normalized.label}
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+      );
+    }
+
+    if (field.type === "date") {
+      const selected = value ? new Date(`${value}T00:00:00`) : undefined;
+      const label = value ? format(new Date(`${value}T00:00:00`), "PPP") : null;
+      return (
+        <Popover>
+          <PopoverTrigger
+            render={
+              <Button
+                variant={"outline"}
+                className={cn(
+                  "w-full justify-start text-left font-normal",
+                  !value && "text-muted-foreground"
+                )}
+              />
+            }
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {label || <span>Select date</span>}
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0">
+            <Calendar
+              mode="single"
+              selected={selected}
+              onSelect={(date) => {
+                if (!date) return;
+                const formatted = format(date, "yyyy-MM-dd");
+                setCustomFieldValues((prev) => ({
+                  ...prev,
+                  [field.id]: formatted
+                }));
+              }}
+            />
+          </PopoverContent>
+        </Popover>
+      );
+    }
+
+    if (field.type === "checkbox") {
+      return (
+        <button
+          type="button"
+          className="flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-accent"
+          onClick={() => {
+            const next = value === "true" ? "false" : "true";
+            setCustomFieldValues((prev) => ({ ...prev, [field.id]: next }));
+          }}
+        >
+          <Checkbox checked={value === "true"} />
+          <span className="text-muted-foreground">{value === "true" ? "Yes" : "No"}</span>
+        </button>
+      );
+    }
+
+    return (
+      <Input
+        type={field.type === "number" ? "number" : "text"}
+        value={value}
+        onChange={(e) =>
+          setCustomFieldValues((prev) => ({
+            ...prev,
+            [field.id]: e.target.value
+          }))
+        }
+        placeholder={field.type === "number" ? "0" : "Enter value"}
+      />
+    );
   };
 
   return (
@@ -790,6 +943,82 @@ export function CreateTaskDialog({
               </PopoverContent>
             </Popover>
           </div>
+
+          {/* TODO: Render dynamic custom field inputs here based on Board's custom fields */}
+
+          {customFields.length > 0 && (
+            <div className="grid gap-3">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-muted-foreground">
+                  Custom Fields
+                </label>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-1 text-xs"
+                      />
+                    }
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add Field
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-72">
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel>Select fields</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {customFields.map((field) => (
+                        <DropdownMenuCheckboxItem
+                          key={field.id}
+                          checked={selectedCustomFieldIds.includes(field.id)}
+                          onClick={() => toggleCustomFieldSelection(field.id)}
+                        >
+                          {field.name}
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              {selectedCustomFieldIds.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No custom fields selected.
+                </p>
+              ) : (
+                <div className="grid gap-4">
+                  {selectedCustomFieldIds
+                    .map((id) => customFields.find((f) => f.id === id))
+                    .filter(Boolean)
+                    .map((field) => (
+                      <div key={(field as CustomField).id} className="grid gap-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-medium text-muted-foreground">
+                            {(field as CustomField).name}
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSelectedCustomFieldIds((prev) =>
+                                prev.filter((x) => x !== (field as CustomField).id)
+                              )
+                            }
+                            className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            aria-label={`Remove ${(field as CustomField).name}`}
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                        {renderCustomFieldInput(field as CustomField)}
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex justify-end">
           <Button onClick={handleSubmit} disabled={!title.trim()}>

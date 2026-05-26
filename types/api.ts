@@ -256,6 +256,11 @@ export interface Task {
     updater?: AuthMeUser | null;
     createdAt?: string;
     updatedAt?: string;
+    estTime?: {
+        days: number;
+        hours: number;
+        isOverdue: boolean;
+    } | null;
     [key: string]: unknown;
 }
 

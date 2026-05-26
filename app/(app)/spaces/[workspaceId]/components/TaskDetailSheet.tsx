@@ -34,6 +34,16 @@ import {
 } from "@/components/ui/select";
 
 import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuGroup,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+
+import {
   Popover,
   PopoverContent,
   PopoverTrigger
@@ -50,6 +60,7 @@ import {
   useUpdateTask,
   taskDetailQueryKey
 } from "@/hooks/api/useTasks";
+import { useCustomFields } from "@/hooks/api/useCustomFields";
 
 import {
   useTaskSubtasks,
@@ -93,6 +104,7 @@ import {
 import type { TaskActivity } from "@/types/type-tasks";
 import type { Column } from "@/types/type-kanban-columns";
 import type { Member, Tag as TagType } from "@/types/api";
+import type { CustomField } from "@/types/type-custom-fields";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTags } from "@/hooks/api/useTags";
 
@@ -132,6 +144,12 @@ export function TaskDetailSheet({
   const [editColumnId, setEditColumnId] = useState<string>("");
   const [editAssigneeIds, setEditAssigneeIds] = useState<string[]>([]);
   const [editTagIds, setEditTagIds] = useState<string[]>([]);
+  const [editCustomFieldValues, setEditCustomFieldValues] = useState<
+    Record<string, string>
+  >({});
+  const [selectedEditCustomFieldIds, setSelectedEditCustomFieldIds] = useState<
+    string[]
+  >([]);
   const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
   const [columnPopoverOpen, setColumnPopoverOpen] = useState(false);
   const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
@@ -148,6 +166,12 @@ export function TaskDetailSheet({
     boardId,
 
     taskId || ""
+  );
+
+  const { data: customFields = [] } = useCustomFields(
+    tenantId,
+    workspaceId,
+    boardId
   );
 
   const { data: subtasks = [], isLoading: isLoadingSubtasks } = useTaskSubtasks(
@@ -366,6 +390,21 @@ export function TaskDetailSheet({
         (t: any) => t.tag?.id || t.id || t
       );
       setEditTagIds(taskTagIds);
+
+      const normalizedValues: Record<string, string> = {};
+      (task.customFieldValues || []).forEach((v: any) => {
+        const id =
+          v?.customFieldId ||
+          v?.customField?.id ||
+          v?.customField?.customFieldId ||
+          v?.id;
+        const value = v?.value ?? v?.customFieldValue ?? v?.data;
+        if (typeof id === "string") {
+          normalizedValues[id] = value == null ? "" : String(value);
+        }
+      });
+      setEditCustomFieldValues(normalizedValues);
+      setSelectedEditCustomFieldIds(Object.keys(normalizedValues));
     }
   }, [task, isEditing]);
 
@@ -379,6 +418,13 @@ export function TaskDetailSheet({
   const handleSave = () => {
     if (!taskId || !editTitle.trim()) return;
 
+    const customFieldsPayload = selectedEditCustomFieldIds
+      .map((customFieldId) => ({
+        customFieldId,
+        value: String(editCustomFieldValues[customFieldId] ?? "")
+      }))
+      .filter((x) => x.value.trim() !== "");
+
     const dto = {
       title: editTitle.trim(),
       description: editDescription.trim() || undefined,
@@ -386,7 +432,8 @@ export function TaskDetailSheet({
       columnId: editColumnId,
       dueDate: editDueDate?.toISOString(),
       assigneeIds: editAssigneeIds.length > 0 ? editAssigneeIds : undefined,
-      tagIds: editTagIds.length > 0 ? editTagIds : undefined
+      tagIds: editTagIds.length > 0 ? editTagIds : undefined,
+      customFields: customFieldsPayload.length > 0 ? customFieldsPayload : undefined
     };
 
     updateTask(
@@ -404,6 +451,183 @@ export function TaskDetailSheet({
 
   const handleCancel = () => {
     setIsEditing(false);
+  };
+
+  const toggleEditCustomFieldSelection = (customFieldId: string) => {
+    setSelectedEditCustomFieldIds((prev) =>
+      prev.includes(customFieldId)
+        ? prev.filter((id) => id !== customFieldId)
+        : [...prev, customFieldId]
+    );
+    setEditCustomFieldValues((prev) =>
+      prev[customFieldId] == null ? { ...prev, [customFieldId]: "" } : prev
+    );
+  };
+
+  const viewCustomFieldItems = useMemo(() => {
+    const values = (task?.customFieldValues ?? []) as any[];
+
+    const formatValue = (cfv: any) => {
+      const raw = cfv?.value;
+      const field = cfv?.customField;
+
+      if (raw == null) return "";
+      const rawString = String(raw);
+      const type = field?.type;
+
+      if (type === "dropdown") {
+        const options = Array.isArray(field?.options) ? field.options : [];
+        const normalized = options
+          .map((o: any) =>
+            typeof o === "string" ? { label: o, value: o } : o
+          )
+          .filter((o: any) =>
+            o && typeof o.value === "string" && typeof o.label === "string"
+          );
+        return normalized.find((o: any) => o.value === rawString)?.label ?? rawString;
+      }
+
+      if (type === "checkbox") {
+        if (rawString === "true") return "Yes";
+        if (rawString === "false") return "No";
+        return rawString;
+      }
+
+      if (type === "date") {
+        const d = new Date(rawString);
+        if (!Number.isNaN(d.getTime())) {
+          return format(d, "dd MMM yyyy");
+        }
+      }
+
+      if (type === "number") {
+        const suffix =
+          field?.options &&
+          typeof field.options === "object" &&
+          !Array.isArray(field.options) &&
+          "suffix" in field.options &&
+          typeof (field.options as any).suffix === "string"
+            ? (field.options as any).suffix
+            : "";
+        return suffix ? `${rawString}${suffix}` : rawString;
+      }
+
+      return rawString;
+    };
+
+    return values
+      .map((cfv) => {
+        const field = cfv?.customField;
+        const id =
+          cfv?.customFieldId || cfv?.customField?.id || cfv?.id || "unknown";
+        const name = field?.name ?? "Custom Field";
+        const value = formatValue(cfv);
+        return { id: String(id), name: String(name), value };
+      })
+      .filter((x) => x.value.trim() !== "");
+  }, [task?.customFieldValues]);
+
+  const renderCustomFieldInput = (field: CustomField) => {
+    const value = editCustomFieldValues[field.id] ?? "";
+
+    if (field.type === "dropdown") {
+      const dropdownOptions = Array.isArray(field.options) ? field.options : [];
+
+      return (
+        <Select
+          value={value || undefined}
+          onValueChange={(val) => {
+            if (val == null) return;
+            setEditCustomFieldValues((prev) => ({ ...prev, [field.id]: val }));
+          }}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select option" />
+          </SelectTrigger>
+          <SelectContent>
+            {dropdownOptions.map((opt) => {
+              const normalized =
+                typeof opt === "string"
+                  ? { value: opt, label: opt }
+                  : { value: opt.value, label: opt.label };
+
+              return (
+                <SelectItem key={normalized.value} value={normalized.value}>
+                  {normalized.label}
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+      );
+    }
+
+    if (field.type === "date") {
+      const selected = value ? new Date(`${value}T00:00:00`) : undefined;
+      const label = value ? format(new Date(`${value}T00:00:00`), "PPP") : null;
+      return (
+        <Popover>
+          <PopoverTrigger>
+            <Button
+              variant="outline"
+              className={cn(
+                "w-full justify-start text-left font-normal",
+                !value && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {label || <span>Select date</span>}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={selected}
+              onSelect={(date) => {
+                if (!date) return;
+                const formatted = format(date, "yyyy-MM-dd");
+                setEditCustomFieldValues((prev) => ({
+                  ...prev,
+                  [field.id]: formatted
+                }));
+              }}
+            />
+          </PopoverContent>
+        </Popover>
+      );
+    }
+
+    if (field.type === "checkbox") {
+      return (
+        <button
+          type="button"
+          className="flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-accent"
+          onClick={() => {
+            const next = value === "true" ? "false" : "true";
+            setEditCustomFieldValues((prev) => ({ ...prev, [field.id]: next }));
+          }}
+        >
+          <Checkbox checked={value === "true"} />
+          <span className="text-muted-foreground">
+            {value === "true" ? "Yes" : "No"}
+          </span>
+        </button>
+      );
+    }
+
+    return (
+      <Input
+        type={field.type === "number" ? "number" : "text"}
+        value={value}
+        onChange={(e) =>
+          setEditCustomFieldValues((prev) => ({
+            ...prev,
+            [field.id]: e.target.value
+          }))
+        }
+        placeholder={field.type === "number" ? "0" : "Enter value"}
+      />
+    );
   };
 
   const toggleTag = (tagId: string) => {
@@ -871,6 +1095,86 @@ export function TaskDetailSheet({
                         )}
                       </div>
                     </div>
+
+                    {customFields.length > 0 && (
+                      <div className="grid gap-3">
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-medium text-muted-foreground">
+                            Custom Fields
+                          </label>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              render={
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 gap-1 text-xs"
+                                />
+                              }
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                              Add Field
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-72">
+                              <DropdownMenuGroup>
+                                <DropdownMenuLabel>Select fields</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                {customFields.map((field) => (
+                                  <DropdownMenuCheckboxItem
+                                    key={field.id}
+                                    checked={selectedEditCustomFieldIds.includes(
+                                      field.id
+                                    )}
+                                    onClick={() =>
+                                      toggleEditCustomFieldSelection(field.id)
+                                    }
+                                  >
+                                    {field.name}
+                                  </DropdownMenuCheckboxItem>
+                                ))}
+                              </DropdownMenuGroup>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+
+                        {selectedEditCustomFieldIds.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">
+                            No custom fields selected.
+                          </p>
+                        ) : (
+                          <div className="grid gap-4">
+                            {selectedEditCustomFieldIds
+                              .map((id) => customFields.find((f) => f.id === id))
+                              .filter(Boolean)
+                              .map((field) => (
+                                <div key={(field as CustomField).id} className="grid gap-2">
+                                  <div className="flex items-center justify-between">
+                                    <label className="text-sm font-medium text-muted-foreground">
+                                      {(field as CustomField).name}
+                                    </label>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setSelectedEditCustomFieldIds((prev) =>
+                                          prev.filter(
+                                            (x) => x !== (field as CustomField).id
+                                          )
+                                        )
+                                      }
+                                      className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                      aria-label={`Remove ${(field as CustomField).name}`}
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                  {renderCustomFieldInput(field as CustomField)}
+                                </div>
+                              ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   // VIEW MODE
@@ -917,11 +1221,13 @@ export function TaskDetailSheet({
                           <Clock className="h-3.5 w-3.5 text-muted-foreground" />
 
                           <span>
-                            {task?.customFieldValues?.find((f: any) =>
-                              f.customField?.name
-                                ?.toLowerCase()
-                                ?.includes("time")
-                            )?.value || "N/A"}
+                            {(() => {
+                              const estTime = task?.estTime ?? undefined;
+                              if (!estTime) return "N/A";
+                              const days = estTime.days;
+                              const hours = estTime.hours;
+                              return `${days}d ${hours}h`;
+                            })()}
                           </span>
                         </div>
                       </div>
@@ -938,6 +1244,22 @@ export function TaskDetailSheet({
                         </div>
                       </div>
                     </div>
+
+                    {viewCustomFieldItems.length > 0 && (
+                      <div className="flex flex-col gap-2 mt-2">
+                        <span className="text-sm font-medium">Custom Fields</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {viewCustomFieldItems.map((item) => (
+                            <div key={item.id} className="flex flex-col gap-1">
+                              <span className="text-xs text-muted-foreground font-medium">
+                                {item.name}
+                              </span>
+                              <span className="text-sm">{item.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 

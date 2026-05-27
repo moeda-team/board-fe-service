@@ -65,3 +65,31 @@ export const useDeleteBoard = () => {
     }
   });
 };
+
+export interface ReorderBoardParams {
+  tenantId: string;
+  workspaceId: string;
+  boardId: string;
+  targetIndex: number;
+  targetFolderId: string | null;
+}
+
+export const useReorderBoards = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    meta: { errorMessage: "Failed to reorder boards" },
+    mutationFn: async ({ tenantId, workspaceId, boardId, targetIndex, targetFolderId }: ReorderBoardParams): Promise<void> => {
+      await apiClient.patch(`/api/tenants/${tenantId}/workspaces/${workspaceId}/boards/reorder`, {
+        boardId,
+        targetIndex,
+        targetFolderId
+      });
+    },
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({
+        queryKey: boardsQueryKey(variables.tenantId, variables.workspaceId)
+      });
+    }
+  });
+};

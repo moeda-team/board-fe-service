@@ -200,6 +200,7 @@ export interface Folder {
     id: string;
     workspaceId?: string;
     name?: string;
+    order: number;
     [key: string]: unknown;
 }
 
@@ -208,6 +209,7 @@ export interface Board {
     workspaceId?: string;
     folderId?: string;
     name?: string;
+    order: number;
     color?: string;
     [key: string]: unknown;
 }

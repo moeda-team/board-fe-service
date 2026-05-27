@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { FileText, Pencil, Trash2 } from "lucide-react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { FileText, GripVertical, Pencil, Trash2 } from "lucide-react";
 import type { Board } from "@/types/type-boards";
 
 interface DocumentNavItemProps {
@@ -19,6 +21,22 @@ export function DocumentNavItem({
   onRenameSubmit,
   onDelete
 }: DocumentNavItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: `board-${board.id}` });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : undefined,
+    zIndex: isDragging ? 50 : undefined
+  };
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
   const [isRenaming, setIsRenaming] = useState(false);
@@ -40,7 +58,7 @@ export function DocumentNavItem({
   };
 
   return (
-    <div className="relative">
+    <div ref={setNodeRef} style={style} className="relative">
       {isRenaming ? (
         <div
           className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm ${
@@ -81,12 +99,18 @@ export function DocumentNavItem({
           ref={containerRef}
           onClick={onClick}
           onContextMenu={handleContextMenu}
-          className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
+          className={`group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
             isActive
               ? "bg-accent text-accent-foreground"
               : "text-muted-foreground hover:bg-muted hover:text-foreground"
           }`}
         >
+          <GripVertical
+            {...attributes}
+            {...listeners}
+            onClick={(e) => e.stopPropagation()}
+            className="h-4 w-4 shrink-0 cursor-grab text-muted-foreground/50 opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+          />
           <FileText className="h-3.5 w-3.5 shrink-0" />
           <span className="truncate" title={board.name || "Untitled"}>
             {board.name || "Untitled"}

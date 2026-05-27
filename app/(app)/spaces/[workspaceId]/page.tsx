@@ -292,6 +292,7 @@ export default function WorkspaceDetailPage() {
       <WorkspaceSidebar
         workspaceName={workspace?.name || "Workspace"}
         tenantId={tenantId}
+        workspaceId={workspaceId}
         folders={folders}
         boardsByFolder={boardsByFolder}
         activeDocumentId={activeDocumentId}

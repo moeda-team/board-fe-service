@@ -1,10 +1,15 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useDroppable } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   ChevronRight,
   Folder as FolderIcon,
   FolderOpen,
+  GripVertical,
   Pencil,
   Plus,
   Trash2
@@ -36,6 +41,29 @@ export function FolderTree({
   onRenameDocumentSubmit,
   onDeleteDocument
 }: FolderTreeProps) {
+  const folderDndId = `folder-${folder.id}`;
+  const boardDndIds = boards.map((b) => `board-${b.id}`);
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: folderDndId });
+
+  const { setNodeRef: setDropRef } = useDroppable({
+    id: `folder-drop-${folder.id}`
+  });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : undefined,
+    zIndex: isDragging ? 50 : undefined
+  };
+
   const [isExpanded, setIsExpanded] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
@@ -58,7 +86,7 @@ export function FolderTree({
   };
 
   return (
-    <div className="flex flex-col">
+    <div ref={setNodeRef} style={style} className="flex flex-col">
       {isRenaming ? (
         <div className="flex items-center gap-1 rounded-md px-1 py-1 bg-background">
           <button
@@ -112,6 +140,18 @@ export function FolderTree({
           >
             <ChevronRight
               className={`h-3.5 w-3.5 transition-transform ${isExpanded ? "rotate-90" : ""}`}
+            />
+          </button>
+          <button
+            type="button"
+            className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+            aria-label="Drag folder"
+          >
+            <GripVertical
+              {...attributes}
+              {...listeners}
+              onClick={(e) => e.stopPropagation()}
+              className="h-4 w-4 cursor-grab text-muted-foreground/50 opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
             />
           </button>
           {isExpanded ? (
@@ -170,22 +210,30 @@ export function FolderTree({
       )}
 
       {isExpanded && (
-        <div className="ml-5 mt-0.5 flex flex-col gap-0.5 border-l border-border pl-2">
+        <div
+          ref={setDropRef}
+          className="ml-5 mt-0.5 flex flex-col gap-0.5 border-l border-border pl-2"
+        >
           {boards.length === 0 ? (
             <span className="px-2 py-1 text-xs text-muted-foreground">
               No boards
             </span>
           ) : (
-            boards.map((board) => (
-              <DocumentNavItem
-                key={board.id}
-                board={board}
-                isActive={activeDocumentId === board.id}
-                onClick={() => onSelectDocument(board)}
-                onRenameSubmit={onRenameDocumentSubmit}
-                onDelete={onDeleteDocument}
-              />
-            ))
+            <SortableContext
+              items={boardDndIds}
+              strategy={verticalListSortingStrategy}
+            >
+              {boards.map((board) => (
+                <DocumentNavItem
+                  key={board.id}
+                  board={board}
+                  isActive={activeDocumentId === board.id}
+                  onClick={() => onSelectDocument(board)}
+                  onRenameSubmit={onRenameDocumentSubmit}
+                  onDelete={onDeleteDocument}
+                />
+              ))}
+            </SortableContext>
           )}
         </div>
       )}

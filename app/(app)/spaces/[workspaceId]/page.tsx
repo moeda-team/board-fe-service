@@ -7,12 +7,14 @@ import { Loader2, Plus, Search, Settings2 } from "lucide-react";
 import { useAuthMe } from "@/hooks/api/useAuth";
 import { useWorkspaces } from "@/hooks/api/useWorkspaces";
 import {
+  foldersQueryKey,
   useFolders,
   useCreateFolder,
   useUpdateFolder,
   useDeleteFolder
 } from "@/hooks/api/useFolders";
 import {
+  boardsQueryKey,
   useBoards,
   useCreateBoard,
   useUpdateBoard,
@@ -267,6 +269,42 @@ export default function WorkspaceDetailPage() {
     selectedTaskId
   ]);
 
+  useEffect(() => {
+    if (!socket || !tenantId || !workspaceId) return;
+
+    const foldersKey = foldersQueryKey(tenantId, workspaceId);
+    const boardsKey = boardsQueryKey(tenantId, workspaceId);
+
+    const invalidateFolders = () => {
+      queryClient.invalidateQueries({ queryKey: foldersKey });
+    };
+
+    const invalidateBoards = () => {
+      queryClient.invalidateQueries({ queryKey: boardsKey });
+    };
+
+    const folderEvents = [
+      "folder.created",
+      "folder.updated",
+      "folder.reordered",
+      "folder.deleted"
+    ];
+    folderEvents.forEach((event) => socket.on(event, invalidateFolders));
+
+    const boardEvents = [
+      "board.created",
+      "board.updated",
+      "board.reordered",
+      "board.deleted"
+    ];
+    boardEvents.forEach((event) => socket.on(event, invalidateBoards));
+
+    return () => {
+      folderEvents.forEach((event) => socket.off(event, invalidateFolders));
+      boardEvents.forEach((event) => socket.off(event, invalidateBoards));
+    };
+  }, [socket, tenantId, workspaceId, queryClient]);
+
   const isLoading =
     isAuthLoading || isWorkspacesLoading || isFoldersLoading || isBoardsLoading;
 
@@ -427,23 +465,23 @@ export default function WorkspaceDetailPage() {
             <BoardView
               columns={columns}
               tasks={filteredTasks}
-              onCreateColumn={(name, isDone) =>
+              onCreateColumn={(payload) =>
                 activeBoardId &&
                 createColumn({
                   tenantId,
                   workspaceId,
                   boardId: activeBoardId,
-                  dto: { name, isDone }
+                  dto: payload
                 })
               }
-              onUpdateColumn={(columnId, name, isDone) =>
+              onUpdateColumn={(columnId, payload) =>
                 activeBoardId &&
                 updateColumn({
                   tenantId,
                   workspaceId,
                   boardId: activeBoardId,
                   columnId,
-                  dto: { name, isDone }
+                  dto: payload
                 })
               }
               onDeleteColumn={(columnId) =>
@@ -481,7 +519,12 @@ export default function WorkspaceDetailPage() {
               }
             />
           )}
-          {activeView === "list" && <ListView tasks={filteredTasks} />}
+          {activeView === "list" && (
+            <ListView
+              tasks={filteredTasks}
+              onTaskClick={(taskId) => setSelectedTaskId(taskId)}
+            />
+          )}
           {activeView === "gantt" && <GanttView tasks={filteredTasks} />}
         </div>
       </div>

@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Plus, MoreHorizontal, Settings2, Trash2 } from "lucide-react";
+import { EditColumnDialog } from "./EditColumnDialog";
+import { CreateColumnDialog } from "./CreateColumnDialog";
 import type { Column } from "@/types/type-kanban-columns";
 import type { Task } from "@/types/type-tasks";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,8 +26,16 @@ import {
 interface BoardViewProps {
   columns: Column[];
   tasks: Task[];
-  onCreateColumn: (name: string, isDone?: boolean) => void;
-  onUpdateColumn: (columnId: string, name: string, isDone?: boolean) => void;
+  onCreateColumn: (payload: {
+    name: string;
+    color: string;
+    isDone: boolean;
+    position: number;
+  }) => void;
+  onUpdateColumn: (
+    columnId: string,
+    payload: { name: string; color: string; isDone: boolean }
+  ) => void;
   onDeleteColumn: (columnId: string) => void;
   onReorderColumns?: (newColumns: { id: string; position: number }[]) => void;
   onCreateTask: (columnId: string) => void;
@@ -54,14 +62,9 @@ export function BoardView({
   onDeleteTask
 }: BoardViewProps) {
   const [isMounted, setIsMounted] = useState(false);
-  const [newColumnName, setNewColumnName] = useState("");
-  const [newColumnIsDone, setNewColumnIsDone] = useState(false);
-  const [addingColumn, setAddingColumn] = useState(false);
-  const [contextMenu, setContextMenu] = useState<{
-    columnId: string;
-    x: number;
-    y: number;
-  } | null>(null);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingColumn, setEditingColumn] = useState<Column | null>(null);
   const boardScrollRef = useRef<HTMLDivElement>(null);
 
   const [localColumns, setLocalColumns] = useState<Column[]>(columns);
@@ -78,19 +81,6 @@ export function BoardView({
     setIsMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (!contextMenu) return;
-    const handleClick = () => setContextMenu(null);
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setContextMenu(null);
-    };
-    document.addEventListener("click", handleClick);
-    document.addEventListener("keydown", handleEsc);
-    return () => {
-      document.removeEventListener("click", handleClick);
-      document.removeEventListener("keydown", handleEsc);
-    };
-  }, [contextMenu]);
 
   useEffect(() => {
     setLocalColumns(columns);
@@ -108,15 +98,6 @@ export function BoardView({
     },
     {}
   );
-
-  const handleAddColumn = () => {
-    if (newColumnName.trim()) {
-      onCreateColumn(newColumnName.trim(), newColumnIsDone);
-      setNewColumnName("");
-      setNewColumnIsDone(false);
-      setAddingColumn(false);
-    }
-  };
 
   const handleDragUpdate = (update: DragUpdate) => {
     const destinationId = update.destination?.droppableId;
@@ -245,20 +226,6 @@ export function BoardView({
                             {...provided.dragHandleProps}
                             onContextMenu={(e) => {
                               e.preventDefault();
-                              setContextMenu({
-                                columnId: col.id,
-                                x: e.clientX,
-                                y: e.clientY
-                              });
-                            }}
-                            onClick={() => {
-                              if (col.isEditing) {
-                                onUpdateColumn(
-                                  col.id,
-                                  col.name ?? "Untitled",
-                                  col.isDone
-                                );
-                              }
                             }}
                           >
                             <div className="flex items-center gap-2">
@@ -288,31 +255,12 @@ export function BoardView({
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() => {
-                                    const name = window.prompt(
-                                      "Rename column",
-                                      col.name || ""
-                                    );
-                                    if (name)
-                                      onUpdateColumn(col.id, name, col.isDone);
+                                    setEditingColumn(col);
+                                    setEditDialogOpen(true);
                                   }}
                                 >
-                                  <Pencil className="mr-2 h-3.5 w-3.5" />
-                                  Rename
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    onUpdateColumn(
-                                      col.id,
-                                      col.name ?? "Untitled",
-                                      !col.isDone
-                                    );
-                                  }}
-                                >
-                                  <Checkbox
-                                    checked={col.isDone || false}
-                                    className="mr-2 h-3.5 w-3.5"
-                                  />
-                                  {col.isDone ? "Unset Done" : "Set as Done"}
+                                  <Settings2 className="mr-2 h-3.5 w-3.5" />
+                                  Edit Column
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   variant="destructive"
@@ -453,122 +401,38 @@ export function BoardView({
 
           {/* Add Column */}
           <div className="flex w-72 shrink-0 flex-col">
-            {addingColumn ? (
-              <div className="rounded-lg bg-muted/50 p-3">
-                <Input
-                  autoFocus
-                  placeholder="Column name"
-                  value={newColumnName}
-                  onChange={(e) => setNewColumnName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleAddColumn();
-                    if (e.key === "Escape") {
-                      setAddingColumn(false);
-                      setNewColumnName("");
-                      setNewColumnIsDone(false);
-                    }
-                  }}
-                  className="mb-2 h-8 text-sm"
-                />
-                <label className="flex items-center gap-2 mb-2 text-sm text-muted-foreground cursor-pointer">
-                  <Checkbox
-                    checked={newColumnIsDone}
-                    onCheckedChange={(checked) =>
-                      setNewColumnIsDone(checked === true)
-                    }
-                  />
-                  Mark as "Done" column
-                </label>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    className="h-7 text-xs"
-                    onClick={handleAddColumn}
-                  >
-                    Add Column
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 text-xs"
-                    onClick={() => {
-                      setAddingColumn(false);
-                      setNewColumnName("");
-                      setNewColumnIsDone(false);
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <Button
-                variant="ghost"
-                className="h-10 justify-start gap-2 text-muted-foreground hover:text-foreground"
-                onClick={() => setAddingColumn(true)}
-              >
-                <Plus className="h-4 w-4" />
-                Add Column
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              className="h-10 justify-start gap-2 text-muted-foreground hover:text-foreground"
+              onClick={() => setCreateDialogOpen(true)}
+            >
+              <Plus className="h-4 w-4" />
+              Add Column
+            </Button>
           </div>
         </div>
       </div>
 
-      {/* Custom context menu for columns */}
-      {contextMenu && (
-        <div
-          className="fixed z-50 min-w-32 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            className="flex w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground"
-            onClick={() => {
-              onCreateTask(contextMenu.columnId);
-              setContextMenu(null);
-            }}
-          >
-            <Plus className="mr-2 h-3.5 w-3.5" />
-            Add Task
-          </button>
-          <button
-            className="flex w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground"
-            onClick={() => {
-              const name = window.prompt(
-                "Rename column",
-                localColumns.find((c) => c.id === contextMenu.columnId)?.name ||
-                  ""
-              );
-              if (name) onUpdateColumn(contextMenu.columnId, name);
-              setContextMenu(null);
-            }}
-          >
-            <Pencil className="mr-2 h-3.5 w-3.5" />
-            Rename
-          </button>
-          <button
-            className="flex w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-sm text-destructive outline-hidden select-none hover:bg-accent hover:text-accent-foreground"
-            onClick={() => {
-              const colName = localColumns.find(
-                (c) => c.id === contextMenu.columnId
-              )?.name;
-              setContextMenu(null);
-              if (colName) {
-                setConfirmDialog({
-                  open: true,
-                  title: "Delete Column",
-                  description: `Are you sure you want to delete "${colName}"? This action cannot be undone.`,
-                  onConfirm: () => onDeleteColumn(contextMenu.columnId)
-                });
-              }
-            }}
-          >
-            <Trash2 className="mr-2 h-3.5 w-3.5" />
-            Delete
-          </button>
-        </div>
-      )}
+      <CreateColumnDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        position={columns.length}
+        onSubmit={(values) => onCreateColumn(values)}
+      />
+      <EditColumnDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        columnId={editingColumn?.id || ""}
+        defaultValues={{
+          name: editingColumn?.name || "",
+          color: editingColumn?.color,
+          isDone: editingColumn?.isDone
+        }}
+        onSubmit={(columnId, values) => {
+          onUpdateColumn(columnId, values);
+          setEditingColumn(null);
+        }}
+      />
       <ConfirmDialog
         open={confirmDialog.open}
         onOpenChange={(open: boolean) =>

@@ -519,7 +519,12 @@ export default function WorkspaceDetailPage() {
               }
             />
           )}
-          {activeView === "list" && <ListView tasks={filteredTasks} />}
+          {activeView === "list" && (
+            <ListView
+              tasks={filteredTasks}
+              onTaskClick={(taskId) => setSelectedTaskId(taskId)}
+            />
+          )}
           {activeView === "gantt" && <GanttView tasks={filteredTasks} />}
         </div>
       </div>

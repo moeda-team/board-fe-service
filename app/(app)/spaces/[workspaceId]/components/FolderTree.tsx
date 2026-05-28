@@ -212,18 +212,18 @@ export function FolderTree({
       {isExpanded && (
         <div
           ref={setDropRef}
-          className="ml-5 mt-0.5 flex flex-col gap-0.5 border-l border-border pl-2"
+          className="ml-5 mt-0.5 flex flex-col gap-0.5 border-l border-border pl-2 min-h-[20px]"
         >
-          {boards.length === 0 ? (
-            <span className="px-2 py-1 text-xs text-muted-foreground">
-              No boards
-            </span>
-          ) : (
-            <SortableContext
-              items={boardDndIds}
-              strategy={verticalListSortingStrategy}
-            >
-              {boards.map((board) => (
+          <SortableContext
+            items={boardDndIds}
+            strategy={verticalListSortingStrategy}
+          >
+            {boards.length === 0 ? (
+              <span className="px-2 py-1 text-xs text-muted-foreground">
+                No boards
+              </span>
+            ) : (
+              boards.map((board) => (
                 <DocumentNavItem
                   key={board.id}
                   board={board}
@@ -232,9 +232,9 @@ export function FolderTree({
                   onRenameSubmit={onRenameDocumentSubmit}
                   onDelete={onDeleteDocument}
                 />
-              ))}
-            </SortableContext>
-          )}
+              ))
+            )}
+          </SortableContext>
         </div>
       )}
     </div>

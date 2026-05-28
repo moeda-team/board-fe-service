@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { Plus, Building2 } from "lucide-react";
 import {
   DndContext,
@@ -9,7 +10,8 @@ import {
   useDroppable,
   useSensor,
   useSensors,
-  type DragEndEvent
+  type DragEndEvent,
+  type DragOverEvent
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -93,6 +95,106 @@ export function WorkspaceSidebar({
   const rootBoardItems = rootBoards.map((b) => boardDndId(b.id));
 
   const { setNodeRef: setRootDropRef } = useDroppable({ id: rootDropId });
+
+  const dragStateRef = useRef<{
+    originalBoards: Board[] | null;
+  }>({ originalBoards: null });
+
+  const handleDragOver = ({ active, over }: DragOverEvent) => {
+    if (!over) return;
+
+    const activeId = String(active.id);
+    const overId = String(over.id);
+
+    if (!activeId.startsWith("board-")) return;
+
+    const currentBoards = queryClient.getQueryData<Board[]>(
+      boardsQueryKey(tenantId, workspaceId)
+    );
+    if (!currentBoards) return;
+
+    const activeBoardId = activeId.slice("board-".length);
+    const activeBoard = currentBoards.find((b) => b.id === activeBoardId);
+    if (!activeBoard) return;
+
+    if (!dragStateRef.current.originalBoards) {
+      dragStateRef.current.originalBoards = [...currentBoards];
+    }
+
+    const originFolderId = activeBoard.folderId ?? null;
+
+    let targetFolderId: string | null = null;
+    let insertAtIndex: number | null = null;
+
+    if (overId.startsWith("board-")) {
+      const overBoardId = overId.slice("board-".length);
+      const overBoard = currentBoards.find((b) => b.id === overBoardId);
+      targetFolderId = overBoard?.folderId ?? null;
+      const targetBoards = currentBoards.filter(
+        (b) => (b.folderId ?? null) === targetFolderId
+      );
+      insertAtIndex = targetBoards.findIndex((b) => b.id === overBoardId);
+      if (insertAtIndex < 0) insertAtIndex = targetBoards.length;
+    } else if (overId.startsWith("folder-drop-")) {
+      targetFolderId = overId.slice("folder-drop-".length);
+      const targetBoards = currentBoards.filter(
+        (b) => (b.folderId ?? null) === targetFolderId
+      );
+      insertAtIndex = targetBoards.length;
+    } else if (overId === rootDropId) {
+      targetFolderId = null;
+      const targetBoards = currentBoards.filter(
+        (b) => (b.folderId ?? null) === null
+      );
+      insertAtIndex = targetBoards.length;
+    } else if (overId.startsWith("folder-")) {
+      targetFolderId = overId.slice("folder-".length);
+      const targetBoards = currentBoards.filter(
+        (b) => (b.folderId ?? null) === targetFolderId
+      );
+      insertAtIndex = targetBoards.length;
+    } else {
+      return;
+    }
+
+    if (originFolderId === targetFolderId) return;
+
+    const containerOrder: Array<string | null> = [null, ...folders.map((f) => f.id)];
+    const byContainer = new Map<string | null, Board[]>();
+    for (const fid of containerOrder) {
+      byContainer.set(fid, []);
+    }
+    for (const b of currentBoards) {
+      const fid = b.folderId ?? null;
+      if (!byContainer.has(fid)) byContainer.set(fid, []);
+      byContainer.get(fid)?.push(b);
+    }
+
+    const originContainer = byContainer.get(originFolderId) || [];
+    const nextOrigin = originContainer
+      .filter((b) => b.id !== activeBoardId)
+      .map((b: Board, idx: number) => ({ ...b, order: idx }));
+
+    const targetContainer = byContainer.get(targetFolderId) || [];
+    const safeIndex = Math.max(0, Math.min(insertAtIndex ?? targetContainer.length, targetContainer.length));
+    const moved: Board = {
+      ...activeBoard,
+      folderId: targetFolderId ?? undefined
+    };
+    const nextTarget = [...targetContainer];
+    nextTarget.splice(safeIndex, 0, moved);
+    const nextTargetWithOrder = nextTarget.map((b: Board, idx: number) => ({ ...b, order: idx }));
+
+    byContainer.set(originFolderId, nextOrigin);
+    byContainer.set(targetFolderId, nextTargetWithOrder);
+
+    const nextBoards = containerOrder.flatMap((fid) => byContainer.get(fid) || []);
+
+    queryClient.setQueryData(
+      boardsQueryKey(tenantId, workspaceId),
+      nextBoards
+    );
+  };
 
   const handleDragEnd = async ({ active, over }: DragEndEvent) => {
     if (!over) return;
@@ -246,13 +348,17 @@ export function WorkspaceSidebar({
         targetFolderId
       });
     } catch {
+      const rollbackBoards =
+        dragStateRef.current.originalBoards ?? previousBoards;
       queryClient.setQueryData(
         boardsQueryKey(tenantId, workspaceId),
-        previousBoards
+        rollbackBoards
       );
       queryClient.invalidateQueries({
         queryKey: boardsQueryKey(tenantId, workspaceId)
       });
+    } finally {
+      dragStateRef.current.originalBoards = null;
     }
   };
 
@@ -279,6 +385,7 @@ export function WorkspaceSidebar({
           <DndContext
             sensors={sensors}
             collisionDetection={closestCorners}
+            onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
           >
             <div className="flex flex-col gap-1">

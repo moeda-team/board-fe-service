@@ -108,9 +108,9 @@ export function CreateTaskDialog({
   const [editTagName, setEditTagName] = useState("");
   const [editTagColor, setEditTagColor] = useState("#6366f1");
   const [isCreatingTag, setIsCreatingTag] = useState(false);
-  const [selectedCustomFieldIds, setSelectedCustomFieldIds] = useState<string[]>(
-    []
-  );
+  const [selectedCustomFieldIds, setSelectedCustomFieldIds] = useState<
+    string[]
+  >([]);
 
   const { data: customFields = [] } = useCustomFields(
     tenantId,
@@ -260,7 +260,8 @@ export function CreateTaskDialog({
   const handleSubmit = () => {
     if (!title.trim()) return;
 
-    const customFieldValues = customFieldsForm.getValues("customFieldValues") || {};
+    const customFieldValues =
+      customFieldsForm.getValues("customFieldValues") || {};
 
     const customFieldsPayload = selectedCustomFieldIds
       .map((customFieldId) => ({
@@ -310,7 +311,9 @@ export function CreateTaskDialog({
 
   const renderCustomFieldInput = (field: CustomField) => {
     const optionsObj =
-      field.options && typeof field.options === "object" && !Array.isArray(field.options)
+      field.options &&
+      typeof field.options === "object" &&
+      !Array.isArray(field.options)
         ? (field.options as Record<string, unknown>)
         : null;
 
@@ -386,7 +389,9 @@ export function CreateTaskDialog({
                       <div className="flex items-center gap-2">
                         <div
                           className="w-3 h-3 rounded-full border"
-                          style={{ backgroundColor: opt.color || "transparent" }}
+                          style={{
+                            backgroundColor: opt.color || "transparent"
+                          }}
                         />
                         <span>{opt.label}</span>
                       </div>
@@ -511,7 +516,7 @@ export function CreateTaskDialog({
               placeholder="Description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="min-h-25"
+              className="min-h-25 max-h-50 overflow-y-auto"
             />
           </div>
 
@@ -1079,7 +1084,10 @@ export function CreateTaskDialog({
                     .map((id) => customFields.find((f) => f.id === id))
                     .filter(Boolean)
                     .map((field) => (
-                      <div key={(field as CustomField).id} className="grid gap-2">
+                      <div
+                        key={(field as CustomField).id}
+                        className="grid gap-2"
+                      >
                         <div className="flex items-center justify-between">
                           <label className="text-sm font-medium text-muted-foreground">
                             {(field as CustomField).name}
@@ -1088,7 +1096,9 @@ export function CreateTaskDialog({
                             type="button"
                             onClick={() =>
                               setSelectedCustomFieldIds((prev) =>
-                                prev.filter((x) => x !== (field as CustomField).id)
+                                prev.filter(
+                                  (x) => x !== (field as CustomField).id
+                                )
                               )
                             }
                             className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"

@@ -1,11 +1,24 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { Plus, Building2 } from "lucide-react";
+import { Plus, Building2, ChevronDown, Check } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from "@/components/ui/tooltip";
 import {
   DndContext,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   closestCorners,
   useDroppable,
   useSensor,
@@ -32,6 +45,8 @@ interface WorkspaceSidebarProps {
   workspaceName: string;
   tenantId: string;
   workspaceId: string;
+  workspaces: { id: string; name: string }[];
+  onSwitchWorkspace: (workspaceId: string) => void;
   folders: Folder[];
   boardsByFolder: Record<string, Board[]>;
   activeDocumentId: string | null;
@@ -63,6 +78,8 @@ export function WorkspaceSidebar({
   workspaceName,
   tenantId,
   workspaceId,
+  workspaces,
+  onSwitchWorkspace,
   folders,
   boardsByFolder,
   activeDocumentId,
@@ -92,6 +109,12 @@ export function WorkspaceSidebar({
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8
+      }
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5
       }
     }),
     useSensor(KeyboardSensor)
@@ -403,11 +426,44 @@ export function WorkspaceSidebar({
 
   return (
     <aside className="flex h-full w-64 flex-col rounded-xl border bg-sidebar text-sidebar-foreground shadow-sm overflow-hidden">
-      {/* Workspace Title */}
-      <div className="flex items-center gap-2 border-b border-sidebar-border px-4 py-3">
-        <Building2 className="size-4 text-muted-foreground" />
-        <span className="text-sm font-medium">{workspaceName}</span>
-      </div>
+      {/* Workspace Switcher */}
+      <TooltipProvider delay={300}>
+        <div className="border-b border-sidebar-border px-2 py-2">
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger>
+                <DropdownMenuTrigger>
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2 overflow-hidden rounded-md px-2 py-2 text-left hover:bg-sidebar-accent focus:outline-none"
+                  >
+                    <Building2 className="size-4 shrink-0 text-muted-foreground" />
+                    <span className="truncate text-sm font-medium">
+                      {workspaceName}
+                    </span>
+                    <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+                  </button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="right">{workspaceName}</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent align="start" className="w-56">
+              {workspaces.map((ws) => (
+                <DropdownMenuItem
+                  key={ws.id}
+                  onClick={() => onSwitchWorkspace(ws.id)}
+                  className="cursor-pointer gap-2"
+                >
+                  <span className="truncate">{ws.name || "Untitled"}</span>
+                  {ws.id === workspaceId && (
+                    <Check className="size-4 shrink-0" />
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </TooltipProvider>
 
       <div className="flex-1 overflow-y-auto p-3">
         {isLoading ? (

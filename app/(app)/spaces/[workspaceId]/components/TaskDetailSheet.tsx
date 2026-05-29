@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 
 import { format } from "date-fns";
 
@@ -74,7 +74,7 @@ import {
   useDeleteAttachment
 } from "@/hooks/api/useTaskAttachments";
 
-import { useTaskActivities } from "@/hooks/api/useTaskActivities";
+import { useTaskActivities, taskActivitiesQueryKey } from "@/hooks/api/useTaskActivities";
 
 import {
   useCreateTaskComment,
@@ -107,6 +107,7 @@ import type { Member, Tag as TagType } from "@/types/api";
 import type { CustomField } from "@/types/type-custom-fields";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTags } from "@/hooks/api/useTags";
+import { useTenantSocket } from "@/hooks/useTenantSocket";
 
 interface TaskDetailSheetProps {
   tenantId: string;
@@ -196,6 +197,47 @@ export function TaskDetailSheet({
 
   const { data: activities = [], isLoading: isLoadingActivities } =
     useTaskActivities(tenantId, workspaceId, boardId, taskId || "");
+
+  const socket = useTenantSocket(tenantId);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  // WebSocket listener for real-time comment updates
+  useEffect(() => {
+    if (!socket || !tenantId || !workspaceId || !boardId || !task?.id) return;
+
+    const handleNewActivity = () => {
+      queryClient.invalidateQueries({
+        queryKey: taskActivitiesQueryKey(tenantId, workspaceId, boardId, task.id)
+      });
+    };
+
+    socket.on("task.comment.created", handleNewActivity);
+    socket.on("task.comment.updated", handleNewActivity);
+    socket.on("task.comment.deleted", handleNewActivity);
+
+    return () => {
+      socket.off("task.comment.created", handleNewActivity);
+      socket.off("task.comment.updated", handleNewActivity);
+      socket.off("task.comment.deleted", handleNewActivity);
+    };
+  }, [socket, tenantId, workspaceId, boardId, task?.id, queryClient]);
+
+  // Auto-scroll to bottom when activities change or sheet opens
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+
+    if (open) {
+      timer = setTimeout(() => {
+        if (bottomRef.current && activities.length > 0) {
+          bottomRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+        }
+      }, 250);
+    }
+
+    return () => {
+      if (timer!) clearTimeout(timer);
+    };
+  }, [open, activities.length]);
 
   // Activity feed combines comments and task activities
 
@@ -1734,6 +1776,7 @@ export function TaskDetailSheet({
                       )}
                     </div>
                   )}
+                  <div ref={bottomRef} className="h-1 shrink-0" />
                 </div>
               </ScrollArea>
 

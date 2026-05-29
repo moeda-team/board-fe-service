@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 function useImageFallback() {
   const [error, setError] = useState(false);
@@ -10,7 +10,7 @@ function useImageFallback() {
 import { Loader2, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { useAuthMe } from "@/hooks/api/useAuth";
 import { useWorkspaces, useDeleteWorkspace } from "@/hooks/api/useWorkspaces";
-import { getActiveTenantId } from "@/lib/tenant";
+import { getActiveTenantId, setActiveTenantId } from "@/lib/tenant";
 import type { Workspace } from "@/types/type-workspaces";
 import { Button } from "@/components/ui/button";
 import {
@@ -131,7 +131,18 @@ function WorkspaceCardSkeleton() {
 }
 
 export default function SpacesPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: authMe, isLoading: isAuthLoading, isFetched } = useAuthMe();
+
+  useEffect(() => {
+    const paramTenantId = searchParams.get("tenantId");
+    if (paramTenantId) {
+      setActiveTenantId(paramTenantId);
+      router.replace("/spaces", { scroll: false });
+    }
+  }, [searchParams, router]);
+
   const tenantId = getActiveTenantId(authMe);
 
   const { data: workspaces = [], isLoading: isWorkspacesLoading } =

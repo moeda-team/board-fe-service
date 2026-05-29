@@ -7,6 +7,7 @@ import { CreateRoleDialog } from "../components/role/CreateRoleDialog";
 import { Plus, Search, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useAuthMe } from "@/hooks/api/useAuth";
+import { getActiveTenantId, getActiveTenantEntry } from "@/lib/tenant";
 import LayoutWrapper from "../components/Layout/LayoutWrapper";
 import { RoleListPanel } from "./components/RoleListPanel";
 import { PermissionTablePanel } from "./components/PermissionTablePanel";
@@ -14,10 +15,8 @@ import { HowItWorksPanel } from "./components/HowItWorksPanel";
 
 export default function RoleAccessPage() {
   const { data: authMe, isLoading: isAuthLoading, isFetched } = useAuthMe();
-  const tenantId = authMe?.tenants?.[0]?.tenant?.id ?? "";
-  const activeTenant =
-    authMe?.tenants?.find((tenant) => tenant.tenant?.id === tenantId) ??
-    authMe?.tenants?.[0];
+  const tenantId = getActiveTenantId(authMe);
+  const activeTenant = getActiveTenantEntry(authMe);
   const tenantPermissions = (activeTenant?.permissions ?? []).map(
     (permission: unknown) => {
       if (typeof permission === "string") {

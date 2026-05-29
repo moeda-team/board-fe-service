@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import {
   Layers,
   ShieldCheck,
@@ -11,7 +11,10 @@ import {
   ChevronsUpDown,
   Building2,
   ChevronRight,
-  KeyRound
+  KeyRound,
+  Check,
+  Loader2,
+  Pencil
 } from "lucide-react";
 import {
   Sidebar,
@@ -30,11 +33,17 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel
 } from "@/components/ui/dropdown-menu";
 import { useAuthMe } from "@/hooks/api/useAuth";
+import { useMyTenants } from "@/hooks/api/useMyTenants";
 import { authService } from "@/lib/auth";
+import { getActiveTenantEntry, setActiveTenantId } from "@/lib/tenant";
+import { RenameTenantModal } from "@/components/RenameTenantModal";
 
 const mainNavItems = [
   // { title: "Home", href: "/dashboard", icon: Home },
@@ -56,6 +65,11 @@ export function AppSidebar() {
   const lastPathnameRef = useRef(pathname);
   const hasInitializedRef = useRef(false);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const router = useRouter();
+  const [switchingTenantId, setSwitchingTenantId] = useState<string | null>(null);
+  const [isRenameOpen, setIsRenameOpen] = useState(false);
+  const { data: myTenants = [] } = useMyTenants();
 
   const isWorkspaceDetail =
     pathname.startsWith("/spaces/") && pathname !== "/spaces";
@@ -117,11 +131,17 @@ export function AppSidebar() {
       .slice(0, 2)
       .toUpperCase() ?? "";
 
-  const activeTenantEntry =
-    authMe?.tenants?.find((t) => t.tenant?.id) ?? authMe?.tenants?.[0];
+  const activeTenantEntry = getActiveTenantEntry(authMe);
   const activeTenant = activeTenantEntry?.tenant;
   const tenantName = activeTenant?.name ?? "Tenant 1";
   const userRole = activeTenantEntry?.role?.name ?? "Member";
+
+  const handleSwitchTenant = (tenantId: string) => {
+    if (tenantId === activeTenant?.id) return;
+    setSwitchingTenantId(tenantId);
+    setActiveTenantId(tenantId);
+    window.location.href = "/spaces";
+  };
 
   return (
     <div
@@ -139,23 +159,33 @@ export function AppSidebar() {
      "
       >
         {/* Tenant Header */}
-        <SidebarHeader className="px-4 py-5 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3">
-          <div className="flex items-center gap-2.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-white/20 text-white">
-              <Building2 className="size-4" />
+        <SidebarHeader className="px-3 py-4 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3">
+          <button
+            type="button"
+            onClick={() => setIsRenameOpen(true)}
+            className="relative flex w-full items-center gap-3 rounded-lg p-3 transition-colors hover:bg-white/10 cursor-pointer group group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:p-2"
+          >
+            {/* Icon */}
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white/20 text-white">
+              <Building2 className="size-5" />
             </div>
-            <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-              <span className="text-sm font-medium leading-tight text-white">
+
+            {/* Text & Badge */}
+            <div className="flex flex-1 flex-col min-w-0 text-left group-data-[collapsible=icon]:hidden">
+              <span className="text-sm font-semibold text-white truncate">
                 {tenantName}
               </span>
-              <div className="mt-0.5 flex items-center gap-1">
-                <span className="text-[10px] text-white/70">Subscription</span>
-                <span className="rounded bg-white px-1 py-0.5 text-[9px] font-medium text-[#3B82F6]">
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-xs text-white/70">Subscription</span>
+                <span className="px-1.5 py-0.5 rounded-sm bg-white/20 text-[10px] font-medium text-white tracking-wide">
                   Free
                 </span>
               </div>
             </div>
-          </div>
+
+            {/* Action Icon */}
+            <Pencil className="h-4 w-4 shrink-0 text-white/80 opacity-0 transition-opacity group-hover:opacity-100 group-data-[collapsible=icon]:hidden" />
+          </button>
         </SidebarHeader>
 
         <SidebarContent>
@@ -253,6 +283,39 @@ export function AppSidebar() {
               sideOffset={8}
               className="w-56"
             >
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                  Switch Organization
+                </DropdownMenuLabel>
+                {myTenants.map((entry) => {
+                  const t = entry.tenant;
+                  const isActive = t.id === activeTenant?.id;
+                  const isSwitching = switchingTenantId === t.id;
+                  return (
+                    <DropdownMenuItem
+                      key={t.id}
+                      className="cursor-pointer"
+                      onClick={() => handleSwitchTenant(t.id)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="flex size-6 items-center justify-center rounded bg-[#3B82F6]/10 text-[#3B82F6]">
+                          <Building2 className="size-3" />
+                        </div>
+                        <span className={isActive ? "font-semibold" : ""}>
+                          {t.name}
+                        </span>
+                      </div>
+                      {isActive && !isSwitching && (
+                        <Check className="ml-auto size-4 text-[#3B82F6]" />
+                      )}
+                      {isSwitching && (
+                        <Loader2 className="ml-auto size-4 animate-spin text-[#3B82F6]" />
+                      )}
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="cursor-pointer"
                 onClick={() => authService.logout()}
@@ -266,6 +329,13 @@ export function AppSidebar() {
 
         <SidebarRail className="hover:after:bg-white/30" />
       </Sidebar>
+
+      <RenameTenantModal
+        open={isRenameOpen}
+        onOpenChange={setIsRenameOpen}
+        tenantId={activeTenant?.id ?? ""}
+        initialName={tenantName}
+      />
     </div>
   );
 }

@@ -17,6 +17,7 @@ import {
   PopoverTrigger
 } from "@/components/ui/popover";
 import { useAuthMe } from "@/hooks/api/useAuth";
+import { getActiveTenantId } from "@/lib/tenant";
 import {
   useCancelTenantInvite,
   useRemoveTenantMember,
@@ -148,7 +149,7 @@ const mapPendingInviteToRow = (
 
 const Members = () => {
   const { data: authMe, isLoading: isAuthLoading, isFetched } = useAuthMe();
-  const tenantId = authMe?.tenants?.[0]?.tenant?.id ?? "";
+  const tenantId = getActiveTenantId(authMe);
   const [activeTab, setActiveTab] = useState("active");
   const [search, setSearch] = useState("");
   const [archivedSearch, setArchivedSearch] = useState("");

@@ -267,10 +267,6 @@ export interface Task {
             isOverdue?: boolean;
         };
     };
-    estTime?: {
-        days?: number;
-        hours?: number;
-    } | null;
     [key: string]: unknown;
 }
 

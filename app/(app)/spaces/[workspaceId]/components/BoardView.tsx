@@ -58,6 +58,7 @@ interface BoardViewProps {
     destinationColumnId: string,
     position?: number
   ) => void;
+  movingTaskIds?: Set<string>;
   onTaskClick?: (taskId: string) => void;
   onDeleteTask?: (taskId: string) => void;
 }
@@ -71,6 +72,7 @@ export function BoardView({
   onReorderColumns,
   onCreateTask,
   onMoveTask,
+  movingTaskIds,
   onTaskClick,
   onDeleteTask
 }: BoardViewProps) {
@@ -152,15 +154,22 @@ export function BoardView({
 
     // Task dragging logic
     if (source.droppableId !== destination.droppableId) {
-      const newTasks = [...localTasks];
-      const taskIndex = newTasks.findIndex((t) => t.id === draggableId);
+      // Cross-column move: remove from source column, insert at destination index
+      const sourceTasks = [...(tasksByColumn[source.droppableId] || [])];
+      const destTasks = [...(tasksByColumn[destination.droppableId] || [])];
+      const taskIndex = sourceTasks.findIndex((t) => t.id === draggableId);
 
       if (taskIndex > -1) {
-        newTasks[taskIndex] = {
-          ...newTasks[taskIndex],
-          columnId: destination.droppableId
-        };
-        setLocalTasks(newTasks);
+        const [moved] = sourceTasks.splice(taskIndex, 1);
+        moved.columnId = destination.droppableId;
+        destTasks.splice(destination.index, 0, moved);
+
+        const otherTasks = localTasks.filter(
+          (t) =>
+            t.columnId !== source.droppableId &&
+            t.columnId !== destination.droppableId
+        );
+        setLocalTasks([...otherTasks, ...sourceTasks, ...destTasks]);
 
         // Fire API/socket mutation
         onMoveTask(
@@ -421,80 +430,87 @@ export function BoardView({
                                     </span>
                                   </div>
                                 )}
-                                {colTasks.map((task, index) => (
-                                  <Draggable
-                                    key={task.id}
-                                    draggableId={task.id}
-                                    index={index}
-                                  >
-                                    {(provided, snapshot) => (
-                                      <div
-                                        ref={provided.innerRef}
-                                        {...provided.draggableProps}
-                                        {...provided.dragHandleProps}
-                                        className={`relative group ${snapshot.isDragging ? "z-50 opacity-90 shadow-xl scale-105" : ""} transition-transform`}
-                                        style={provided.draggableProps.style}
-                                      >
-                                        <TaskCard
-                                          task={task}
-                                          onClick={() =>
-                                            onTaskClick && onTaskClick(task.id)
-                                          }
-                                        />
-                                        {/* Quick move menu */}
-                                        {!snapshot.isDragging && (
-                                          <DropdownMenu>
-                                            <DropdownMenuTrigger className="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded opacity-0 group-hover:opacity-100 hover:bg-accent">
-                                              <MoreHorizontal className="h-3 w-3 text-muted-foreground" />
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent
-                                              align="end"
-                                              className="w-40"
-                                            >
-                                              <span className="px-2 py-1 text-xs font-medium text-muted-foreground">
-                                                Move to
-                                              </span>
-                                              {localColumns
-                                                .filter((c) => c.id !== col.id)
-                                                .map((targetCol) => (
+                                {colTasks.map((task, index) => {
+                                  const isMoving = movingTaskIds?.has(task.id);
+                                  return (
+                                    <Draggable
+                                      key={task.id}
+                                      draggableId={task.id}
+                                      index={index}
+                                      isDragDisabled={isMoving}
+                                    >
+                                      {(provided, snapshot) => (
+                                        <div
+                                          ref={provided.innerRef}
+                                          {...provided.draggableProps}
+                                          {...provided.dragHandleProps}
+                                          className={`relative group ${isMoving ? "opacity-50 pointer-events-none" : ""} ${snapshot.isDragging ? "z-50 opacity-90 shadow-xl scale-105" : ""} transition-transform`}
+                                          style={provided.draggableProps.style}
+                                        >
+                                          <TaskCard
+                                            task={task}
+                                            onClick={() =>
+                                              onTaskClick &&
+                                              onTaskClick(task.id)
+                                            }
+                                          />
+                                          {/* Quick move menu */}
+                                          {!snapshot.isDragging && (
+                                            <DropdownMenu>
+                                              <DropdownMenuTrigger className="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded opacity-0 group-hover:opacity-100 hover:bg-accent">
+                                                <MoreHorizontal className="h-3 w-3 text-muted-foreground" />
+                                              </DropdownMenuTrigger>
+                                              <DropdownMenuContent
+                                                align="end"
+                                                className="w-40"
+                                              >
+                                                <span className="px-2 py-1 text-xs font-medium text-muted-foreground">
+                                                  Move to
+                                                </span>
+                                                {localColumns
+                                                  .filter(
+                                                    (c) => c.id !== col.id
+                                                  )
+                                                  .map((targetCol) => (
+                                                    <DropdownMenuItem
+                                                      key={targetCol.id}
+                                                      onClick={() =>
+                                                        onMoveTask(
+                                                          task.id,
+                                                          col.id,
+                                                          targetCol.id,
+                                                          0
+                                                        )
+                                                      }
+                                                    >
+                                                      {targetCol.name}
+                                                    </DropdownMenuItem>
+                                                  ))}
+                                                {onDeleteTask && (
                                                   <DropdownMenuItem
-                                                    key={targetCol.id}
-                                                    onClick={() =>
-                                                      onMoveTask(
-                                                        task.id,
-                                                        col.id,
-                                                        targetCol.id,
-                                                        0
-                                                      )
-                                                    }
+                                                    variant="destructive"
+                                                    onClick={() => {
+                                                      setConfirmDialog({
+                                                        open: true,
+                                                        title: "Delete Task",
+                                                        description: `Are you sure you want to delete this task? This action cannot be undone.`,
+                                                        onConfirm: () =>
+                                                          onDeleteTask(task.id)
+                                                      });
+                                                    }}
                                                   >
-                                                    {targetCol.name}
+                                                    <Trash2 className="mr-2 h-3.5 w-3.5" />
+                                                    Delete
                                                   </DropdownMenuItem>
-                                                ))}
-                                              {onDeleteTask && (
-                                                <DropdownMenuItem
-                                                  variant="destructive"
-                                                  onClick={() => {
-                                                    setConfirmDialog({
-                                                      open: true,
-                                                      title: "Delete Task",
-                                                      description: `Are you sure you want to delete this task? This action cannot be undone.`,
-                                                      onConfirm: () =>
-                                                        onDeleteTask(task.id)
-                                                    });
-                                                  }}
-                                                >
-                                                  <Trash2 className="mr-2 h-3.5 w-3.5" />
-                                                  Delete
-                                                </DropdownMenuItem>
-                                              )}
-                                            </DropdownMenuContent>
-                                          </DropdownMenu>
-                                        )}
-                                      </div>
-                                    )}
-                                  </Draggable>
-                                ))}
+                                                )}
+                                              </DropdownMenuContent>
+                                            </DropdownMenu>
+                                          )}
+                                        </div>
+                                      )}
+                                    </Draggable>
+                                  );
+                                })}
                                 {provided.placeholder}
                               </div>
                             )}

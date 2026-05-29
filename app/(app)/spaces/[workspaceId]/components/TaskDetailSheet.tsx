@@ -65,8 +65,7 @@ import { useCustomFields } from "@/hooks/api/useCustomFields";
 import {
   useTaskSubtasks,
   useCreateSubtask,
-  useUpdateSubtask,
-  taskSubtasksQueryKey
+  useUpdateSubtask
 } from "@/hooks/api/useTaskSubtasks";
 
 import {
@@ -75,7 +74,10 @@ import {
   useDeleteAttachment
 } from "@/hooks/api/useTaskAttachments";
 
-import { useTaskActivities, taskActivitiesQueryKey } from "@/hooks/api/useTaskActivities";
+import {
+  useTaskActivities,
+  taskActivitiesQueryKey
+} from "@/hooks/api/useTaskActivities";
 
 import {
   useCreateTaskComment,
@@ -102,7 +104,7 @@ import {
   Save
 } from "lucide-react";
 
-import type { TaskActivity, Subtask } from "@/types/type-tasks";
+import type { TaskActivity } from "@/types/type-tasks";
 import type { Column } from "@/types/type-kanban-columns";
 import type { Member, Tag as TagType } from "@/types/api";
 import type { CustomField } from "@/types/type-custom-fields";
@@ -134,11 +136,12 @@ export function TaskDetailSheet({
 }: TaskDetailSheetProps) {
   const queryClient = useQueryClient();
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
-  const [addingChildForParentId, setAddingChildForParentId] = useState<string | null>(null);
-  const [newChildTitle, setNewChildTitle] = useState("");
   const [commentContent, setCommentContent] = useState("");
+  const [activitySearch, setActivitySearch] = useState("");
   const [mentionSearch, setMentionSearch] = useState<string | null>(null);
-  const [debouncedMentionSearch, setDebouncedMentionSearch] = useState<string | null>(null);
+  const [debouncedMentionSearch, setDebouncedMentionSearch] = useState<
+    string | null
+  >(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Debounce mention search to reduce API calls
@@ -200,6 +203,14 @@ export function TaskDetailSheet({
     taskId || ""
   );
 
+  const [localSubtasks, setLocalSubtasks] = useState(subtasks);
+  const prevSubtasksRef = useRef(subtasks);
+
+  if (JSON.stringify(prevSubtasksRef.current) !== JSON.stringify(subtasks)) {
+    prevSubtasksRef.current = subtasks;
+    setLocalSubtasks(subtasks);
+  }
+
   const { data: attachments = [] } = useTaskAttachments(
     tenantId,
 
@@ -222,7 +233,12 @@ export function TaskDetailSheet({
 
     const handleNewActivity = () => {
       queryClient.invalidateQueries({
-        queryKey: taskActivitiesQueryKey(tenantId, workspaceId, boardId, task.id)
+        queryKey: taskActivitiesQueryKey(
+          tenantId,
+          workspaceId,
+          boardId,
+          task.id
+        )
       });
     };
 
@@ -244,7 +260,10 @@ export function TaskDetailSheet({
     if (open) {
       timer = setTimeout(() => {
         if (bottomRef.current && activities.length > 0) {
-          bottomRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+          bottomRef.current.scrollIntoView({
+            behavior: "smooth",
+            block: "end"
+          });
         }
       }, 250);
     }
@@ -265,12 +284,15 @@ export function TaskDetailSheet({
       const name = (m.fullName || "").toLowerCase();
       const user = (m.username || "").toLowerCase();
       const email = (m.email || "").toLowerCase();
-      return name.includes(query) || user.includes(query) || email.includes(query);
+      return (
+        name.includes(query) || user.includes(query) || email.includes(query)
+      );
     });
   }, [members, mentionSearch]);
 
   // Use API results if available, otherwise fall back to local filtered members
-  const mentionList = mentionResults.length > 0 ? mentionResults : filteredLocalMembers;
+  const mentionList =
+    mentionResults.length > 0 ? mentionResults : filteredLocalMembers;
 
   const handleSelectMention = (username: string) => {
     if (!inputRef.current) return;
@@ -330,7 +352,7 @@ export function TaskDetailSheet({
 
   const { mutate: createSubtask } = useCreateSubtask();
 
-  const { mutate: updateSubtask, mutateAsync: updateSubtaskAsync } = useUpdateSubtask();
+  const { mutate: updateSubtask } = useUpdateSubtask();
 
   const { mutate: uploadAttachment } = useUploadAttachment();
 
@@ -402,149 +424,43 @@ export function TaskDetailSheet({
 
       taskId,
 
-      dto: { title: newSubtaskTitle.trim(), parentId: null }
+      dto: { title: newSubtaskTitle.trim() }
     });
 
     setNewSubtaskTitle("");
   };
 
-  const handleAddChildSubtask = (parentId: string) => {
-    if (!newChildTitle.trim() || !taskId) return;
+  const handleToggleSubtask = (subtaskId: string, currentIsDone: boolean) => {
+    if (!taskId) return;
 
-    createSubtask({
-      tenantId,
-
-      workspaceId,
-
-      boardId,
-
-      taskId,
-
-      dto: { title: newChildTitle.trim(), parentId }
-    });
-
-    setNewChildTitle("");
-    setAddingChildForParentId(null);
-  };
-
-  const handleToggleParent = async (parent: Subtask) => {
-    if (!taskId || !tenantId || !workspaceId || !boardId) return;
-    const newDone = !parent.isDone;
-    const queryKey = taskSubtasksQueryKey(tenantId, workspaceId, boardId, taskId);
-
-    queryClient.setQueryData<Subtask[]>(queryKey, (old) => {
-      if (!old) return old;
-      return old.map((st) => {
-        if (st.id === parent.id) {
-          return {
-            ...st,
-            isDone: newDone,
-            children: st.children?.map((c) => ({ ...c, isDone: newDone }))
-          };
-        }
-        return st;
-      });
-    });
-
-    await Promise.all([
-      updateSubtaskAsync({
-        tenantId,
-        workspaceId,
-        boardId,
-        taskId,
-        subtaskId: parent.id,
-        dto: { isDone: newDone }
-      }),
-      ...(parent.children?.map((child) =>
-        updateSubtaskAsync({
-          tenantId,
-          workspaceId,
-          boardId,
-          taskId,
-          subtaskId: child.id,
-          dto: { isDone: newDone }
-        })
-      ) ?? [])
-    ]);
-  };
-
-  const handleToggleChild = async (child: Subtask, parent: Subtask) => {
-    if (!taskId || !tenantId || !workspaceId || !boardId) return;
-    const newDone = !child.isDone;
-    const siblings = parent.children ?? [];
-    const allSiblingsDone = siblings.every((s) =>
-      s.id === child.id ? newDone : s.isDone
+    // Optimistic update
+    setLocalSubtasks((prev) =>
+      prev.map((st) =>
+        st.id === subtaskId ? { ...st, isDone: !currentIsDone } : st
+      )
     );
-    const shouldCheckParent = newDone && !parent.isDone && allSiblingsDone;
-    const shouldUncheckParent = !newDone && parent.isDone;
 
-    const queryKey = taskSubtasksQueryKey(tenantId, workspaceId, boardId, taskId);
-
-    queryClient.setQueryData<Subtask[]>(queryKey, (old) => {
-      if (!old) return old;
-      return old.map((st) => {
-        if (st.id === parent.id) {
-          return {
-            ...st,
-            isDone: shouldCheckParent
-              ? true
-              : shouldUncheckParent
-                ? false
-                : st.isDone,
-            children: st.children?.map((c) =>
-              c.id === child.id ? { ...c, isDone: newDone } : c
-            )
-          };
-        }
-        return st;
-      });
-    });
-
-    await updateSubtaskAsync({
+    updateSubtask({
       tenantId,
+
       workspaceId,
+
       boardId,
+
       taskId,
-      subtaskId: child.id,
-      dto: { isDone: newDone }
+
+      subtaskId,
+
+      dto: { isDone: !currentIsDone }
     });
-
-    if (shouldCheckParent) {
-      await updateSubtaskAsync({
-        tenantId,
-        workspaceId,
-        boardId,
-        taskId,
-        subtaskId: parent.id,
-        dto: { isDone: true }
-      });
-    } else if (shouldUncheckParent) {
-      await updateSubtaskAsync({
-        tenantId,
-        workspaceId,
-        boardId,
-        taskId,
-        subtaskId: parent.id,
-        dto: { isDone: false }
-      });
-    }
   };
 
-  const flattenSubtasks = (items: Subtask[]): Subtask[] => {
-    const result: Subtask[] = [];
-    for (const item of items) {
-      result.push(item);
-      if (item.children?.length) {
-        result.push(...item.children);
-      }
-    }
-    return result;
-  };
+  const completedSubtasks = localSubtasks.filter((st) => st.isDone).length;
 
-  const allSubtasks = useMemo(() => flattenSubtasks(subtasks), [subtasks]);
-  const completedSubtasks = allSubtasks.filter((st) => st.isDone).length;
   const progressPct =
-    allSubtasks.length > 0 ? (completedSubtasks / allSubtasks.length) * 100 : 0;
+    localSubtasks.length > 0
+      ? (completedSubtasks / localSubtasks.length) * 100
+      : 0;
 
   // Extract assignees correctly based on the API response structure
 
@@ -565,7 +481,25 @@ export function TaskDetailSheet({
 
     yesterday.setDate(yesterday.getDate() - 1);
 
-    activities.forEach((activity) => {
+    const filtered = activitySearch.trim()
+      ? activities.filter((a) => {
+          const q = activitySearch.toLowerCase();
+          const content = (a.content || "").toLowerCase();
+          const creator = (a.creator?.fullName || "").toLowerCase();
+          const user = (a.user?.fullName || "").toLowerCase();
+          const action = (a.action || "").toLowerCase();
+          const entityType = (a.entityType || "").toLowerCase();
+          return (
+            content.includes(q) ||
+            creator.includes(q) ||
+            user.includes(q) ||
+            action.includes(q) ||
+            entityType.includes(q)
+          );
+        })
+      : activities;
+
+    filtered.forEach((activity) => {
       const date = new Date(activity.createdAt);
 
       const dateKey = format(date, "yyyy-MM-dd");
@@ -592,7 +526,7 @@ export function TaskDetailSheet({
     });
 
     return groups;
-  }, [activities]);
+  }, [activities, activitySearch]);
 
   // Tags for editing
   const { data: tags = [] } = useTags(tenantId, workspaceId);
@@ -662,7 +596,8 @@ export function TaskDetailSheet({
       dueDate: editDueDate?.toISOString(),
       assigneeIds: editAssigneeIds.length > 0 ? editAssigneeIds : undefined,
       tagIds: editTagIds.length > 0 ? editTagIds : undefined,
-      customFields: customFieldsPayload.length > 0 ? customFieldsPayload : undefined
+      customFields:
+        customFieldsPayload.length > 0 ? customFieldsPayload : undefined
     };
 
     updateTask(
@@ -707,13 +642,14 @@ export function TaskDetailSheet({
       if (type === "dropdown") {
         const options = Array.isArray(field?.options) ? field.options : [];
         const normalized = options
-          .map((o: any) =>
-            typeof o === "string" ? { label: o, value: o } : o
-          )
-          .filter((o: any) =>
-            o && typeof o.value === "string" && typeof o.label === "string"
+          .map((o: any) => (typeof o === "string" ? { label: o, value: o } : o))
+          .filter(
+            (o: any) =>
+              o && typeof o.value === "string" && typeof o.label === "string"
           );
-        return normalized.find((o: any) => o.value === rawString)?.label ?? rawString;
+        return (
+          normalized.find((o: any) => o.value === rawString)?.label ?? rawString
+        );
       }
 
       if (type === "checkbox") {
@@ -760,7 +696,9 @@ export function TaskDetailSheet({
     const value = editCustomFieldValues[field.id] ?? "";
 
     const optionsObj =
-      field.options && typeof field.options === "object" && !Array.isArray(field.options)
+      field.options &&
+      typeof field.options === "object" &&
+      !Array.isArray(field.options)
         ? (field.options as Record<string, unknown>)
         : null;
 
@@ -777,10 +715,14 @@ export function TaskDetailSheet({
         : undefined;
 
     const min =
-      field.type === "number" && typeof optionsObj?.min === "number" ? optionsObj.min : undefined;
+      field.type === "number" && typeof optionsObj?.min === "number"
+        ? optionsObj.min
+        : undefined;
 
     const max =
-      field.type === "number" && typeof optionsObj?.max === "number" ? optionsObj.max : undefined;
+      field.type === "number" && typeof optionsObj?.max === "number"
+        ? optionsObj.max
+        : undefined;
 
     if (field.type === "dropdown") {
       const dropdownOptions = Array.isArray(field.options) ? field.options : [];
@@ -796,7 +738,9 @@ export function TaskDetailSheet({
         )
         .filter((opt) => opt.label.trim() && opt.value.trim());
 
-      const selectedOption = normalizedDropdownOptions.find((o) => o.value === value);
+      const selectedOption = normalizedDropdownOptions.find(
+        (o) => o.value === value
+      );
 
       return (
         <Select
@@ -810,7 +754,9 @@ export function TaskDetailSheet({
             {selectedOption && (
               <div
                 className="w-3 h-3 rounded-full border"
-                style={{ backgroundColor: selectedOption.color || "transparent" }}
+                style={{
+                  backgroundColor: selectedOption.color || "transparent"
+                }}
               />
             )}
             <SelectValue placeholder="Select option" />
@@ -1430,7 +1376,9 @@ export function TaskDetailSheet({
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-72">
                               <DropdownMenuGroup>
-                                <DropdownMenuLabel>Select fields</DropdownMenuLabel>
+                                <DropdownMenuLabel>
+                                  Select fields
+                                </DropdownMenuLabel>
                                 <DropdownMenuSeparator />
                                 {customFields.map((field) => (
                                   <DropdownMenuCheckboxItem
@@ -1457,10 +1405,15 @@ export function TaskDetailSheet({
                         ) : (
                           <div className="grid gap-4">
                             {selectedEditCustomFieldIds
-                              .map((id) => customFields.find((f) => f.id === id))
+                              .map((id) =>
+                                customFields.find((f) => f.id === id)
+                              )
                               .filter(Boolean)
                               .map((field) => (
-                                <div key={(field as CustomField).id} className="grid gap-2">
+                                <div
+                                  key={(field as CustomField).id}
+                                  className="grid gap-2"
+                                >
                                   <div className="flex items-center justify-between">
                                     <label className="text-sm font-medium text-muted-foreground">
                                       {(field as CustomField).name}
@@ -1470,7 +1423,8 @@ export function TaskDetailSheet({
                                       onClick={() =>
                                         setSelectedEditCustomFieldIds((prev) =>
                                           prev.filter(
-                                            (x) => x !== (field as CustomField).id
+                                            (x) =>
+                                              x !== (field as CustomField).id
                                           )
                                         )
                                       }
@@ -1559,7 +1513,9 @@ export function TaskDetailSheet({
 
                     {viewCustomFieldItems.length > 0 && (
                       <div className="flex flex-col gap-2 mt-2">
-                        <span className="text-sm font-medium">Custom Fields</span>
+                        <span className="text-sm font-medium">
+                          Custom Fields
+                        </span>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {viewCustomFieldItems.map((item) => (
                             <div key={item.id} className="flex flex-col gap-1">
@@ -1643,7 +1599,7 @@ export function TaskDetailSheet({
                     <span className="text-sm font-medium">Subtask</span>
 
                     <span className="text-sm text-muted-foreground">
-                      {completedSubtasks}/{allSubtasks.length}
+                      {completedSubtasks}/{localSubtasks.length}
                     </span>
                   </div>
 
@@ -1657,131 +1613,38 @@ export function TaskDetailSheet({
                   </div>
 
                   <div className="flex flex-col gap-2 mt-2">
-                    {subtasks.map((parent) => (
-                      <div key={parent.id} className="flex flex-col">
-                        <div
+                    {localSubtasks.map((st) => (
+                      <div
+                        key={st.id}
+                        className={cn(
+                          "flex items-center gap-3 rounded-md border p-3 transition-colors",
+
+                          st.isDone
+                            ? "bg-muted/50"
+                            : "bg-card hover:bg-muted/30"
+                        )}
+                      >
+                        <Checkbox
+                          checked={st.isDone}
+                          onCheckedChange={() =>
+                            handleToggleSubtask(st.id, st.isDone)
+                          }
+                          className={
+                            st.isDone
+                              ? "data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
+                              : ""
+                          }
+                        />
+
+                        <span
                           className={cn(
-                            "group flex items-center gap-3 rounded-md border p-3 transition-all duration-200",
-                            parent.isDone
-                              ? "bg-muted/50"
-                              : "bg-card hover:bg-muted/30"
+                            "text-sm flex-1",
+
+                            st.isDone && "text-muted-foreground line-through"
                           )}
                         >
-                          <Checkbox
-                            checked={parent.isDone}
-                            onCheckedChange={() => handleToggleParent(parent)}
-                            className={cn(
-                              "shrink-0",
-                              parent.isDone
-                                ? "data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
-                                : ""
-                            )}
-                          />
-                          <span
-                            className={cn(
-                              "text-sm flex-1",
-                              parent.isDone && "text-muted-foreground line-through"
-                            )}
-                          >
-                            {parent.title}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                            onClick={() => setAddingChildForParentId(parent.id)}
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-
-                        {parent.children && parent.children.length > 0 && (
-                          <div className="relative pl-7">
-                            {parent.children.map((child, idx, arr) => (
-                              <div
-                                key={child.id}
-                                className="relative flex items-center"
-                              >
-                                {/* Vertical tree segment */}
-                                <div
-                                  className={cn(
-                                    "absolute -left-[16px] top-0 w-[1px] bg-border/50",
-                                    idx === arr.length - 1
-                                      ? "h-1/2"
-                                      : "bottom-0"
-                                  )}
-                                />
-                                {/* Horizontal tree connector */}
-                                <div className="absolute -left-[16px] top-1/2 w-[16px] h-[1px] -translate-y-1/2 bg-border/50" />
-
-                                <div
-                                  className={cn(
-                                    "flex flex-1 items-center gap-2 rounded-md border px-3 py-2 transition-all duration-200",
-                                    child.isDone
-                                      ? "bg-muted/30"
-                                      : "bg-card hover:bg-muted/20"
-                                  )}
-                                >
-                                  <Checkbox
-                                    checked={child.isDone}
-                                    onCheckedChange={() =>
-                                      handleToggleChild(child, parent)
-                                    }
-                                    className={cn(
-                                      "shrink-0",
-                                      child.isDone
-                                        ? "data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
-                                        : ""
-                                    )}
-                                  />
-                                  <span
-                                    className={cn(
-                                      "text-sm flex-1",
-                                      child.isDone &&
-                                        "text-muted-foreground line-through"
-                                    )}
-                                  >
-                                    {child.title}
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {addingChildForParentId === parent.id && (
-                          <div className="pl-7 flex items-center gap-2 py-1">
-                            <div className="flex flex-1 items-center gap-2">
-                              <Input
-                                placeholder="Add child subtask"
-                                value={newChildTitle}
-                                onChange={(e) => setNewChildTitle(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") handleAddChildSubtask(parent.id);
-                                  if (e.key === "Escape") setAddingChildForParentId(null);
-                                }}
-                                className="h-8"
-                                autoFocus
-                              />
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleAddChildSubtask(parent.id)}
-                                className="shrink-0 text-muted-foreground hover:text-foreground"
-                              >
-                                <Plus className="mr-1 h-3.5 w-3.5" /> Add
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setAddingChildForParentId(null)}
-                                className="shrink-0 text-muted-foreground hover:text-foreground"
-                              >
-                                <X className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </div>
-                        )}
+                          {st.title}
+                        </span>
                       </div>
                     ))}
 
@@ -1882,6 +1745,8 @@ export function TaskDetailSheet({
                     <input
                       type="text"
                       placeholder="Search activity"
+                      value={activitySearch}
+                      onChange={(e) => setActivitySearch(e.target.value)}
                       className="h-8 w-36 rounded-md border border-input bg-background px-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                     />
                   </div>
@@ -2075,7 +1940,8 @@ export function TaskDetailSheet({
                   <div className="flex-1 flex flex-col gap-2 relative">
                     {mentionSearch !== null && (
                       <div className="absolute bottom-full left-0 right-0 mb-1 z-50 max-h-48 min-w-[200px] overflow-y-auto rounded-md border bg-popover shadow-md">
-                        {isLoadingMentions && filteredLocalMembers.length === 0 ? (
+                        {isLoadingMentions &&
+                        filteredLocalMembers.length === 0 ? (
                           <div className="flex items-center justify-center py-4">
                             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                           </div>

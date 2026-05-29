@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Loader2, Pencil, Plus, Search, Settings2 } from "lucide-react";
 import { useAuthMe } from "@/hooks/api/useAuth";
 import { useWorkspaces } from "@/hooks/api/useWorkspaces";
@@ -60,6 +60,7 @@ import { WorkspaceSidebar } from "./components/WorkspaceSidebar";
 
 export default function WorkspaceDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const workspaceId = (params.workspaceId as string) || "";
 
   const { data: authMe, isLoading: isAuthLoading } = useAuthMe();
@@ -193,6 +194,7 @@ export default function WorkspaceDetailPage() {
   const { mutate: createTask } = useCreateTask();
   const { mutate: moveTask } = useMoveTask();
   const { mutate: deleteTask } = useDeleteTask();
+  const [movingTaskIds, setMovingTaskIds] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
   const socket = useTenantSocket(tenantId || null);
 
@@ -203,18 +205,30 @@ export default function WorkspaceDetailPage() {
     newPosition?: number
   ) => {
     if (!activeBoardId) return;
-    moveTask({
-      tenantId,
-      workspaceId,
-      boardId: activeBoardId,
-      taskId,
-      dto: {
+    setMovingTaskIds((prev) => new Set(prev).add(taskId));
+    moveTask(
+      {
+        tenantId,
+        workspaceId,
+        boardId: activeBoardId,
         taskId,
-        sourceColumnId,
-        destinationColumnId,
-        newPosition
+        dto: {
+          taskId,
+          sourceColumnId,
+          destinationColumnId,
+          newPosition
+        }
+      },
+      {
+        onSettled: () => {
+          setMovingTaskIds((prev) => {
+            const next = new Set(prev);
+            next.delete(taskId);
+            return next;
+          });
+        }
       }
-    });
+    );
   };
 
   useEffect(() => {
@@ -337,6 +351,11 @@ export default function WorkspaceDetailPage() {
         workspaceName={workspace?.name || "Workspace"}
         tenantId={tenantId}
         workspaceId={workspaceId}
+        workspaces={workspaces.map((ws) => ({
+          id: ws.id,
+          name: ws.name || ""
+        }))}
+        onSwitchWorkspace={(id) => router.push(`/spaces/${id}`)}
         folders={folders}
         boardsByFolder={boardsByFolder}
         activeDocumentId={activeDocumentId}
@@ -527,6 +546,7 @@ export default function WorkspaceDetailPage() {
                 setIsCreateTaskOpen(true);
               }}
               onMoveTask={handleMoveTask}
+              movingTaskIds={movingTaskIds}
               onTaskClick={(taskId) => setSelectedTaskId(taskId)}
               onDeleteTask={(taskId) =>
                 activeBoardId &&

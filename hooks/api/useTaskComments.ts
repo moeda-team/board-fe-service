@@ -9,6 +9,7 @@ import {
   UpdateTaskCommentParams,
   DeleteTaskCommentParams
 } from "@/types/type-tasks";
+import { taskActivitiesQueryKey } from "@/hooks/api/useTaskActivities";
 
 export const taskCommentsQueryKey = (tenantId: string, workspaceId: string, boardId: string, taskId: string) =>
   ["taskComments", tenantId, workspaceId, boardId, taskId] as const;
@@ -60,6 +61,14 @@ export const useCreateTaskComment = () => {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: taskCommentsQueryKey(
+          variables.tenantId,
+          variables.workspaceId,
+          variables.boardId,
+          variables.taskId
+        ),
+      });
+      queryClient.invalidateQueries({
+        queryKey: taskActivitiesQueryKey(
           variables.tenantId,
           variables.workspaceId,
           variables.boardId,

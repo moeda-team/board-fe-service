@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 
 import { format } from "date-fns";
 
@@ -74,7 +74,7 @@ import {
   useDeleteAttachment
 } from "@/hooks/api/useTaskAttachments";
 
-import { useTaskActivities } from "@/hooks/api/useTaskActivities";
+import { useTaskActivities, taskActivitiesQueryKey } from "@/hooks/api/useTaskActivities";
 
 import {
   useCreateTaskComment,
@@ -107,6 +107,8 @@ import type { Member, Tag as TagType } from "@/types/api";
 import type { CustomField } from "@/types/type-custom-fields";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTags } from "@/hooks/api/useTags";
+import { useTenantSocket } from "@/hooks/useTenantSocket";
+import { useMentions } from "@/hooks/api/useMentions";
 
 interface TaskDetailSheetProps {
   tenantId: string;
@@ -132,6 +134,17 @@ export function TaskDetailSheet({
   const queryClient = useQueryClient();
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [commentContent, setCommentContent] = useState("");
+  const [mentionSearch, setMentionSearch] = useState<string | null>(null);
+  const [debouncedMentionSearch, setDebouncedMentionSearch] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Debounce mention search to reduce API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedMentionSearch(mentionSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [mentionSearch]);
 
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false);
@@ -196,6 +209,104 @@ export function TaskDetailSheet({
 
   const { data: activities = [], isLoading: isLoadingActivities } =
     useTaskActivities(tenantId, workspaceId, boardId, taskId || "");
+
+  const socket = useTenantSocket(tenantId);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  // WebSocket listener for real-time comment updates
+  useEffect(() => {
+    if (!socket || !tenantId || !workspaceId || !boardId || !task?.id) return;
+
+    const handleNewActivity = () => {
+      queryClient.invalidateQueries({
+        queryKey: taskActivitiesQueryKey(tenantId, workspaceId, boardId, task.id)
+      });
+    };
+
+    socket.on("task.comment.created", handleNewActivity);
+    socket.on("task.comment.updated", handleNewActivity);
+    socket.on("task.comment.deleted", handleNewActivity);
+
+    return () => {
+      socket.off("task.comment.created", handleNewActivity);
+      socket.off("task.comment.updated", handleNewActivity);
+      socket.off("task.comment.deleted", handleNewActivity);
+    };
+  }, [socket, tenantId, workspaceId, boardId, task?.id, queryClient]);
+
+  // Auto-scroll to bottom when activities change or sheet opens
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+
+    if (open) {
+      timer = setTimeout(() => {
+        if (bottomRef.current && activities.length > 0) {
+          bottomRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+        }
+      }, 250);
+    }
+
+    return () => {
+      if (timer!) clearTimeout(timer);
+    };
+  }, [open, activities.length]);
+
+  const { data: mentionResults = [], isLoading: isLoadingMentions } =
+    useMentions(tenantId, workspaceId, debouncedMentionSearch);
+
+  // Fallback: filter local workspace members when API returns empty or fails
+  const filteredLocalMembers = useMemo(() => {
+    if (mentionSearch === null) return [];
+    const query = mentionSearch.toLowerCase();
+    return members.filter((m) => {
+      const name = (m.fullName || "").toLowerCase();
+      const user = (m.username || "").toLowerCase();
+      const email = (m.email || "").toLowerCase();
+      return name.includes(query) || user.includes(query) || email.includes(query);
+    });
+  }, [members, mentionSearch]);
+
+  // Use API results if available, otherwise fall back to local filtered members
+  const mentionList = mentionResults.length > 0 ? mentionResults : filteredLocalMembers;
+
+  const handleSelectMention = (username: string) => {
+    if (!inputRef.current) return;
+    const input = inputRef.current;
+    const value = commentContent;
+    const cursorPos = input.selectionStart ?? value.length;
+
+    const beforeCursor = value.slice(0, cursorPos);
+    const afterCursor = value.slice(cursorPos);
+    const atIndex = beforeCursor.lastIndexOf("@");
+
+    if (atIndex === -1) return;
+
+    const newValue =
+      value.slice(0, atIndex) + "@" + username + " " + afterCursor;
+    setCommentContent(newValue);
+    setMentionSearch(null);
+
+    setTimeout(() => {
+      input.focus();
+      const newCursorPos = atIndex + username.length + 2;
+      input.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+  };
+
+  const handleCommentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setCommentContent(value);
+
+    const cursorPos = e.target.selectionStart ?? value.length;
+    const textBeforeCursor = value.slice(0, cursorPos);
+    const match = textBeforeCursor.match(/(?:\s|^)@([a-zA-Z0-9_.]*)$/);
+
+    if (match) {
+      setMentionSearch(match[1]);
+    } else {
+      setMentionSearch(null);
+    }
+  };
 
   // Activity feed combines comments and task activities
 
@@ -1734,6 +1845,7 @@ export function TaskDetailSheet({
                       )}
                     </div>
                   )}
+                  <div ref={bottomRef} className="h-1 shrink-0" />
                 </div>
               </ScrollArea>
 
@@ -1749,17 +1861,77 @@ export function TaskDetailSheet({
                     </AvatarFallback>
                   </Avatar>
 
-                  <div className="flex-1 flex flex-col gap-2">
+                  <div className="flex-1 flex flex-col gap-2 relative">
+                    {mentionSearch !== null && (
+                      <div className="absolute bottom-full left-0 right-0 mb-1 z-50 max-h-48 min-w-[200px] overflow-y-auto rounded-md border bg-popover shadow-md">
+                        {isLoadingMentions && filteredLocalMembers.length === 0 ? (
+                          <div className="flex items-center justify-center py-4">
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                          </div>
+                        ) : mentionList.length === 0 ? (
+                          <div className="px-3 py-4 text-sm text-muted-foreground text-center">
+                            No members found
+                          </div>
+                        ) : (
+                          mentionList.map((member, idx) => (
+                            <button
+                              key={member.id || member.userId || idx}
+                              type="button"
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted cursor-pointer transition-colors"
+                              onClick={() =>
+                                handleSelectMention(
+                                  member.username || member.fullName || ""
+                                )
+                              }
+                            >
+                              <Avatar className="h-6 w-6 shrink-0">
+                                <AvatarImage
+                                  src={member.avatarUrl || undefined}
+                                />
+                                <AvatarFallback className="text-xs">
+                                  {(member.fullName || member.username || "?")
+                                    .charAt(0)
+                                    .toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex flex-col min-w-0">
+                                <span className="font-medium truncate">
+                                  {member.fullName || member.username}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  @{member.username || member.fullName}
+                                </span>
+                              </div>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
                     <Input
+                      ref={inputRef}
                       placeholder="Write a comment..."
                       className="h-9"
                       value={commentContent}
-                      onChange={(e) => setCommentContent(e.target.value)}
+                      onChange={handleCommentChange}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
+                          if (mentionSearch !== null) {
+                            e.preventDefault();
+                            if (mentionList.length > 0) {
+                              const first = mentionList[0];
+                              handleSelectMention(
+                                first.username || first.fullName || ""
+                              );
+                            }
+                            return;
+                          }
                           e.preventDefault();
 
                           handleSubmitComment();
+                        }
+                        if (e.key === "Escape" && mentionSearch !== null) {
+                          e.preventDefault();
+                          setMentionSearch(null);
                         }
                       }}
                     />

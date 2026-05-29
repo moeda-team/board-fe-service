@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { Loader2, Plus, Search, Settings2 } from "lucide-react";
 import { useAuthMe } from "@/hooks/api/useAuth";
 import { useWorkspaces } from "@/hooks/api/useWorkspaces";
+import { getActiveTenantId } from "@/lib/tenant";
 import {
   foldersQueryKey,
   useFolders,
@@ -60,7 +61,7 @@ export default function WorkspaceDetailPage() {
   const workspaceId = (params.workspaceId as string) || "";
 
   const { data: authMe, isLoading: isAuthLoading } = useAuthMe();
-  const tenantId = authMe?.tenants?.[0]?.tenant?.id ?? "";
+  const tenantId = getActiveTenantId(authMe);
 
   const { data: workspaces = [], isLoading: isWorkspacesLoading } =
     useWorkspaces(tenantId);

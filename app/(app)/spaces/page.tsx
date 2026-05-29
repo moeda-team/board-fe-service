@@ -10,6 +10,7 @@ function useImageFallback() {
 import { Loader2, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { useAuthMe } from "@/hooks/api/useAuth";
 import { useWorkspaces, useDeleteWorkspace } from "@/hooks/api/useWorkspaces";
+import { getActiveTenantId } from "@/lib/tenant";
 import type { Workspace } from "@/types/type-workspaces";
 import { Button } from "@/components/ui/button";
 import {
@@ -131,7 +132,7 @@ function WorkspaceCardSkeleton() {
 
 export default function SpacesPage() {
   const { data: authMe, isLoading: isAuthLoading, isFetched } = useAuthMe();
-  const tenantId = authMe?.tenants?.[0]?.tenant?.id ?? "";
+  const tenantId = getActiveTenantId(authMe);
 
   const { data: workspaces = [], isLoading: isWorkspacesLoading } =
     useWorkspaces(tenantId);

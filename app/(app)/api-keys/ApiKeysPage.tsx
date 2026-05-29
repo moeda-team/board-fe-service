@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { useAuthMe } from "@/hooks/api/useAuth";
+import { getActiveTenantId } from "@/lib/tenant";
 import {
   useTenantApiKey,
   useGenerateApiKey,
@@ -342,7 +343,7 @@ export default function ApiKeysPage() {
   const { data: authMe, isLoading: isAuthLoading, isFetched: isAuthFetched } =
     useAuthMe();
 
-  const tenantId = authMe?.tenants?.[0]?.tenant?.id ?? "";
+  const tenantId = getActiveTenantId(authMe);
 
   const {
     data: activeKey,

@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Plus, MoreHorizontal, Settings2, Trash2 } from "lucide-react";
+import {
+  Plus,
+  MoreHorizontal,
+  Settings2,
+  Trash2,
+  Palette,
+  Pencil
+} from "lucide-react";
 import { EditColumnDialog } from "./EditColumnDialog";
 import { CreateColumnDialog } from "./CreateColumnDialog";
 import type { Column } from "@/types/type-kanban-columns";
@@ -11,7 +18,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuPortal
 } from "@/components/ui/dropdown-menu";
 import { TaskCard } from "./TaskCard";
 import { ConfirmDialog } from "../../../components/ConfirmDialog";
@@ -23,19 +34,21 @@ import {
   type DragUpdate
 } from "@hello-pangea/dnd";
 
+interface ColumnFormValues {
+  name: string;
+  color: string;
+  isDone: boolean;
+}
+
+interface CreateColumnPayload extends ColumnFormValues {
+  position: number;
+}
+
 interface BoardViewProps {
   columns: Column[];
   tasks: Task[];
-  onCreateColumn: (payload: {
-    name: string;
-    color: string;
-    isDone: boolean;
-    position: number;
-  }) => void;
-  onUpdateColumn: (
-    columnId: string,
-    payload: { name: string; color: string; isDone: boolean }
-  ) => void;
+  onCreateColumn: (payload: CreateColumnPayload) => void;
+  onUpdateColumn: (columnId: string, values: ColumnFormValues) => void;
   onDeleteColumn: (columnId: string) => void;
   onReorderColumns?: (newColumns: { id: string; position: number }[]) => void;
   onCreateTask: (columnId: string) => void;
@@ -80,7 +93,6 @@ export function BoardView({
   useEffect(() => {
     setIsMounted(true);
   }, []);
-
 
   useEffect(() => {
     setLocalColumns(columns);
@@ -218,7 +230,10 @@ export function BoardView({
                               ? "ring-2 ring-primary/30 border-primary/30"
                               : ""
                           } transition-transform`}
-                          style={provided.draggableProps.style}
+                          style={{
+                            ...provided.draggableProps.style,
+                            background: `linear-gradient(180deg, ${col.color || "#94a3b8"}08 0%, ${col.color || "#94a3b8"}04 100%)`
+                          }}
                         >
                           {/* Column Header */}
                           <div
@@ -229,12 +244,58 @@ export function BoardView({
                             }}
                           >
                             <div className="flex items-center gap-2">
-                              <div
-                                className="h-2.5 w-2.5 rounded-full"
-                                style={{
-                                  backgroundColor: col.color || "#94a3b8"
-                                }}
-                              />
+                              <DropdownMenu>
+                                <DropdownMenuTrigger
+                                  render={
+                                    <div
+                                      className="h-2.5 w-2.5 rounded-full cursor-pointer hover:scale-125 transition-transform"
+                                      style={{
+                                        backgroundColor: col.color || "#94a3b8"
+                                      }}
+                                      title="Change color"
+                                    />
+                                  }
+                                />
+                                <DropdownMenuContent
+                                  align="start"
+                                  className="p-2"
+                                >
+                                  <div className="grid grid-cols-4 gap-1">
+                                    {[
+                                      { color: "#94a3b8", label: "Gray" },
+                                      { color: "#ef4444", label: "Red" },
+                                      { color: "#f97316", label: "Orange" },
+                                      { color: "#eab308", label: "Yellow" },
+                                      { color: "#22c55e", label: "Green" },
+                                      { color: "#14b8a6", label: "Teal" },
+                                      { color: "#3b82f6", label: "Blue" },
+                                      { color: "#8b5cf6", label: "Purple" },
+                                      { color: "#ec4899", label: "Pink" },
+                                      { color: "#6366f1", label: "Indigo" },
+                                      { color: "#06b6d4", label: "Cyan" },
+                                      { color: "#84cc16", label: "Lime" }
+                                    ].map(({ color, label }) => (
+                                      <DropdownMenuItem
+                                        key={color}
+                                        onClick={() =>
+                                          onUpdateColumn(col.id, {
+                                            name: col.name ?? "Untitled",
+                                            isDone: col.isDone ?? false,
+                                            color
+                                          })
+                                        }
+                                        className="p-1 justify-center"
+                                      >
+                                        <div
+                                          className="h-5 w-5 rounded-full border border-border/50"
+                                          style={{ backgroundColor: color }}
+                                          title={label}
+                                        />
+                                      </DropdownMenuItem>
+                                    ))}
+                                  </div>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                               <span className="text-sm font-semibold cursor-grab active:cursor-grabbing">
                                 {col.name || "Untitled"}
                               </span>
@@ -253,6 +314,67 @@ export function BoardView({
                                   <Plus className="mr-2 h-3.5 w-3.5" />
                                   Add Task
                                 </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    const name = window.prompt(
+                                      "Rename column",
+                                      col.name || ""
+                                    );
+                                    if (name)
+                                      onUpdateColumn(col.id, {
+                                        name,
+                                        isDone: col.isDone ?? false,
+                                        color: col.color || "#94a3b8"
+                                      });
+                                  }}
+                                >
+                                  <Pencil className="mr-2 h-3.5 w-3.5" />
+                                  Rename
+                                </DropdownMenuItem>
+                                <DropdownMenuSub>
+                                  <DropdownMenuSubTrigger>
+                                    <Palette className="mr-2 h-3.5 w-3.5" />
+                                    Color
+                                  </DropdownMenuSubTrigger>
+                                  <DropdownMenuPortal>
+                                    <DropdownMenuSubContent className="p-2">
+                                      <div className="grid grid-cols-4 gap-1">
+                                        {[
+                                          { color: "#94a3b8", label: "Gray" },
+                                          { color: "#ef4444", label: "Red" },
+                                          { color: "#f97316", label: "Orange" },
+                                          { color: "#eab308", label: "Yellow" },
+                                          { color: "#22c55e", label: "Green" },
+                                          { color: "#14b8a6", label: "Teal" },
+                                          { color: "#3b82f6", label: "Blue" },
+                                          { color: "#8b5cf6", label: "Purple" },
+                                          { color: "#ec4899", label: "Pink" },
+                                          { color: "#6366f1", label: "Indigo" },
+                                          { color: "#06b6d4", label: "Cyan" },
+                                          { color: "#84cc16", label: "Lime" }
+                                        ].map(({ color, label }) => (
+                                          <DropdownMenuItem
+                                            key={color}
+                                            onClick={() =>
+                                              onUpdateColumn(col.id, {
+                                                name: col.name ?? "Untitled",
+                                                isDone: col.isDone ?? false,
+                                                color
+                                              })
+                                            }
+                                            className="p-1 justify-center"
+                                          >
+                                            <div
+                                              className="h-5 w-5 rounded-full border border-border/50"
+                                              style={{ backgroundColor: color }}
+                                              title={label}
+                                            />
+                                          </DropdownMenuItem>
+                                        ))}
+                                      </div>
+                                    </DropdownMenuSubContent>
+                                  </DropdownMenuPortal>
+                                </DropdownMenuSub>
                                 <DropdownMenuItem
                                   onClick={() => {
                                     setEditingColumn(col);

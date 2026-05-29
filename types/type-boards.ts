@@ -33,5 +33,15 @@ export interface DeleteBoardParams {
   boardId: string;
 }
 
+export interface ReorderBoardParams {
+  tenantId: string;
+  workspaceId: string;
+  dto: {
+    boardId: string;
+    targetIndex: number;
+    targetFolderId: string;
+  };
+}
+
 export type BoardsEnvelope = ApiEnvelope<Board[] | Board>;
 export type BoardEnvelope = ApiEnvelope<Board>;

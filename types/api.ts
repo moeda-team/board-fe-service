@@ -258,10 +258,18 @@ export interface Task {
     updater?: AuthMeUser | null;
     createdAt?: string;
     updatedAt?: string;
+    summary?: {
+        totalComments?: number;
+        totalAttachments?: number;
+        remainingTime?: {
+            days?: number;
+            hours?: number;
+            isOverdue?: boolean;
+        };
+    };
     estTime?: {
-        days: number;
-        hours: number;
-        isOverdue: boolean;
+        days?: number;
+        hours?: number;
     } | null;
     [key: string]: unknown;
 }
@@ -272,6 +280,8 @@ export interface Subtask {
     title: string;
     isDone: boolean;
     position: number;
+    parentId?: string | null;
+    children?: Subtask[];
     createdBy?: string;
     updatedBy?: string | null;
     createdAt?: string;

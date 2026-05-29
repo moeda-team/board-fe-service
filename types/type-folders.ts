@@ -33,5 +33,14 @@ export interface DeleteFolderParams {
   folderId: string;
 }
 
+export interface ReorderFolderParams {
+  tenantId: string;
+  workspaceId: string;
+  dto: {
+    folderId: string;
+    targetIndex: number;
+  };
+}
+
 export type FoldersEnvelope = ApiEnvelope<Folder[] | Folder>;
 export type FolderEnvelope = ApiEnvelope<Folder>;

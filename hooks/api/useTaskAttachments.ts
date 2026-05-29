@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/apiClient";
 import { unwrapApiArrayData } from "@/types/api";
 import { Attachment, AttachmentsEnvelope } from "@/types/type-tasks";
+import { tasksQueryKey } from "./useTasks";
 
 export const taskAttachmentsQueryKey = (tenantId: string, workspaceId: string, boardId: string, taskId: string) =>
   ["taskAttachments", tenantId, workspaceId, boardId, taskId] as const;
@@ -29,8 +30,9 @@ export const useUploadAttachment = () => {
       });
       return data;
     },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: taskAttachmentsQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId) });
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: taskAttachmentsQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId) });
+      await queryClient.invalidateQueries({ queryKey: tasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId) });
     }
   });
 };
@@ -42,8 +44,9 @@ export const useDeleteAttachment = () => {
     mutationFn: async ({ tenantId, workspaceId, boardId, taskId, attachmentId }: { tenantId: string, workspaceId: string, boardId: string, taskId: string, attachmentId: string }) => {
       await apiClient.delete(`/api/tenants/${tenantId}/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/attachments/${attachmentId}`);
     },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: taskAttachmentsQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId) });
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: taskAttachmentsQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId) });
+      await queryClient.invalidateQueries({ queryKey: tasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId) });
     }
   });
 };

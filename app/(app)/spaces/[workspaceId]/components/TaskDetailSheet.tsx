@@ -65,7 +65,8 @@ import { useCustomFields } from "@/hooks/api/useCustomFields";
 import {
   useTaskSubtasks,
   useCreateSubtask,
-  useUpdateSubtask
+  useUpdateSubtask,
+  taskSubtasksQueryKey
 } from "@/hooks/api/useTaskSubtasks";
 
 import {
@@ -101,7 +102,7 @@ import {
   Save
 } from "lucide-react";
 
-import type { TaskActivity } from "@/types/type-tasks";
+import type { TaskActivity, Subtask } from "@/types/type-tasks";
 import type { Column } from "@/types/type-kanban-columns";
 import type { Member, Tag as TagType } from "@/types/api";
 import type { CustomField } from "@/types/type-custom-fields";
@@ -133,6 +134,8 @@ export function TaskDetailSheet({
 }: TaskDetailSheetProps) {
   const queryClient = useQueryClient();
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const [addingChildForParentId, setAddingChildForParentId] = useState<string | null>(null);
+  const [newChildTitle, setNewChildTitle] = useState("");
   const [commentContent, setCommentContent] = useState("");
   const [mentionSearch, setMentionSearch] = useState<string | null>(null);
   const [debouncedMentionSearch, setDebouncedMentionSearch] = useState<string | null>(null);
@@ -327,7 +330,7 @@ export function TaskDetailSheet({
 
   const { mutate: createSubtask } = useCreateSubtask();
 
-  const { mutate: updateSubtask } = useUpdateSubtask();
+  const { mutate: updateSubtask, mutateAsync: updateSubtaskAsync } = useUpdateSubtask();
 
   const { mutate: uploadAttachment } = useUploadAttachment();
 
@@ -399,16 +402,16 @@ export function TaskDetailSheet({
 
       taskId,
 
-      dto: { title: newSubtaskTitle.trim() }
+      dto: { title: newSubtaskTitle.trim(), parentId: null }
     });
 
     setNewSubtaskTitle("");
   };
 
-  const handleToggleSubtask = (subtaskId: string, currentIsDone: boolean) => {
-    if (!taskId) return;
+  const handleAddChildSubtask = (parentId: string) => {
+    if (!newChildTitle.trim() || !taskId) return;
 
-    updateSubtask({
+    createSubtask({
       tenantId,
 
       workspaceId,
@@ -417,16 +420,131 @@ export function TaskDetailSheet({
 
       taskId,
 
-      subtaskId,
-
-      dto: { isDone: !currentIsDone }
+      dto: { title: newChildTitle.trim(), parentId }
     });
+
+    setNewChildTitle("");
+    setAddingChildForParentId(null);
   };
 
-  const completedSubtasks = subtasks.filter((st) => st.isDone).length;
+  const handleToggleParent = async (parent: Subtask) => {
+    if (!taskId || !tenantId || !workspaceId || !boardId) return;
+    const newDone = !parent.isDone;
+    const queryKey = taskSubtasksQueryKey(tenantId, workspaceId, boardId, taskId);
 
+    queryClient.setQueryData<Subtask[]>(queryKey, (old) => {
+      if (!old) return old;
+      return old.map((st) => {
+        if (st.id === parent.id) {
+          return {
+            ...st,
+            isDone: newDone,
+            children: st.children?.map((c) => ({ ...c, isDone: newDone }))
+          };
+        }
+        return st;
+      });
+    });
+
+    await Promise.all([
+      updateSubtaskAsync({
+        tenantId,
+        workspaceId,
+        boardId,
+        taskId,
+        subtaskId: parent.id,
+        dto: { isDone: newDone }
+      }),
+      ...(parent.children?.map((child) =>
+        updateSubtaskAsync({
+          tenantId,
+          workspaceId,
+          boardId,
+          taskId,
+          subtaskId: child.id,
+          dto: { isDone: newDone }
+        })
+      ) ?? [])
+    ]);
+  };
+
+  const handleToggleChild = async (child: Subtask, parent: Subtask) => {
+    if (!taskId || !tenantId || !workspaceId || !boardId) return;
+    const newDone = !child.isDone;
+    const siblings = parent.children ?? [];
+    const allSiblingsDone = siblings.every((s) =>
+      s.id === child.id ? newDone : s.isDone
+    );
+    const shouldCheckParent = newDone && !parent.isDone && allSiblingsDone;
+    const shouldUncheckParent = !newDone && parent.isDone;
+
+    const queryKey = taskSubtasksQueryKey(tenantId, workspaceId, boardId, taskId);
+
+    queryClient.setQueryData<Subtask[]>(queryKey, (old) => {
+      if (!old) return old;
+      return old.map((st) => {
+        if (st.id === parent.id) {
+          return {
+            ...st,
+            isDone: shouldCheckParent
+              ? true
+              : shouldUncheckParent
+                ? false
+                : st.isDone,
+            children: st.children?.map((c) =>
+              c.id === child.id ? { ...c, isDone: newDone } : c
+            )
+          };
+        }
+        return st;
+      });
+    });
+
+    await updateSubtaskAsync({
+      tenantId,
+      workspaceId,
+      boardId,
+      taskId,
+      subtaskId: child.id,
+      dto: { isDone: newDone }
+    });
+
+    if (shouldCheckParent) {
+      await updateSubtaskAsync({
+        tenantId,
+        workspaceId,
+        boardId,
+        taskId,
+        subtaskId: parent.id,
+        dto: { isDone: true }
+      });
+    } else if (shouldUncheckParent) {
+      await updateSubtaskAsync({
+        tenantId,
+        workspaceId,
+        boardId,
+        taskId,
+        subtaskId: parent.id,
+        dto: { isDone: false }
+      });
+    }
+  };
+
+  const flattenSubtasks = (items: Subtask[]): Subtask[] => {
+    const result: Subtask[] = [];
+    for (const item of items) {
+      result.push(item);
+      if (item.children?.length) {
+        result.push(...item.children);
+      }
+    }
+    return result;
+  };
+
+  const allSubtasks = useMemo(() => flattenSubtasks(subtasks), [subtasks]);
+  const completedSubtasks = allSubtasks.filter((st) => st.isDone).length;
   const progressPct =
-    subtasks.length > 0 ? (completedSubtasks / subtasks.length) * 100 : 0;
+    allSubtasks.length > 0 ? (completedSubtasks / allSubtasks.length) * 100 : 0;
 
   // Extract assignees correctly based on the API response structure
 
@@ -1525,7 +1643,7 @@ export function TaskDetailSheet({
                     <span className="text-sm font-medium">Subtask</span>
 
                     <span className="text-sm text-muted-foreground">
-                      {completedSubtasks}/{subtasks.length}
+                      {completedSubtasks}/{allSubtasks.length}
                     </span>
                   </div>
 
@@ -1539,38 +1657,131 @@ export function TaskDetailSheet({
                   </div>
 
                   <div className="flex flex-col gap-2 mt-2">
-                    {subtasks.map((st) => (
-                      <div
-                        key={st.id}
-                        className={cn(
-                          "flex items-center gap-3 rounded-md border p-3 transition-colors",
-
-                          st.isDone
-                            ? "bg-muted/50"
-                            : "bg-card hover:bg-muted/30"
-                        )}
-                      >
-                        <Checkbox
-                          checked={st.isDone}
-                          onCheckedChange={() =>
-                            handleToggleSubtask(st.id, st.isDone)
-                          }
-                          className={
-                            st.isDone
-                              ? "data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
-                              : ""
-                          }
-                        />
-
-                        <span
+                    {subtasks.map((parent) => (
+                      <div key={parent.id} className="flex flex-col">
+                        <div
                           className={cn(
-                            "text-sm flex-1",
-
-                            st.isDone && "text-muted-foreground line-through"
+                            "group flex items-center gap-3 rounded-md border p-3 transition-all duration-200",
+                            parent.isDone
+                              ? "bg-muted/50"
+                              : "bg-card hover:bg-muted/30"
                           )}
                         >
-                          {st.title}
-                        </span>
+                          <Checkbox
+                            checked={parent.isDone}
+                            onCheckedChange={() => handleToggleParent(parent)}
+                            className={cn(
+                              "shrink-0",
+                              parent.isDone
+                                ? "data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
+                                : ""
+                            )}
+                          />
+                          <span
+                            className={cn(
+                              "text-sm flex-1",
+                              parent.isDone && "text-muted-foreground line-through"
+                            )}
+                          >
+                            {parent.title}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                            onClick={() => setAddingChildForParentId(parent.id)}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+
+                        {parent.children && parent.children.length > 0 && (
+                          <div className="relative pl-7">
+                            {parent.children.map((child, idx, arr) => (
+                              <div
+                                key={child.id}
+                                className="relative flex items-center"
+                              >
+                                {/* Vertical tree segment */}
+                                <div
+                                  className={cn(
+                                    "absolute -left-[16px] top-0 w-[1px] bg-border/50",
+                                    idx === arr.length - 1
+                                      ? "h-1/2"
+                                      : "bottom-0"
+                                  )}
+                                />
+                                {/* Horizontal tree connector */}
+                                <div className="absolute -left-[16px] top-1/2 w-[16px] h-[1px] -translate-y-1/2 bg-border/50" />
+
+                                <div
+                                  className={cn(
+                                    "flex flex-1 items-center gap-2 rounded-md border px-3 py-2 transition-all duration-200",
+                                    child.isDone
+                                      ? "bg-muted/30"
+                                      : "bg-card hover:bg-muted/20"
+                                  )}
+                                >
+                                  <Checkbox
+                                    checked={child.isDone}
+                                    onCheckedChange={() =>
+                                      handleToggleChild(child, parent)
+                                    }
+                                    className={cn(
+                                      "shrink-0",
+                                      child.isDone
+                                        ? "data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
+                                        : ""
+                                    )}
+                                  />
+                                  <span
+                                    className={cn(
+                                      "text-sm flex-1",
+                                      child.isDone &&
+                                        "text-muted-foreground line-through"
+                                    )}
+                                  >
+                                    {child.title}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {addingChildForParentId === parent.id && (
+                          <div className="pl-7 flex items-center gap-2 py-1">
+                            <div className="flex flex-1 items-center gap-2">
+                              <Input
+                                placeholder="Add child subtask"
+                                value={newChildTitle}
+                                onChange={(e) => setNewChildTitle(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleAddChildSubtask(parent.id);
+                                  if (e.key === "Escape") setAddingChildForParentId(null);
+                                }}
+                                className="h-8"
+                                autoFocus
+                              />
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleAddChildSubtask(parent.id)}
+                                className="shrink-0 text-muted-foreground hover:text-foreground"
+                              >
+                                <Plus className="mr-1 h-3.5 w-3.5" /> Add
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setAddingChildForParentId(null)}
+                                className="shrink-0 text-muted-foreground hover:text-foreground"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
 

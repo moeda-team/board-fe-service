@@ -20,7 +20,7 @@ export const useCreateSubtask = () => {
   const queryClient = useQueryClient();
   return useMutation({
     meta: { successMessage: "Subtask added" },
-    mutationFn: async ({ tenantId, workspaceId, boardId, taskId, dto }: { tenantId: string, workspaceId: string, boardId: string, taskId: string, dto: { title: string } }) => {
+    mutationFn: async ({ tenantId, workspaceId, boardId, taskId, dto }: { tenantId: string, workspaceId: string, boardId: string, taskId: string, dto: { title: string, parentId?: string | null } }) => {
       const { data } = await apiClient.post<SubtaskEnvelope>(`/api/tenants/${tenantId}/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/subtasks`, dto);
       return unwrapApiData(data);
     },

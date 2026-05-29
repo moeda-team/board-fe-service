@@ -267,6 +267,10 @@ export interface Task {
             isOverdue?: boolean;
         };
     };
+    estTime?: {
+        days?: number;
+        hours?: number;
+    } | null;
     [key: string]: unknown;
 }
 
@@ -276,6 +280,8 @@ export interface Subtask {
     title: string;
     isDone: boolean;
     position: number;
+    parentId?: string | null;
+    children?: Subtask[];
     createdBy?: string;
     updatedBy?: string | null;
     createdAt?: string;

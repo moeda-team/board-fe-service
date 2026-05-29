@@ -5,7 +5,6 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { FileText, GripVertical, Pencil, Trash2 } from "lucide-react";
 import type { Board } from "@/types/type-boards";
-
 interface DocumentNavItemProps {
   board: Board;
   isActive: boolean;

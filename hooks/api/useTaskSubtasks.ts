@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/apiClient";
 import { unwrapApiArrayData, unwrapApiData } from "@/types/api";
 import { Subtask, SubtasksEnvelope, SubtaskEnvelope } from "@/types/type-tasks";
+import { tasksQueryKey } from "./useTasks";
 
 export const taskSubtasksQueryKey = (tenantId: string, workspaceId: string, boardId: string, taskId: string) =>
   ["taskSubtasks", tenantId, workspaceId, boardId, taskId] as const;
@@ -23,8 +24,9 @@ export const useCreateSubtask = () => {
       const { data } = await apiClient.post<SubtaskEnvelope>(`/api/tenants/${tenantId}/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/subtasks`, dto);
       return unwrapApiData(data);
     },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: taskSubtasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId) });
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: taskSubtasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId) });
+      await queryClient.invalidateQueries({ queryKey: tasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId) });
     }
   });
 };
@@ -37,8 +39,9 @@ export const useUpdateSubtask = () => {
       const { data } = await apiClient.patch<SubtaskEnvelope>(`/api/tenants/${tenantId}/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/subtasks/${subtaskId}`, dto);
       return unwrapApiData(data);
     },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: taskSubtasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId) });
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: taskSubtasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId) });
+      await queryClient.invalidateQueries({ queryKey: tasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId) });
     }
   });
 };
@@ -50,8 +53,9 @@ export const useDeleteSubtask = () => {
     mutationFn: async ({ tenantId, workspaceId, boardId, taskId, subtaskId }: { tenantId: string, workspaceId: string, boardId: string, taskId: string, subtaskId: string }) => {
       await apiClient.delete(`/api/tenants/${tenantId}/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/subtasks/${subtaskId}`);
     },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: taskSubtasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId) });
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: taskSubtasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId) });
+      await queryClient.invalidateQueries({ queryKey: tasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId) });
     }
   });
 };
@@ -64,8 +68,9 @@ export const useReorderSubtask = () => {
       const { data } = await apiClient.patch<SubtaskEnvelope>(`/api/tenants/${tenantId}/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/subtasks/${subtaskId}/reorder`, { newPosition });
       return unwrapApiData(data);
     },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: taskSubtasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId) });
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: taskSubtasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId) });
+      await queryClient.invalidateQueries({ queryKey: tasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId) });
     }
   });
 };

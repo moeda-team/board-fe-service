@@ -10,6 +10,7 @@ import {
   DeleteTaskCommentParams
 } from "@/types/type-tasks";
 import { taskActivitiesQueryKey } from "@/hooks/api/useTaskActivities";
+import { tasksQueryKey } from "@/hooks/api/useTasks";
 
 export const taskCommentsQueryKey = (tenantId: string, workspaceId: string, boardId: string, taskId: string) =>
   ["taskComments", tenantId, workspaceId, boardId, taskId] as const;
@@ -58,8 +59,8 @@ export const useCreateTaskComment = () => {
       );
       return unwrapApiData(data);
     },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({
         queryKey: taskCommentsQueryKey(
           variables.tenantId,
           variables.workspaceId,
@@ -98,8 +99,8 @@ export const useUpdateTaskComment = () => {
       );
       return unwrapApiData(data);
     },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({
         queryKey: taskCommentsQueryKey(
           variables.tenantId,
           variables.workspaceId,
@@ -107,6 +108,7 @@ export const useUpdateTaskComment = () => {
           variables.taskId
         ),
       });
+      await queryClient.invalidateQueries({ queryKey: tasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId) });
     },
   });
 };
@@ -127,8 +129,8 @@ export const useDeleteTaskComment = () => {
         `/api/tenants/${tenantId}/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/comments/${commentId}`
       );
     },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({
         queryKey: taskCommentsQueryKey(
           variables.tenantId,
           variables.workspaceId,
@@ -136,6 +138,7 @@ export const useDeleteTaskComment = () => {
           variables.taskId
         ),
       });
+      await queryClient.invalidateQueries({ queryKey: tasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId) });
     },
   });
 };

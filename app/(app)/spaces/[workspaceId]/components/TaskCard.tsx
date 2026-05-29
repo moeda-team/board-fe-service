@@ -29,9 +29,13 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
   const subtaskCount = task.subtaskCount || 0;
   const completedSubtasks = task.completedSubtaskCount || 0;
   const tags = task.tags || [];
+  const summary = task.summary || {};
+  const totalComments = summary.totalComments || 0;
+  const totalAttachments = summary.totalAttachments || 0;
+  const remainingTime = summary.remainingTime;
 
   return (
-    <div 
+    <div
       className="group flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-sm transition-shadow hover:shadow-md cursor-pointer"
       onClick={onClick}
     >
@@ -98,8 +102,8 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
           ) : null}
 
           {subtaskCount > 0 && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <div className="h-1.5 w-8 overflow-hidden rounded-full bg-muted">
+            <div className="flex items-center gap-1.5 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+              <div className="h-1.5 w-8 overflow-hidden rounded-full bg-muted-foreground/20">
                 <div
                   className="h-full rounded-full bg-brand-blue"
                   style={{
@@ -107,7 +111,7 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
                   }}
                 />
               </div>
-              <span>
+              <span className="font-medium tabular-nums">
                 {completedSubtasks}/{subtaskCount}
               </span>
             </div>
@@ -115,12 +119,24 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
         </div>
 
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <MessageSquare className="h-3 w-3" />
-          <Papanclip className="h-3 w-3" />
-          <span className="flex items-center gap-0.5">
-            <Clock className="h-3 w-3" />
-            8h
-          </span>
+          {totalComments > 0 && (
+            <span className="flex items-center gap-0.5">
+              <MessageSquare className="h-3 w-3" />
+              {totalComments}
+            </span>
+          )}
+          {totalAttachments > 0 && (
+            <span className="flex items-center gap-0.5">
+              <Papanclip className="h-3 w-3" />
+              {totalAttachments}
+            </span>
+          )}
+          {remainingTime && (
+            <span className="flex items-center gap-0.5">
+              <Clock className="h-3 w-3" />
+              {remainingTime.days}d {remainingTime.hours}h
+            </span>
+          )}
         </div>
       </div>
     </div>

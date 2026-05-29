@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
-import { Loader2, Plus, Search, Settings2 } from "lucide-react";
+import { Loader2, Pencil, Plus, Search, Settings2 } from "lucide-react";
 import { useAuthMe } from "@/hooks/api/useAuth";
 import { useWorkspaces } from "@/hooks/api/useWorkspaces";
 import { getActiveTenantId } from "@/lib/tenant";
@@ -12,49 +12,51 @@ import {
   useFolders,
   useCreateFolder,
   useUpdateFolder,
-  useDeleteFolder
+  useDeleteFolder,
+  useReorderFolders
 } from "@/hooks/api/useFolders";
 import {
   boardsQueryKey,
   useBoards,
   useCreateBoard,
-  useUpdateBoard,
-  useDeleteBoard
+  useDeleteBoard,
+  useReorderBoards,
+  useUpdateBoard
 } from "@/hooks/api/useBoards";
 import {
   columnsQueryKey,
-  useKanbanColumns,
   useCreateColumn,
-  useUpdateColumn,
   useDeleteColumn,
-  useReorderColumns
+  useKanbanColumns,
+  useReorderColumns,
+  useUpdateColumn
 } from "@/hooks/api/useKanbanColumns";
 import {
   taskDetailQueryKey,
   tasksQueryKey,
-  useTasks,
   useCreateTask,
+  useDeleteTask,
   useMoveTask,
-  useDeleteTask
+  useTasks
 } from "@/hooks/api/useTasks";
+import { useTenantMembers } from "@/hooks/api/useTenantMembers";
+import { useTenantSocket } from "@/hooks/useTenantSocket";
+import type { CreateTaskDto, Member } from "@/types/api";
 import type { Board } from "@/types/type-boards";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { WorkspaceSidebar } from "./components/WorkspaceSidebar";
-import { ViewTabs, type ViewType } from "./components/ViewTabs";
-import { BoardView } from "./components/BoardView";
-import { ListView } from "./components/ListView";
-import { GanttView } from "./components/GanttView";
-import { CreateTaskDialog } from "./components/CreateTaskDialog";
-import { NameDialog } from "./components/NameDialog";
-import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { BoardView } from "./components/BoardView";
+import { CreateTaskDialog } from "./components/CreateTaskDialog";
+import { GanttView } from "./components/GanttView";
+import { ListView } from "./components/ListView";
+import { NameDialog } from "./components/NameDialog";
 import { RenameBoardDialog } from "./components/RenameBoardDialog";
 import { CustomFieldManager } from "./components/CustomFieldManager";
 import { TaskDetailSheet } from "./components/TaskDetailSheet";
-import { useTenantMembers } from "@/hooks/api/useTenantMembers";
-import type { CreateTaskDto, Member } from "@/types/api";
-import { useTenantSocket } from "@/hooks/useTenantSocket";
+import { ViewTabs, type ViewType } from "./components/ViewTabs";
+import { WorkspaceSidebar } from "./components/WorkspaceSidebar";
 
 export default function WorkspaceDetailPage() {
   const params = useParams();
@@ -90,7 +92,8 @@ export default function WorkspaceDetailPage() {
   >(undefined);
 
   const [isRenameBoardOpen, setIsRenameBoardOpen] = useState(false);
-  const [isCustomFieldManagerOpen, setIsCustomFieldManagerOpen] = useState(false);
+  const [isCustomFieldManagerOpen, setIsCustomFieldManagerOpen] =
+    useState(false);
 
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
@@ -178,9 +181,11 @@ export default function WorkspaceDetailPage() {
   const { mutate: createFolder } = useCreateFolder();
   const { mutate: updateFolder } = useUpdateFolder();
   const { mutate: deleteFolder } = useDeleteFolder();
+  const { mutate: reorderFolders } = useReorderFolders();
   const { mutate: createBoard } = useCreateBoard();
   const { mutate: updateBoard } = useUpdateBoard();
   const { mutate: deleteBoard } = useDeleteBoard();
+  const { mutate: reorderBoards } = useReorderBoards();
   const { mutate: createColumn } = useCreateColumn();
   const { mutate: updateColumn } = useUpdateColumn();
   const { mutate: deleteColumn } = useDeleteColumn();
@@ -394,6 +399,20 @@ export default function WorkspaceDetailPage() {
               deleteFolder({ tenantId, workspaceId, folderId: folder.id })
           });
         }}
+        onReorderFolder={(folderId, targetIndex) => {
+          reorderFolders({
+            tenantId,
+            workspaceId,
+            dto: { folderId, targetIndex }
+          });
+        }}
+        onReorderDocument={(boardId, targetIndex, targetFolderId) => {
+          reorderBoards({
+            tenantId,
+            workspaceId,
+            dto: { boardId, targetIndex, targetFolderId }
+          });
+        }}
         isLoading={isFoldersLoading || isBoardsLoading}
       />
 
@@ -414,7 +433,7 @@ export default function WorkspaceDetailPage() {
                   className="h-7 px-2 text-muted-foreground hover:text-foreground"
                   onClick={() => setIsRenameBoardOpen(true)}
                 >
-                  Rename
+                  <Pencil className="h-4 w-4" />
                 </Button>
               )}
             </div>

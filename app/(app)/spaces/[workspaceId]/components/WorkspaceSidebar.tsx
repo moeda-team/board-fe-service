@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Plus, Building2 } from "lucide-react";
 import {
   DndContext,
@@ -42,6 +42,12 @@ interface WorkspaceSidebarProps {
   onDeleteFolder: (folder: Folder) => void;
   onRenameDocumentSubmit: (boardId: string, name: string) => void;
   onDeleteDocument: (board: Board) => void;
+  onReorderFolder?: (folderId: string, targetIndex: number) => void;
+  onReorderDocument?: (
+    boardId: string,
+    targetIndex: number,
+    targetFolderId: string
+  ) => void;
   isLoading?: boolean;
 }
 
@@ -67,8 +73,14 @@ export function WorkspaceSidebar({
   onDeleteFolder,
   onRenameDocumentSubmit,
   onDeleteDocument,
+  onReorderFolder,
+  onReorderDocument,
   isLoading
 }: WorkspaceSidebarProps) {
+  const [localFolders, setLocalFolders] = useState<Folder[]>(folders);
+  const [localBoardsByFolder, setLocalBoardsByFolder] =
+    useState<Record<string, Board[]>>(boardsByFolder);
+  const [isMounted, setIsMounted] = useState(false);
   const { data: storage, isLoading: isStorageLoading } =
     useTenantStorage(tenantId);
 
@@ -159,7 +171,10 @@ export function WorkspaceSidebar({
 
     if (originFolderId === targetFolderId) return;
 
-    const containerOrder: Array<string | null> = [null, ...folders.map((f) => f.id)];
+    const containerOrder: Array<string | null> = [
+      null,
+      ...folders.map((f) => f.id)
+    ];
     const byContainer = new Map<string | null, Board[]>();
     for (const fid of containerOrder) {
       byContainer.set(fid, []);
@@ -176,24 +191,29 @@ export function WorkspaceSidebar({
       .map((b: Board, idx: number) => ({ ...b, order: idx }));
 
     const targetContainer = byContainer.get(targetFolderId) || [];
-    const safeIndex = Math.max(0, Math.min(insertAtIndex ?? targetContainer.length, targetContainer.length));
+    const safeIndex = Math.max(
+      0,
+      Math.min(insertAtIndex ?? targetContainer.length, targetContainer.length)
+    );
     const moved: Board = {
       ...activeBoard,
       folderId: targetFolderId ?? undefined
     };
     const nextTarget = [...targetContainer];
     nextTarget.splice(safeIndex, 0, moved);
-    const nextTargetWithOrder = nextTarget.map((b: Board, idx: number) => ({ ...b, order: idx }));
+    const nextTargetWithOrder = nextTarget.map((b: Board, idx: number) => ({
+      ...b,
+      order: idx
+    }));
 
     byContainer.set(originFolderId, nextOrigin);
     byContainer.set(targetFolderId, nextTargetWithOrder);
 
-    const nextBoards = containerOrder.flatMap((fid) => byContainer.get(fid) || []);
-
-    queryClient.setQueryData(
-      boardsQueryKey(tenantId, workspaceId),
-      nextBoards
+    const nextBoards = containerOrder.flatMap(
+      (fid) => byContainer.get(fid) || []
     );
+
+    queryClient.setQueryData(boardsQueryKey(tenantId, workspaceId), nextBoards);
   };
 
   const handleDragEnd = async ({ active, over }: DragEndEvent) => {
@@ -204,8 +224,9 @@ export function WorkspaceSidebar({
 
     if (activeId.startsWith("folder-") && overId.startsWith("folder-")) {
       const previousFolders =
-        queryClient.getQueryData<Folder[]>(foldersQueryKey(tenantId, workspaceId)) ||
-        folders;
+        queryClient.getQueryData<Folder[]>(
+          foldersQueryKey(tenantId, workspaceId)
+        ) || folders;
 
       const oldIndex = previousFolders.findIndex(
         (f) => folderDndId(f.id) === activeId
@@ -229,8 +250,10 @@ export function WorkspaceSidebar({
         await reorderFolders({
           tenantId,
           workspaceId,
-          folderId: activeId.slice("folder-".length),
-          targetIndex: newIndex
+          dto: {
+            folderId: activeId.slice("folder-".length),
+            targetIndex: newIndex
+          }
         });
       } catch {
         queryClient.setQueryData(
@@ -257,7 +280,10 @@ export function WorkspaceSidebar({
     const activeBoard = previousBoards.find((b) => b.id === activeBoardId);
     if (!activeBoard) return;
 
-    const containerOrder: Array<string | null> = [null, ...folders.map((f) => f.id)];
+    const containerOrder: Array<string | null> = [
+      null,
+      ...folders.map((f) => f.id)
+    ];
 
     const byContainer = new Map<string | null, Board[]>();
     for (const fid of containerOrder) {
@@ -300,7 +326,9 @@ export function WorkspaceSidebar({
     }
 
     const originContainer = byContainer.get(originFolderId) || [];
-    const originIndex = originContainer.findIndex((b) => b.id === activeBoardId);
+    const originIndex = originContainer.findIndex(
+      (b) => b.id === activeBoardId
+    );
     if (originIndex < 0 || targetIndex == null) return;
 
     const targetContainer = byContainer.get(targetFolderId) || [];
@@ -308,7 +336,11 @@ export function WorkspaceSidebar({
     if (originFolderId === targetFolderId) {
       if (originIndex === targetIndex) return;
 
-      const nextContainer = arrayMove(originContainer, originIndex, targetIndex);
+      const nextContainer = arrayMove(
+        originContainer,
+        originIndex,
+        targetIndex
+      );
       byContainer.set(
         targetFolderId,
         nextContainer.map((b: Board, idx: number) => ({ ...b, order: idx }))
@@ -318,7 +350,10 @@ export function WorkspaceSidebar({
         .filter((b) => b.id !== activeBoardId)
         .map((b: Board, idx: number) => ({ ...b, order: idx }));
 
-      const insertIndex = Math.max(0, Math.min(targetIndex, targetContainer.length));
+      const insertIndex = Math.max(
+        0,
+        Math.min(targetIndex, targetContainer.length)
+      );
       const moved: Board = {
         ...activeBoard,
         folderId: targetFolderId ?? undefined
@@ -326,26 +361,30 @@ export function WorkspaceSidebar({
 
       const nextTarget = [...targetContainer];
       nextTarget.splice(insertIndex, 0, moved);
-      const nextTargetWithOrder = nextTarget.map((b: Board, idx: number) => ({ ...b, order: idx }));
+      const nextTargetWithOrder = nextTarget.map((b: Board, idx: number) => ({
+        ...b,
+        order: idx
+      }));
 
       byContainer.set(originFolderId, nextOrigin);
       byContainer.set(targetFolderId, nextTargetWithOrder);
     }
 
-    const nextBoards = containerOrder.flatMap((fid) => byContainer.get(fid) || []);
-
-    queryClient.setQueryData(
-      boardsQueryKey(tenantId, workspaceId),
-      nextBoards
+    const nextBoards = containerOrder.flatMap(
+      (fid) => byContainer.get(fid) || []
     );
+
+    queryClient.setQueryData(boardsQueryKey(tenantId, workspaceId), nextBoards);
 
     try {
       await reorderBoards({
         tenantId,
         workspaceId,
-        boardId: activeBoardId,
-        targetIndex,
-        targetFolderId
+        dto: {
+          boardId: activeBoardId,
+          targetIndex,
+          targetFolderId: targetFolderId ?? ""
+        }
       });
     } catch {
       const rollbackBoards =
@@ -393,10 +432,7 @@ export function WorkspaceSidebar({
                 items={rootBoardItems}
                 strategy={verticalListSortingStrategy}
               >
-                <div
-                  ref={setRootDropRef}
-                  className="flex flex-col gap-0.5"
-                >
+                <div ref={setRootDropRef} className="flex flex-col gap-0.5">
                   {rootBoards.map((board) => (
                     <DocumentNavItem
                       key={board.id}

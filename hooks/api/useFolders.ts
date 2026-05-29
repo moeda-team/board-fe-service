@@ -7,6 +7,7 @@ import {
   Folder,
   FolderEnvelope,
   FoldersEnvelope,
+  ReorderFolderParams,
   UpdateFolderParams
 } from "@/types/type-folders";
 
@@ -66,28 +67,16 @@ export const useDeleteFolder = () => {
   });
 };
 
-export interface ReorderFolderParams {
-  tenantId: string;
-  workspaceId: string;
-  folderId: string;
-  targetIndex: number;
-}
-
 export const useReorderFolders = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    meta: { errorMessage: "Failed to reorder folders" },
-    mutationFn: async ({ tenantId, workspaceId, folderId, targetIndex }: ReorderFolderParams): Promise<void> => {
-      await apiClient.patch(`/api/tenants/${tenantId}/workspaces/${workspaceId}/folders/reorder`, {
-        folderId,
-        targetIndex
-      });
+    meta: { successMessage: "Folders reordered", errorMessage: "Failed to reorder folders" },
+    mutationFn: async ({ tenantId, workspaceId, dto }: ReorderFolderParams): Promise<void> => {
+      await apiClient.patch(`/api/tenants/${tenantId}/workspaces/${workspaceId}/folders/reorder`, dto);
     },
     onSuccess: async (_data, variables) => {
-      await queryClient.invalidateQueries({
-        queryKey: foldersQueryKey(variables.tenantId, variables.workspaceId)
-      });
+      await queryClient.invalidateQueries({ queryKey: foldersQueryKey(variables.tenantId, variables.workspaceId) });
     }
   });
 };

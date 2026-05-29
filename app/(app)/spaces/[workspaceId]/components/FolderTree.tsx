@@ -2,8 +2,11 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useDroppable } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { useSortable } from "@dnd-kit/sortable";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy
+} from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
   ChevronRight,
@@ -28,6 +31,11 @@ interface FolderTreeProps {
   onDeleteFolder: (folder: Folder) => void;
   onRenameDocumentSubmit: (boardId: string, name: string) => void;
   onDeleteDocument: (board: Board) => void;
+  onReorderDocument?: (
+    boardId: string,
+    targetIndex: number,
+    targetFolderId: string
+  ) => void;
 }
 
 export function FolderTree({
@@ -39,7 +47,8 @@ export function FolderTree({
   onRenameFolderSubmit,
   onDeleteFolder,
   onRenameDocumentSubmit,
-  onDeleteDocument
+  onDeleteDocument,
+  onReorderDocument
 }: FolderTreeProps) {
   const folderDndId = `folder-${folder.id}`;
   const boardDndIds = boards.map((b) => `board-${b.id}`);
@@ -50,7 +59,7 @@ export function FolderTree({
     setNodeRef,
     transform,
     transition,
-    isDragging
+    isDragging: isFolderDragging
   } = useSortable({ id: folderDndId });
 
   const { setNodeRef: setDropRef } = useDroppable({
@@ -60,8 +69,8 @@ export function FolderTree({
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.6 : undefined,
-    zIndex: isDragging ? 50 : undefined
+    opacity: isFolderDragging ? 0.6 : undefined,
+    zIndex: isFolderDragging ? 50 : undefined
   };
 
   const [isExpanded, setIsExpanded] = useState(true);
@@ -131,9 +140,12 @@ export function FolderTree({
       ) : (
         <div
           ref={folderRef}
-          className="group flex items-center gap-1 rounded-md px-1 py-1 hover:bg-muted"
+          className={`group flex items-center gap-1 rounded-md px-1 py-1 hover:bg-muted ${
+            isFolderDragging ? "bg-muted ring-2 ring-primary/20" : ""
+          }`}
           onContextMenu={handleContextMenu}
         >
+          {/* Drag Handle (dnd-kit) */}
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-foreground"
@@ -210,13 +222,13 @@ export function FolderTree({
       )}
 
       {isExpanded && (
-        <div
-          ref={setDropRef}
-          className="ml-5 mt-0.5 flex flex-col gap-0.5 border-l border-border pl-2 min-h-[20px]"
+        <SortableContext
+          items={boardDndIds}
+          strategy={verticalListSortingStrategy}
         >
-          <SortableContext
-            items={boardDndIds}
-            strategy={verticalListSortingStrategy}
+          <div
+            ref={setDropRef}
+            className="ml-5 mt-0.5 flex flex-col gap-0.5 border-l border-border pl-2"
           >
             {boards.length === 0 ? (
               <span className="px-2 py-1 text-xs text-muted-foreground">
@@ -234,8 +246,8 @@ export function FolderTree({
                 />
               ))
             )}
-          </SortableContext>
-        </div>
+          </div>
+        </SortableContext>
       )}
     </div>
   );

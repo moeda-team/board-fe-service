@@ -258,10 +258,6 @@ export interface Task {
     updater?: AuthMeUser | null;
     createdAt?: string;
     updatedAt?: string;
-    estTime?: {
-        days?: number;
-        hours?: number;
-    } | null;
     summary?: {
         totalComments?: number;
         totalAttachments?: number;
@@ -271,6 +267,10 @@ export interface Task {
             isOverdue?: boolean;
         };
     };
+    estTime?: {
+        days?: number;
+        hours?: number;
+    } | null;
     [key: string]: unknown;
 }
 

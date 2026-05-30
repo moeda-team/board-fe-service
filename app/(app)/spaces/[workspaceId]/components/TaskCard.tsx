@@ -64,7 +64,7 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
         </div>
       )}
 
-      <h4 className="text-sm font-medium leading-snug wrap-break-word line-clamp-3">
+      <h4 className="text-sm font-medium leading-snug wrap-break-word">
         {task.title || "Untitled"}
       </h4>
 

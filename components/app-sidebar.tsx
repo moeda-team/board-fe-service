@@ -145,8 +145,6 @@ export function AppSidebar() {
     window.location.href = "/spaces";
   };
 
-  console.log("activeTenant:", activeTenant);
-
   return (
     <div
       className="group/sidebar-wrapper"
@@ -170,19 +168,9 @@ export function AppSidebar() {
             className="relative flex w-full items-center gap-3 rounded-lg p-3 transition-colors hover:bg-white/10 cursor-pointer group group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:p-2"
           >
             {/* Icon */}
-            {activeTenant?.logoUrl ? (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md overflow-hidden">
-                <img
-                  src={activeTenant.logoUrl}
-                  alt={tenantName}
-                  className="h-full w-full object-cover"
-                />
-              </div>
-            ) : (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white/20 text-white">
-                <Building2 className="size-5" />
-              </div>
-            )}
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white/20 text-white">
+              <Building2 className="size-5" />
+            </div>
 
             {/* Text & Badge */}
             <div className="flex flex-1 flex-col min-w-0 text-left group-data-[collapsible=icon]:hidden">

@@ -194,7 +194,6 @@ export default function WorkspaceDetailPage() {
   const { mutate: createTask } = useCreateTask();
   const { mutate: moveTask } = useMoveTask();
   const { mutate: deleteTask } = useDeleteTask();
-  const [movingTaskIds, setMovingTaskIds] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
   const socket = useTenantSocket(tenantId || null);
 
@@ -205,30 +204,18 @@ export default function WorkspaceDetailPage() {
     newPosition?: number
   ) => {
     if (!activeBoardId) return;
-    setMovingTaskIds((prev) => new Set(prev).add(taskId));
-    moveTask(
-      {
-        tenantId,
-        workspaceId,
-        boardId: activeBoardId,
+    moveTask({
+      tenantId,
+      workspaceId,
+      boardId: activeBoardId,
+      taskId,
+      dto: {
         taskId,
-        dto: {
-          taskId,
-          sourceColumnId,
-          destinationColumnId,
-          newPosition
-        }
-      },
-      {
-        onSettled: () => {
-          setMovingTaskIds((prev) => {
-            const next = new Set(prev);
-            next.delete(taskId);
-            return next;
-          });
-        }
+        sourceColumnId,
+        destinationColumnId,
+        newPosition
       }
-    );
+    });
   };
 
   useEffect(() => {
@@ -546,7 +533,6 @@ export default function WorkspaceDetailPage() {
                 setIsCreateTaskOpen(true);
               }}
               onMoveTask={handleMoveTask}
-              movingTaskIds={movingTaskIds}
               onTaskClick={(taskId) => setSelectedTaskId(taskId)}
               onDeleteTask={(taskId) =>
                 activeBoardId &&

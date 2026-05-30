@@ -68,10 +68,15 @@ export const useDeleteTask = () => {
 };
 
 export const useMoveTask = () => {
+  const queryClient = useQueryClient();
+
   return useMutation({
     meta: { successMessage: "Task moved", errorMessage: "Failed to move task" },
     mutationFn: async ({ tenantId, workspaceId, boardId, taskId, dto }: MoveTaskParams): Promise<void> => {
       await apiClient.patch(`/api/tenants/${tenantId}/workspaces/${workspaceId}/boards/${boardId}/tasks/move`, dto);
+    },
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: tasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId) });
     }
   });
 };

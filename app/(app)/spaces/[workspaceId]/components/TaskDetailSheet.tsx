@@ -1,6 +1,11 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { DndContext, rectIntersection, DragOverlay } from "@dnd-kit/core";
+import type { DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
 import { format } from "date-fns";
 
@@ -78,6 +83,7 @@ import {
   useCreateSubtask,
   useUpdateSubtask,
   useDeleteSubtask,
+  useReorderSubtask,
   taskSubtasksQueryKey
 } from "@/hooks/api/useTaskSubtasks";
 
@@ -114,7 +120,8 @@ import {
   Check,
   ChevronsUpDown,
   Edit2,
-  Save
+  Save,
+  GripVertical
 } from "lucide-react";
 
 import type { TaskActivity, Subtask } from "@/types/type-tasks";
@@ -126,6 +133,24 @@ import { useTags } from "@/hooks/api/useTags";
 import { useTenantSocket } from "@/hooks/useTenantSocket";
 import { useMentions } from "@/hooks/api/useMentions";
 
+interface DropIndicatorProps {
+  depth: number;
+}
+
+function DropIndicator({ depth }: DropIndicatorProps) {
+  return (
+    <div
+      className={cn(
+        "relative flex items-center h-[3px] my-1 transition-all duration-150",
+        depth > 0 ? "ml-7" : ""
+      )}
+    >
+      <div className="absolute left-0 w-2 h-2 rounded-full bg-blue-500 -translate-x-1/2" />
+      <div className="w-full h-[3px] bg-blue-500 rounded-full" />
+    </div>
+  );
+}
+
 interface SubtaskItemProps {
   subtask: Subtask;
   isChild?: boolean;
@@ -135,6 +160,8 @@ interface SubtaskItemProps {
   taskId: string;
   onToggle: () => void;
   onAddChild?: () => void;
+  dropIndicatorDepth?: number | null;
+  isOverlay?: boolean;
 }
 
 function SubtaskItem({
@@ -145,11 +172,23 @@ function SubtaskItem({
   boardId,
   taskId,
   onToggle,
-  onAddChild
+  onAddChild,
+  dropIndicatorDepth = null,
+  isOverlay = false
 }: SubtaskItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(subtask.title);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const sortable = useSortable({ id: subtask.id, disabled: isOverlay });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = sortable;
+
+  const style = isOverlay
+    ? undefined
+    : {
+        transform: CSS.Transform.toString(transform),
+        transition
+      };
 
   const { mutate: updateSubtask } = useUpdateSubtask();
   const { mutate: deleteSubtask } = useDeleteSubtask();
@@ -202,14 +241,25 @@ function SubtaskItem({
   return (
     <>
       <div
+        ref={setNodeRef}
+        style={style}
         className={cn(
           "group flex items-center rounded-md border transition-all duration-200",
           isChild ? "gap-2 px-3 py-2 flex-1" : "gap-3 p-3",
+          isDragging && "opacity-50 z-50",
           subtask.isDone
             ? "bg-muted/50"
             : "bg-card hover:bg-muted/30"
         )}
       >
+        <div
+          {...attributes}
+          {...listeners}
+          className="shrink-0 cursor-grab text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <GripVertical className={cn("h-4 w-4", isChild && "h-3.5 w-3.5")} />
+        </div>
+
         <Checkbox
           checked={subtask.isDone}
           onCheckedChange={onToggle}
@@ -271,6 +321,10 @@ function SubtaskItem({
             </Button>
           </div>
         )}
+      </div>
+
+      <div className={cn("transition-opacity duration-150", dropIndicatorDepth !== null ? "opacity-100" : "opacity-0")}>
+        <DropIndicator depth={dropIndicatorDepth ?? 0} />
       </div>
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -533,6 +587,24 @@ export function TaskDetailSheet({
 
   const { mutate: updateSubtask, mutateAsync: updateSubtaskAsync } = useUpdateSubtask();
 
+  const { mutate: reorderSubtask } = useReorderSubtask();
+
+  // DnD drag-over tracking state
+  const [dragActiveId, setDragActiveId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [projectedDepth, setProjectedDepth] = useState<number>(0);
+
+  const findSubtaskLocation = useCallback((subtasksData: Subtask[], id: string) => {
+    for (let i = 0; i < subtasksData.length; i++) {
+      if (subtasksData[i].id === id) return { parentId: null as string | null, index: i, item: subtasksData[i] };
+      if (subtasksData[i].children) {
+        const childIdx = subtasksData[i].children!.findIndex((c) => c.id === id);
+        if (childIdx !== -1) return { parentId: subtasksData[i].id, index: childIdx, item: subtasksData[i].children![childIdx] };
+      }
+    }
+    return null;
+  }, []);
+
   const { mutate: uploadAttachment } = useUploadAttachment();
 
   const { mutate: deleteAttachment } = useDeleteAttachment();
@@ -627,6 +699,177 @@ export function TaskDetailSheet({
     setNewChildTitle("");
     setAddingChildForParentId(null);
   };
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setDragActiveId(String(event.active.id));
+    setDragOverId(null);
+    setProjectedDepth(0);
+  }, []);
+
+  const handleDragOver = useCallback((event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over) {
+      setDragOverId(null);
+      setProjectedDepth(0);
+      return;
+    }
+
+    const activeId = String(active.id);
+    const overId = String(over.id);
+    setDragOverId(overId);
+
+    const activeLoc = findSubtaskLocation(subtasks, activeId);
+    const overLoc = findSubtaskLocation(subtasks, overId);
+
+    let depth = 0;
+    if (overLoc) {
+      if (overLoc.parentId !== null) {
+        depth = 1;
+      } else {
+        if (activeLoc?.parentId === null && event.delta.x > 30) {
+          depth = 1;
+        } else {
+          depth = 0;
+        }
+      }
+    }
+    setProjectedDepth(depth);
+  }, [subtasks, findSubtaskLocation]);
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const currentDepth = projectedDepth;
+    setDragActiveId(null);
+    setDragOverId(null);
+    setProjectedDepth(0);
+
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    if (!taskId || !tenantId || !workspaceId || !boardId) return;
+
+    const queryKey = taskSubtasksQueryKey(tenantId, workspaceId, boardId, taskId);
+    const currentData = queryClient.getQueryData<Subtask[]>(queryKey);
+    if (!currentData) return;
+
+    const activeId = String(active.id);
+    const overId = String(over.id);
+
+    let activeItem: Subtask | undefined;
+    let activeParentId: string | null = null;
+    let activeIndex = -1;
+
+    for (let i = 0; i < currentData.length; i++) {
+      const parent = currentData[i];
+      if (parent.id === activeId) {
+        activeItem = parent;
+        activeParentId = null;
+        activeIndex = i;
+        break;
+      }
+      if (parent.children) {
+        const childIdx = parent.children.findIndex((c) => c.id === activeId);
+        if (childIdx !== -1) {
+          activeItem = parent.children[childIdx];
+          activeParentId = parent.id;
+          activeIndex = childIdx;
+          break;
+        }
+      }
+    }
+
+    if (!activeItem) return;
+
+    let newParentId: string | null = null;
+    let overIndex = -1;
+
+    for (let i = 0; i < currentData.length; i++) {
+      const parent = currentData[i];
+      if (parent.id === overId) {
+        // If hovering a root parent with depth=1 intent, become child of that parent
+        if (currentDepth === 1) {
+          newParentId = overId;
+          overIndex = parent.children?.length ?? 0;
+        } else {
+          newParentId = null;
+          overIndex = i;
+        }
+        break;
+      }
+      if (parent.children) {
+        const childIdx = parent.children.findIndex((c) => c.id === overId);
+        if (childIdx !== -1) {
+          newParentId = parent.id;
+          overIndex = childIdx;
+          break;
+        }
+      }
+    }
+
+    if (overIndex === -1) return;
+
+    const previousData = queryClient.getQueryData<Subtask[]>(queryKey);
+
+    queryClient.setQueryData<Subtask[]>(queryKey, (old) => {
+      if (!old) return old;
+      const cloned: Subtask[] = old.map((p) => ({
+        ...p,
+        children: p.children ? [...p.children] : []
+      }));
+
+      const activeFromRoot = activeParentId === null;
+      const overAtRoot = newParentId === null;
+
+      if (activeFromRoot) {
+        const [removed] = cloned.splice(activeIndex, 1);
+        const normalized = { ...removed, children: removed.children || [] };
+        if (overAtRoot) {
+          const adjustedIndex = activeIndex < overIndex ? overIndex - 1 : overIndex;
+          cloned.splice(adjustedIndex, 0, normalized);
+        } else {
+          const targetParent = cloned.find((p) => p.id === newParentId);
+          if (targetParent) {
+            targetParent.children = targetParent.children || [];
+            targetParent.children.splice(overIndex, 0, normalized);
+          }
+        }
+      } else {
+        const sourceParent = cloned.find((p) => p.id === activeParentId);
+        if (!sourceParent) return old;
+        const [removed] = sourceParent.children!.splice(activeIndex, 1);
+        if (overAtRoot) {
+          cloned.splice(overIndex, 0, removed);
+        } else {
+          const targetParent = cloned.find((p) => p.id === newParentId);
+          if (targetParent) {
+            targetParent.children = targetParent.children || [];
+            targetParent.children.splice(overIndex, 0, removed);
+          }
+        }
+      }
+
+      return cloned;
+    });
+
+    reorderSubtask(
+      {
+        tenantId,
+        workspaceId,
+        boardId,
+        taskId,
+        subtaskId: activeId,
+        newPosition: overIndex,
+        newParentId
+      },
+      {
+        onError: () => {
+          if (previousData) {
+            queryClient.setQueryData(queryKey, previousData);
+          } else {
+            queryClient.invalidateQueries({ queryKey });
+          }
+        }
+      }
+    );
+  }, [taskId, tenantId, workspaceId, boardId, queryClient, reorderSubtask, projectedDepth]);
 
   const handleToggleParent = async (parent: Subtask) => {
     if (!taskId || !tenantId || !workspaceId || !boardId) return;
@@ -1764,10 +2007,10 @@ export function TaskDetailSheet({
 
                           <span>
                             {(() => {
-                              const estTime = task?.estTime ?? undefined;
+                              const estTime = task?.estTime as { days?: number; hours?: number } | undefined;
                               if (!estTime) return "N/A";
-                              const days = estTime.days;
-                              const hours = estTime.hours;
+                              const days = estTime.days ?? 0;
+                              const hours = estTime.hours ?? 0;
                               return `${days}d ${hours}h`;
                             })()}
                           </span>
@@ -1889,7 +2132,14 @@ export function TaskDetailSheet({
                   </div>
 
                   <div className="flex flex-col gap-2 mt-2">
-                    {subtasks.map((parent) => (
+                    <DndContext
+                      collisionDetection={rectIntersection}
+                      onDragStart={handleDragStart}
+                      onDragOver={handleDragOver}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext items={subtasks.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+                        {subtasks.map((parent) => (
                       <div key={parent.id} className="flex flex-col">
                         <SubtaskItem
                           subtask={parent}
@@ -1899,11 +2149,13 @@ export function TaskDetailSheet({
                           taskId={taskId || ""}
                           onToggle={() => handleToggleParent(parent)}
                           onAddChild={() => setAddingChildForParentId(parent.id)}
+                          dropIndicatorDepth={dragOverId === parent.id ? projectedDepth : null}
                         />
 
                         {parent.children && parent.children.length > 0 && (
-                          <div className="relative pl-7">
-                            {parent.children.map((child, idx, arr) => (
+                          <SortableContext items={parent.children.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+                            <div className="relative pl-7">
+                              {parent.children.map((child, idx, arr) => (
                               <div
                                 key={child.id}
                                 className="relative flex items-center"
@@ -1928,10 +2180,12 @@ export function TaskDetailSheet({
                                   boardId={boardId}
                                   taskId={taskId || ""}
                                   onToggle={() => handleToggleChild(child, parent)}
+                                  dropIndicatorDepth={dragOverId === child.id ? projectedDepth : null}
                                 />
                               </div>
                             ))}
                           </div>
+                          </SortableContext>
                         )}
 
                         {addingChildForParentId === parent.id && (
@@ -1969,6 +2223,49 @@ export function TaskDetailSheet({
                         )}
                       </div>
                     ))}
+                      </SortableContext>
+                      <DragOverlay>
+                        {dragActiveId ? (() => {
+                          for (const parent of subtasks) {
+                            if (parent.id === dragActiveId) {
+                              return (
+                                <div className="opacity-90 rotate-1 shadow-lg">
+                                  <SubtaskItem
+                                    isOverlay
+                                    subtask={parent}
+                                    tenantId={tenantId}
+                                    workspaceId={workspaceId}
+                                    boardId={boardId}
+                                    taskId={taskId || ""}
+                                    onToggle={() => {}}
+                                  />
+                                </div>
+                              );
+                            }
+                            if (parent.children) {
+                              const child = parent.children.find((c) => c.id === dragActiveId);
+                              if (child) {
+                                return (
+                                  <div className="opacity-90 rotate-1 shadow-lg">
+                                    <SubtaskItem
+                                      isOverlay
+                                      isChild
+                                      subtask={child}
+                                      tenantId={tenantId}
+                                      workspaceId={workspaceId}
+                                      boardId={boardId}
+                                      taskId={taskId || ""}
+                                      onToggle={() => {}}
+                                    />
+                                  </div>
+                                );
+                              }
+                            }
+                          }
+                          return null;
+                        })() : null}
+                      </DragOverlay>
+                    </DndContext>
 
                     <div className="flex items-center gap-2 mt-1">
                       <Input

@@ -64,8 +64,8 @@ export const useReorderSubtask = () => {
   const queryClient = useQueryClient();
   return useMutation({
     meta: { successMessage: "Subtasks reordered" },
-    mutationFn: async ({ tenantId, workspaceId, boardId, taskId, subtaskId, newPosition }: { tenantId: string, workspaceId: string, boardId: string, taskId: string, subtaskId: string, newPosition: number }) => {
-      const { data } = await apiClient.patch<SubtaskEnvelope>(`/api/tenants/${tenantId}/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/subtasks/${subtaskId}/reorder`, { newPosition });
+    mutationFn: async ({ tenantId, workspaceId, boardId, taskId, subtaskId, newPosition, newParentId }: { tenantId: string, workspaceId: string, boardId: string, taskId: string, subtaskId: string, newPosition: number, newParentId?: string | null }) => {
+      const { data } = await apiClient.patch<SubtaskEnvelope>(`/api/tenants/${tenantId}/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/subtasks/${subtaskId}/reorder`, { newPosition, newParentId });
       return unwrapApiData(data);
     },
     onSuccess: async (_data, variables) => {

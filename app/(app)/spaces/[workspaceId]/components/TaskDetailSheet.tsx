@@ -3,9 +3,9 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { DndContext, rectIntersection, DragOverlay } from "@dnd-kit/core";
+import { DndContext, rectIntersection, DragOverlay, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors } from "@dnd-kit/core";
 import type { DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { SortableContext, verticalListSortingStrategy, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
 import { format } from "date-fns";
 
@@ -604,6 +604,23 @@ export function TaskDetailSheet({
     }
     return null;
   }, []);
+
+  const sensors = useSensors(
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5
+      }
+    }),
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 8
+      }
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates
+    })
+  );
 
   const { mutate: uploadAttachment } = useUploadAttachment();
 
@@ -2133,6 +2150,7 @@ export function TaskDetailSheet({
 
                   <div className="flex flex-col gap-2 mt-2">
                     <DndContext
+                      sensors={sensors}
                       collisionDetection={rectIntersection}
                       onDragStart={handleDragStart}
                       onDragOver={handleDragOver}

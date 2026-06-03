@@ -465,17 +465,17 @@ export function WorkspaceSidebar({
                 <DropdownMenuTrigger>
                   <button
                     type="button"
-                    className="flex w-full items-center gap-2 overflow-hidden rounded-md px-2 py-2 text-left hover:bg-sidebar-accent focus:outline-none"
+                    className="flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-md px-2 py-2 text-left hover:bg-sidebar-accent focus:outline-none"
                   >
                     <Building2 className="size-4 shrink-0 text-muted-foreground" />
-                    <span className="truncate text-sm font-medium">
+                    <span className="truncate text-sm font-medium max-w-[180px]">
                       {workspaceName}
                     </span>
                     <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
                   </button>
                 </DropdownMenuTrigger>
               </TooltipTrigger>
-              <TooltipContent side="right">{workspaceName}</TooltipContent>
+              <TooltipContent side="bottom" align="start">{workspaceName}</TooltipContent>
             </Tooltip>
             <DropdownMenuContent align="start" className="w-56">
               {workspaces.map((ws) => (

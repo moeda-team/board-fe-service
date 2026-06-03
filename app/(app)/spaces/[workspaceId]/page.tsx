@@ -615,7 +615,10 @@ export default function WorkspaceDetailPage() {
         title={confirmDialog.title}
         description={confirmDialog.description}
         confirmLabel="Delete"
-        onConfirm={confirmDialog.onConfirm}
+        onConfirm={() => {
+          confirmDialog.onConfirm();
+          setConfirmDialog((prev) => ({ ...prev, open: false }));
+        }}
       />
       {activeBoardId && (
         <CustomFieldManager

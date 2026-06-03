@@ -17,7 +17,7 @@ import {
 import {
   DndContext,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   closestCorners,
   useDroppable,
@@ -106,15 +106,15 @@ export function WorkspaceSidebar({
   const { mutateAsync: reorderBoards } = useReorderBoards();
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8
-      }
-    }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 250,
+        delay: 150,
         tolerance: 5
+      }
+    }),
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 8
       }
     }),
     useSensor(KeyboardSensor)

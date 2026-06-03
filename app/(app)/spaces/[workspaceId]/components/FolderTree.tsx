@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -13,10 +13,17 @@ import {
   Folder as FolderIcon,
   FolderOpen,
   GripVertical,
+  MoreHorizontal,
   Pencil,
   Plus,
   Trash2
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
 import type { Folder } from "@/types/type-folders";
 import type { Board } from "@/types/type-boards";
 import { DocumentNavItem } from "./DocumentNavItem";
@@ -74,25 +81,9 @@ export function FolderTree({
   };
 
   const [isExpanded, setIsExpanded] = useState(true);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");
-  const folderRef = useRef<HTMLDivElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handleClick = () => setMenuOpen(false);
-    window.addEventListener("click", handleClick);
-    return () => window.removeEventListener("click", handleClick);
-  }, [menuOpen]);
-
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setMenuPos({ x: e.clientX, y: e.clientY });
-    setMenuOpen(true);
-  };
 
   return (
     <div ref={setNodeRef} style={style} className="flex flex-col">
@@ -139,11 +130,9 @@ export function FolderTree({
         </div>
       ) : (
         <div
-          ref={folderRef}
           className={`group flex items-center gap-1 rounded-md px-1 py-1 hover:bg-muted ${
             isFolderDragging ? "bg-muted ring-2 ring-primary/20" : ""
           }`}
-          onContextMenu={handleContextMenu}
         >
           {/* Drag Handle (dnd-kit) */}
           <button
@@ -163,7 +152,7 @@ export function FolderTree({
               {...attributes}
               {...listeners}
               onClick={(e) => e.stopPropagation()}
-              className="h-4 w-4 cursor-grab text-muted-foreground/50 opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+              className="h-4 w-4 cursor-grab text-muted-foreground opacity-50 transition-opacity hover:text-foreground hover:opacity-100"
             />
           </button>
           {isExpanded ? (
@@ -177,47 +166,49 @@ export function FolderTree({
           >
             {folder.name || "Untitled"}
           </span>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onCreateDocument(folder.id);
-            }}
-            className="inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
-            title="New Document"
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
-
-      {menuOpen && (
-        <div
-          className="fixed z-50 min-w-35 rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
-          style={{ left: menuPos.x, top: menuPos.y }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            onClick={() => {
-              setMenuOpen(false);
-              setRenameValue(folder.name || "");
-              setIsRenaming(true);
-              setTimeout(() => renameInputRef.current?.focus(), 0);
-            }}
-            className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-            Rename
-          </button>
-          <button
-            onClick={() => {
-              setMenuOpen(false);
-              onDeleteFolder(folder);
-            }}
-            className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-destructive hover:bg-accent"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Delete
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <button
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
+                title="Folder actions"
+              >
+                <MoreHorizontal className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="bottom">
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCreateDocument(folder.id);
+                }}
+              >
+                <Plus className="mr-2 h-3.5 w-3.5" />
+                Add Board
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setRenameValue(folder.name || "");
+                  setIsRenaming(true);
+                  setTimeout(() => renameInputRef.current?.focus(), 0);
+                }}
+              >
+                <Pencil className="mr-2 h-3.5 w-3.5" />
+                Rename
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteFolder(folder);
+                }}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="mr-2 h-3.5 w-3.5" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       )}
 

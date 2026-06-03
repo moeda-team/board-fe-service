@@ -1,18 +1,9 @@
 "use client";
 
 import { Navbar, Hero, Product, Solutions, Resources, Testimonials, FinalCTA, Footer } from "./home";
-import type { NavItem } from "./home";
+import type { Locale } from "./home";
 
-const NAV_ITEMS: NavItem[] = [
-  { label: "Product", href: "#product" },
-  { label: "Solutions", href: "#solutions" },
-  { label: "Resources", href: "#resources" },
-  { label: "Testimonials", href: "#testimonials" },
-  { label: "Pricing", href: "/pricing" },
-  { label: "FAQ", href: "/faq" },
-];
-
-export default function HomeClient() {
+export default function HomeClient({ locale = "en" }: { locale?: Locale }) {
   return (
     <>
       <style>{`
@@ -47,14 +38,14 @@ export default function HomeClient() {
         .btn-shine:hover::after { left:140%; }
       `}</style>
 
-      <Navbar navItems={NAV_ITEMS} />
-      <Hero />
-      <Product />
-      <Solutions />
-      <Resources />
-      <Testimonials />
-      <FinalCTA />
-      <Footer />
+      <Navbar locale={locale} />
+      <Hero locale={locale} />
+      <Product locale={locale} />
+      <Solutions locale={locale} />
+      <Resources locale={locale} />
+      <Testimonials locale={locale} />
+      <FinalCTA locale={locale} />
+      <Footer locale={locale} />
     </>
   );
 }

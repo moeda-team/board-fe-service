@@ -2,56 +2,139 @@
 
 import { useState } from "react";
 import { useReveal } from "./hooks";
+import type { Locale } from "./i18n";
 
-const FAQS = [
-  {
-    category: "Umum",
-    items: [
-      {
-        q: "Gimana cara coba gratis Papanclip?",
-        a: "Saat ini Papanclip masih dalam fase Beta Testing, jadi kamu bisa akses dan coba semua fitur secara gratis. Tinggal buka website Papanclip dan langsung mulai pakai tanpa ribet.",
-      },
-      {
-        q: "Fitur apa saja yang ada di Papanclip?",
-        a: "Papanclip menyediakan fitur task management, board sprint, monitoring progress, collaboration team, AI summary, attachment file, dan berbagai fitur productivity lainnya yang terus dikembangkan berdasarkan feedback user.",
-      },
-      {
-        q: "Apakah Papanclip bisa dipakai untuk banyak project dan user?",
-        a: "Bisa. Papanclip dirancang untuk kebutuhan tim dan perusahaan dengan jumlah project maupun user yang fleksibel tanpa batasan penggunaan normal.",
-      },
-      {
-        q: "Apakah Papanclip bisa dipakai di mobile?",
-        a: "Bisa. Papanclip dapat diakses melalui browser di desktop maupun mobile sehingga tetap nyaman digunakan di mana saja.",
-      },
-    ],
+type FaqGroup = { category: string; items: { q: string; a: string }[] };
+
+const FAQS: Record<Locale, FaqGroup[]> = {
+  id: [
+    {
+      category: "Umum",
+      items: [
+        {
+          q: "Gimana cara coba gratis Papanclip?",
+          a: "Saat ini Papanclip masih dalam fase Beta Testing, jadi kamu bisa akses dan coba semua fitur secara gratis. Tinggal buka website Papanclip dan langsung mulai pakai tanpa ribet.",
+        },
+        {
+          q: "Fitur apa saja yang ada di Papanclip?",
+          a: "Papanclip menyediakan fitur task management, board sprint, monitoring progress, collaboration team, AI summary, attachment file, dan berbagai fitur productivity lainnya yang terus dikembangkan berdasarkan feedback user.",
+        },
+        {
+          q: "Apakah Papanclip bisa dipakai untuk banyak project dan user?",
+          a: "Bisa. Papanclip dirancang untuk kebutuhan tim dan perusahaan dengan jumlah project maupun user yang fleksibel tanpa batasan penggunaan normal.",
+        },
+        {
+          q: "Apakah Papanclip bisa dipakai di mobile?",
+          a: "Bisa. Papanclip dapat diakses melalui browser di desktop maupun mobile sehingga tetap nyaman digunakan di mana saja.",
+        },
+      ],
+    },
+    {
+      category: "Storage & Data",
+      items: [
+        {
+          q: "Apakah ada batas upload storage?",
+          a: "Maksimal ukuran upload per file adalah 50 MB. Untuk total penyimpanan saat ini masih unlimited untuk penggunaan normal pekerjaan dan tidak disalahgunakan.",
+        },
+        {
+          q: "Sampai kapan data saya tersimpan di Papanclip?",
+          a: "Selama subscription Papanclip kamu masih aktif, data perusahaan akan tetap tersimpan dengan aman. Jika berhenti berlangganan, data masih akan disimpan selama 3 bulan sebelum dihapus permanen.",
+        },
+      ],
+    },
+    {
+      category: "Support",
+      items: [
+        {
+          q: "Kalau ada kendala bisa tanya ke mana?",
+          a: "Kamu bisa hubungi tim support Papanclip via email: support.papanclip@gmail.com",
+        },
+        {
+          q: "Support Papanclip tersedia jam berapa?",
+          a: "Tim support Papanclip siap membantu 24 jam.",
+        },
+      ],
+    },
+  ],
+  en: [
+    {
+      category: "General",
+      items: [
+        {
+          q: "How do I try Papanclip for free?",
+          a: "Papanclip is currently in its Beta Testing phase, so you can access and try every feature for free. Just open the Papanclip website and start using it right away — no hassle.",
+        },
+        {
+          q: "What features does Papanclip offer?",
+          a: "Papanclip provides task management, sprint boards, progress monitoring, team collaboration, AI summaries, file attachments, and many other productivity features that we keep improving based on user feedback.",
+        },
+        {
+          q: "Can Papanclip be used for many projects and users?",
+          a: "Yes. Papanclip is designed for teams and companies with a flexible number of projects and users, with no limits under normal usage.",
+        },
+        {
+          q: "Can I use Papanclip on mobile?",
+          a: "Yes. Papanclip works in the browser on both desktop and mobile, so it stays comfortable to use anywhere.",
+        },
+      ],
+    },
+    {
+      category: "Storage & Data",
+      items: [
+        {
+          q: "Is there an upload storage limit?",
+          a: "The maximum upload size per file is 50 MB. Total storage is currently unlimited for normal work usage that is not abused.",
+        },
+        {
+          q: "How long is my data stored in Papanclip?",
+          a: "As long as your Papanclip subscription is active, your company data stays safely stored. If you cancel, your data is kept for 3 months before being permanently deleted.",
+        },
+      ],
+    },
+    {
+      category: "Support",
+      items: [
+        {
+          q: "Where can I go if I run into issues?",
+          a: "You can contact the Papanclip support team via email: support.papanclip@gmail.com",
+        },
+        {
+          q: "What hours is Papanclip support available?",
+          a: "The Papanclip support team is ready to help 24 hours a day.",
+        },
+      ],
+    },
+  ],
+};
+
+const FAQ_COPY: Record<Locale, {
+  label: string;
+  title: string;
+  notFound: string;
+  contactLink: string;
+  ctaTitle: string;
+  ctaSubtitle: string;
+  ctaButton: string;
+}> = {
+  id: {
+    label: "FAQ",
+    title: "Pertanyaan yang sering ditanyakan.",
+    notFound: "Tidak menemukan jawaban yang kamu cari?",
+    contactLink: "Hubungi kami",
+    ctaTitle: "Masih ada pertanyaan?",
+    ctaSubtitle: "Tim kami siap membantu kamu 24 jam.",
+    ctaButton: "Hubungi support"
   },
-  {
-    category: "Storage & Data",
-    items: [
-      {
-        q: "Apakah ada batas upload storage?",
-        a: "Maksimal ukuran upload per file adalah 50 MB. Untuk total penyimpanan saat ini masih unlimited untuk penggunaan normal pekerjaan dan tidak disalahgunakan.",
-      },
-      {
-        q: "Sampai kapan data saya tersimpan di Papanclip?",
-        a: "Selama subscription Papanclip kamu masih aktif, data perusahaan akan tetap tersimpan dengan aman. Jika berhenti berlangganan, data masih akan disimpan selama 3 bulan sebelum dihapus permanen.",
-      },
-    ],
-  },
-  {
-    category: "Support",
-    items: [
-      {
-        q: "Kalau ada kendala bisa tanya ke mana?",
-        a: "Kamu bisa hubungi tim support Papanclip via email: support.papanclip@gmail.com",
-      },
-      {
-        q: "Support Papanclip tersedia jam berapa?",
-        a: "Tim support Papanclip siap membantu 24 jam.",
-      },
-    ],
-  },
-];
+  en: {
+    label: "FAQ",
+    title: "Frequently asked questions.",
+    notFound: "Can't find the answer you're looking for?",
+    contactLink: "Contact us",
+    ctaTitle: "Still have questions?",
+    ctaSubtitle: "Our team is ready to help you 24 hours a day.",
+    ctaButton: "Contact support"
+  }
+};
 
 function ChevronIcon({ open }: { open: boolean }) {
   return (
@@ -69,11 +152,14 @@ function ChevronIcon({ open }: { open: boolean }) {
 
 interface FAQProps {
   standalone?: boolean;
+  locale?: Locale;
 }
 
-export function FAQ({ standalone = false }: FAQProps) {
+export function FAQ({ standalone = false, locale = "en" }: FAQProps) {
   const reveal = useReveal();
   const [open, setOpen] = useState<string | null>("0-0");
+  const faqs = FAQS[locale];
+  const copy = FAQ_COPY[locale];
 
   const toggle = (key: string) => setOpen((prev) => (prev === key ? null : key));
 
@@ -86,14 +172,14 @@ export function FAQ({ standalone = false }: FAQProps) {
 
         {/* Header */}
         <div className={`text-center mb-14 reveal-up ${reveal.visible ? "revealed" : ""}`}>
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">FAQ</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">{copy.label}</p>
           <h2 className="text-4xl md:text-5xl font-serif font-bold text-gray-900">
-            Pertanyaan yang sering ditanyakan.
+            {copy.title}
           </h2>
           <p className="text-gray-500 mt-4 max-w-md mx-auto">
-            Tidak menemukan jawaban yang kamu cari?{" "}
+            {copy.notFound}{" "}
             <a href="mailto:support.papanclip@gmail.com" className="text-blue-500 hover:underline">
-              Hubungi kami
+              {copy.contactLink}
             </a>
             .
           </p>
@@ -101,7 +187,7 @@ export function FAQ({ standalone = false }: FAQProps) {
 
         {/* Accordion by category */}
         <div className={`space-y-10 reveal-up stagger-2 ${reveal.visible ? "revealed" : ""}`}>
-          {FAQS.map((group, gi) => (
+          {faqs.map((group, gi) => (
             <div key={group.category}>
               <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4 pb-2 border-b border-gray-100">
                 {group.category}
@@ -142,14 +228,14 @@ export function FAQ({ standalone = false }: FAQProps) {
         {/* CTA strip */}
         <div className={`mt-16 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-900 rounded-2xl px-8 py-6 reveal-up stagger-3 ${reveal.visible ? "revealed" : ""}`}>
           <div>
-            <p className="font-semibold text-white">Masih ada pertanyaan?</p>
-            <p className="text-sm text-gray-400 mt-0.5">Tim kami siap membantu kamu 24 jam.</p>
+            <p className="font-semibold text-white">{copy.ctaTitle}</p>
+            <p className="text-sm text-gray-400 mt-0.5">{copy.ctaSubtitle}</p>
           </div>
           <a
             href="mailto:support.papanclip@gmail.com"
             className="shrink-0 text-sm font-semibold bg-white text-gray-900 px-5 py-2.5 rounded-xl hover:bg-gray-100 transition-colors"
           >
-            Hubungi support
+            {copy.ctaButton}
           </a>
         </div>
 

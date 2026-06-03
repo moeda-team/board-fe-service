@@ -1,18 +1,9 @@
 "use client";
 
 import { Navbar, FAQ, Footer } from "../home";
-import type { NavItem } from "../home";
+import type { Locale } from "../home";
 
-const NAV_ITEMS: NavItem[] = [
-  { label: "Product", href: "/#product" },
-  { label: "Solutions", href: "/#solutions" },
-  { label: "Resources", href: "/#resources" },
-  { label: "Testimonials", href: "/#testimonials" },
-  { label: "Pricing", href: "/pricing" },
-  { label: "FAQ", href: "/faq" },
-];
-
-export default function FaqClient() {
+export default function FaqClient({ locale = "en" }: { locale?: Locale }) {
   return (
     <>
       <style>{`
@@ -30,9 +21,9 @@ export default function FaqClient() {
         .stagger-3 { transition-delay: 160ms !important; }
       `}</style>
 
-      <Navbar navItems={NAV_ITEMS} />
-      <FAQ standalone />
-      <Footer />
+      <Navbar locale={locale} />
+      <FAQ standalone locale={locale} />
+      <Footer locale={locale} />
     </>
   );
 }

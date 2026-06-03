@@ -1,9 +1,26 @@
 "use client";
 
 import { useReveal } from "./hooks";
+import type { Locale } from "./i18n";
 
-export function Solutions() {
+const CONTENT: Record<Locale, { label: string; title: string; paragraph: string }> = {
+  en: {
+    label: "Solutions",
+    title: "More than task management.",
+    paragraph:
+      "Papanclip combines the structure of Notion, the workflow of Jira, and enterprise-grade access control — without the complexity."
+  },
+  id: {
+    label: "Solusi",
+    title: "Lebih dari sekadar manajemen tugas.",
+    paragraph:
+      "Papanclip memadukan struktur ala Notion, workflow ala Jira, dan kontrol akses kelas enterprise — tanpa kerumitan."
+  }
+};
+
+export function Solutions({ locale = "en" }: { locale?: Locale }) {
   const solutionsReveal = useReveal(0);
+  const c = CONTENT[locale];
 
   return (
     <section
@@ -15,14 +32,13 @@ export function Solutions() {
           className={`text-center mb-16 reveal-up ${solutionsReveal.visible ? "revealed" : ""}`}
         >
           <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
-            Solutions
+            {c.label}
           </p>
           <h2 className="text-4xl md:text-5xl font-serif font-bold text-gray-900">
-            More than task management.
+            {c.title}
           </h2>
           <p className="mt-4 text-gray-500 max-w-xl mx-auto">
-            Papanclip combines the structure of Notion, the workflow of Jira,
-            and enterprise-grade access control — without the complexity.
+            {c.paragraph}
           </p>
         </div>
         <video

@@ -1,18 +1,9 @@
 "use client";
 
 import { Navbar, Pricing, Footer } from "../home";
-import type { NavItem } from "../home";
+import type { Locale } from "../home";
 
-const NAV_ITEMS: NavItem[] = [
-  { label: "Product", href: "/#product" },
-  { label: "Solutions", href: "/#solutions" },
-  { label: "Resources", href: "/#resources" },
-  { label: "Testimonials", href: "/#testimonials" },
-  { label: "Pricing", href: "/pricing" },
-  { label: "FAQ", href: "/faq" },
-];
-
-export default function PricingClient() {
+export default function PricingClient({ locale = "en" }: { locale?: Locale }) {
   return (
     <>
       <style>{`
@@ -47,9 +38,9 @@ export default function PricingClient() {
         .btn-shine:hover::after { left:140%; }
       `}</style>
 
-      <Navbar navItems={NAV_ITEMS} />
-      <Pricing standalone />
-      <Footer />
+      <Navbar locale={locale} />
+      <Pricing standalone locale={locale} />
+      <Footer locale={locale} />
     </>
   );
 }

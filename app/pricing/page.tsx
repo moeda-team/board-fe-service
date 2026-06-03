@@ -6,7 +6,12 @@ export const metadata: Metadata = {
   description:
     "PapanClip pricing plans for project management and task management software. Choose the plan that fits your agile team and start planning sprints, tracking tasks, and shipping faster.",
   alternates: {
-    canonical: "/pricing"
+    canonical: "/pricing",
+    languages: {
+      en: "/pricing",
+      id: "/id/pricing",
+      "x-default": "/pricing"
+    }
   }
 };
 

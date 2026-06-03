@@ -9,4 +9,11 @@ export { FAQ } from "./FAQ";
 export { Footer } from "./Footer";
 export { Pricing, PLANS, Check } from "./Pricing";
 export { anim, useReveal, useCountUp } from "./hooks";
+export {
+    locales,
+    defaultLocale,
+    localizedPath,
+    switchLocalePath
+} from "./i18n";
+export type { Locale } from "./i18n";
 export type { Task, Column, Plan, NavItem } from "./types";

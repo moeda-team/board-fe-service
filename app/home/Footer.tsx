@@ -1,8 +1,23 @@
 "use client";
 
 import Image from "next/image";
+import type { Locale } from "./i18n";
 
-export function Footer() {
+const CONTENT: Record<Locale, { description: string; tagline: string }> = {
+  en: {
+    description:
+      "PapanClip is project management and task management software for agile teams. Manage projects, tasks, sprints, and software development workflows in one platform — helping teams plan, track, and deliver projects faster. A Jira, ClickUp, and Trello alternative for software teams.",
+    tagline: "Built for high-performance teams"
+  },
+  id: {
+    description:
+      "PapanClip adalah software manajemen proyek dan aplikasi manajemen tugas untuk tim agile. Kelola proyek, tugas, sprint, dan workflow pengembangan software dalam satu platform — bantu tim merencanakan, melacak, dan menyelesaikan proyek lebih cepat. Alternatif Jira, ClickUp, dan Trello untuk tim developer di Indonesia.",
+    tagline: "Dibuat untuk tim berperforma tinggi"
+  }
+};
+
+export function Footer({ locale = "en" }: { locale?: Locale }) {
+  const c = CONTENT[locale];
   return (
     <footer className="bg-gray-950 border-t border-white/5 py-8 px-8 text-center text-xs text-gray-400">
       <div className="flex flex-col items-center gap-3">
@@ -14,13 +29,9 @@ export function Footer() {
           className="opacity-60 brightness-0 invert"
         />
         <p className="max-w-2xl text-balance leading-relaxed text-gray-500">
-          PapanClip adalah software manajemen proyek dan aplikasi manajemen
-          tugas untuk tim agile. Kelola proyek, tugas, sprint, dan workflow
-          pengembangan software dalam satu platform — bantu tim merencanakan,
-          melacak, dan menyelesaikan proyek lebih cepat. Alternatif Jira,
-          ClickUp, dan Trello untuk tim developer di Indonesia.
+          {c.description}
         </p>
-        <span>© {new Date().getFullYear()} PapanClip · Built for high-performance teams</span>
+        <span>© {new Date().getFullYear()} PapanClip · {c.tagline}</span>
       </div>
     </footer>
   );

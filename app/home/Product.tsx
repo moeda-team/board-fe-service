@@ -1,9 +1,46 @@
 "use client";
 
 import { useReveal } from "./hooks";
+import type { Locale } from "./i18n";
 
-export function Product() {
+const CONTENT: Record<Locale, {
+  label: string;
+  titleLines: string[];
+  titleAccent: string;
+  paragraph: string;
+  features: { title: string; desc: string }[];
+}> = {
+  en: {
+    label: "Platform",
+    titleLines: ["One workspace.", "Every team."],
+    titleAccent: "Total clarity.",
+    paragraph:
+      "Spaces, Folders, Boards, and Docs — all structured in one place. No more juggling between apps to track what your team is working on.",
+    features: [
+      { title: "Custom Roles", desc: "Granular access control with flexible roles and permissions." },
+      { title: "Multi-Tenant Access", desc: "Invite other companies and collaborate across organizations." },
+      { title: "Unlimited Workspaces", desc: "Create unlimited workspaces to organize projects your way." },
+      { title: "Unlimited Users", desc: "Add as many users as you need. No seat limits, ever." }
+    ]
+  },
+  id: {
+    label: "Platform",
+    titleLines: ["Satu workspace.", "Semua tim."],
+    titleAccent: "Jelas seluruhnya.",
+    paragraph:
+      "Spaces, Folder, Board, dan Dokumen — semua tertata di satu tempat. Tak perlu lagi berpindah-pindah aplikasi untuk memantau pekerjaan tim.",
+    features: [
+      { title: "Role Kustom", desc: "Kontrol akses granular dengan role dan permission yang fleksibel." },
+      { title: "Akses Multi-Tenant", desc: "Undang perusahaan lain dan berkolaborasi lintas organisasi." },
+      { title: "Workspace Tanpa Batas", desc: "Buat workspace tanpa batas untuk mengatur proyek sesuai cara Anda." },
+      { title: "User Tanpa Batas", desc: "Tambahkan user sebanyak yang Anda butuhkan. Tanpa batas seat." }
+    ]
+  }
+};
+
+export function Product({ locale = "en" }: { locale?: Locale }) {
   const productReveal = useReveal();
+  const c = CONTENT[locale];
 
   return (
     <section id="product" className="min-h-screen bg-white flex items-center px-8 py-24">
@@ -73,17 +110,16 @@ export function Product() {
         </div>
 
         <div className={`flex-1 reveal-right ${productReveal.visible ? "revealed" : ""}`}>
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Platform</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">{c.label}</p>
           <h2 className="text-4xl md:text-5xl font-serif font-bold text-gray-900 leading-tight">
-            One workspace.
+            {c.titleLines[0]}
             <br />
-            Every team.
+            {c.titleLines[1]}
             <br />
-            <span style={{ color: "#53A3FF" }}>Total clarity.</span>
+            <span style={{ color: "#53A3FF" }}>{c.titleAccent}</span>
           </h2>
           <p className="mt-5 text-gray-500 leading-relaxed max-w-md">
-            Spaces, Folders, Boards, and Docs — all structured in one place. No more juggling between apps to track what
-            your team is working on.
+            {c.paragraph}
           </p>
           <div className="mt-10 grid grid-cols-2 gap-4">
             {[
@@ -105,8 +141,6 @@ export function Product() {
                   </svg>
                 ),
                 iconBg: "#EDEAFD",
-                title: "Custom Roles",
-                desc: "Granular access control with flexible roles and permissions.",
               },
               {
                 icon: (
@@ -128,8 +162,6 @@ export function Product() {
                   </svg>
                 ),
                 iconBg: "#FDE8F3",
-                title: "Multi-Tenant Access",
-                desc: "Invite other companies and collaborate across organizations.",
               },
               {
                 icon: (
@@ -148,8 +180,6 @@ export function Product() {
                   </svg>
                 ),
                 iconBg: "#D1FAE5",
-                title: "Unlimited Workspaces",
-                desc: "Create unlimited workspaces to organize projects your way.",
               },
               {
                 icon: (
@@ -172,12 +202,10 @@ export function Product() {
                   </svg>
                 ),
                 iconBg: "#DBEAFE",
-                title: "Unlimited Users",
-                desc: "Add as many users as you need. No seat limits, ever.",
               },
-            ].map(({ icon, iconBg, title, desc }, i) => (
+            ].map(({ icon, iconBg }, i) => (
               <div
-                key={title}
+                key={c.features[i].title}
                 className={`bg-white rounded-2xl p-5 border border-gray-100 shadow-sm reveal-scale stagger-${i + 1} ${productReveal.visible ? "revealed" : ""}`}
               >
                 <div
@@ -186,8 +214,8 @@ export function Product() {
                 >
                   {icon}
                 </div>
-                <div className="text-base font-bold text-gray-900 mb-1">{title}</div>
-                <div className="text-sm text-gray-500 leading-relaxed">{desc}</div>
+                <div className="text-base font-bold text-gray-900 mb-1">{c.features[i].title}</div>
+                <div className="text-sm text-gray-500 leading-relaxed">{c.features[i].desc}</div>
               </div>
             ))}
           </div>

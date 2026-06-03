@@ -3,7 +3,51 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { anim } from "./hooks";
+import type { Locale } from "./i18n";
 import type { Column, Task } from "./types";
+
+const CONTENT: Record<Locale, {
+  badge: string;
+  titleLines: string[];
+  titleAccent: string;
+  subtitle: string;
+  ctaPrimary: string;
+  ctaSecondary: string;
+  boardLabel: string;
+  topDeveloper: string;
+  accessControl: string;
+  canEdit: string;
+  viewOnly: string;
+}> = {
+  en: {
+    badge: "Built for startups, agencies & engineering teams",
+    titleLines: ["Manage projects,", "docs, and team"],
+    titleAccent: "collaboration.",
+    subtitle:
+      "Plan tasks, organize knowledge, and control access — one unified workspace for teams that need real structure, not another to-do list.",
+    ctaPrimary: "Sign up, it's Free!",
+    ctaSecondary: "Book a Demo",
+    boardLabel: "Papanclip — Engineering Sprint",
+    topDeveloper: "Top Developer",
+    accessControl: "Access Control",
+    canEdit: "Can Edit",
+    viewOnly: "View Only"
+  },
+  id: {
+    badge: "Dibuat untuk startup, agency & tim developer",
+    titleLines: ["Kelola proyek,", "dokumen, dan"],
+    titleAccent: "kolaborasi tim.",
+    subtitle:
+      "Rencanakan tugas, atur pengetahuan, dan kontrol akses — satu workspace terpadu untuk tim yang butuh struktur nyata, bukan sekadar to-do list.",
+    ctaPrimary: "Daftar, Gratis!",
+    ctaSecondary: "Jadwalkan Demo",
+    boardLabel: "Papanclip — Sprint Engineering",
+    topDeveloper: "Developer Terbaik",
+    accessControl: "Kontrol Akses",
+    canEdit: "Bisa Edit",
+    viewOnly: "Lihat Saja"
+  }
+};
 
 const INITIAL_COLUMNS: Column[] = [
   {
@@ -86,7 +130,8 @@ function ProgressBar({
   );
 }
 
-function KanbanBoard() {
+function KanbanBoard({ locale }: { locale: Locale }) {
+  const c = CONTENT[locale];
   const [columns, setColumns] = useState<Column[]>(INITIAL_COLUMNS);
   const [mounted, setMounted] = useState(false);
   const [draggedTask, setDraggedTask] = useState<{
@@ -172,7 +217,7 @@ function KanbanBoard() {
           <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
           <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
           <span className="ml-3 text-sm text-gray-400 font-medium">
-            Papanclip — Engineering Sprint
+            {c.boardLabel}
           </span>
         </div>
         <div className="flex gap-4 p-5 flex-1 overflow-auto">
@@ -253,7 +298,7 @@ function KanbanBoard() {
 
       <div className="float-slow absolute -top-4 -right-6 bg-white rounded-xl shadow-lg border border-gray-100 px-4 py-3 w-44">
         <p className="text-xs text-gray-400 font-medium mb-1.5">
-          Top Developer
+          {c.topDeveloper}
         </p>
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-full bg-indigo-500 text-white text-[10px] flex items-center justify-center font-bold">
@@ -267,15 +312,15 @@ function KanbanBoard() {
       </div>
 
       <div className="float absolute -bottom-2 -left-8 bg-white rounded-xl shadow-lg border border-gray-100 px-4 py-3 w-52">
-        <p className="text-xs text-gray-400 font-medium mb-2">Access Control</p>
+        <p className="text-xs text-gray-400 font-medium mb-2">{c.accessControl}</p>
         {[
-          ["Dev", "Can Edit", "bg-blue-400"],
-          ["Client", "View Only", "bg-yellow-400"]
-        ].map(([r, a, c]) => (
+          ["Dev", c.canEdit, "bg-blue-400"],
+          ["Client", c.viewOnly, "bg-yellow-400"]
+        ].map(([r, a, color]) => (
           <div key={r} className="flex items-center justify-between mb-1">
             <span className="text-sm text-gray-700">{r}</span>
             <div className="flex items-center gap-1">
-              <div className={`w-1.5 h-1.5 rounded-full ${c}`} />
+              <div className={`w-1.5 h-1.5 rounded-full ${color}`} />
               <span className="text-xs text-gray-400">{a}</span>
             </div>
           </div>
@@ -285,7 +330,8 @@ function KanbanBoard() {
   );
 }
 
-export function Hero() {
+export function Hero({ locale = "en" }: { locale?: Locale }) {
+  const c = CONTENT[locale];
   return (
     <div
       className="relative min-h-screen flex flex-col overflow-hidden pt-[72px]"
@@ -302,25 +348,23 @@ export function Hero() {
               style={anim("50ms")}
             >
               <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-              Built for startups, agencies &amp; engineering teams
+              {c.badge}
             </div>
             <h1
               className="text-5xl md:text-[3.8rem] font-serif font-bold text-gray-900 leading-[1.1] tracking-tight"
               style={anim("150ms")}
             >
-              Manage projects,
+              {c.titleLines[0]}
               <br />
-              docs, and team
+              {c.titleLines[1]}
               <br />
-              <span style={{ color: "#53A3FF" }}>collaboration.</span>
+              <span style={{ color: "#53A3FF" }}>{c.titleAccent}</span>
             </h1>
             <p
               className="mt-6 text-lg text-gray-600 max-w-lg leading-relaxed"
               style={anim("300ms")}
             >
-              Plan tasks, organize knowledge, and control access — one unified
-              workspace for teams that need real structure, not another to-do
-              list.
+              {c.subtitle}
             </p>
             <div
               className="mt-9 flex items-center gap-4 flex-wrap"
@@ -330,18 +374,18 @@ export function Hero() {
                 href="/login"
                 className="btn-shine bg-gray-900 text-white px-7 py-3.5 rounded-xl text-sm font-semibold hover:bg-gray-700 transition-colors shadow-lg"
               >
-                Sign up, it&apos;s Free!
+                {c.ctaPrimary}
               </Link>
               <Link
                 href="/login"
                 className="bg-white/60 backdrop-blur-sm border border-white/80 text-gray-800 px-7 py-3.5 rounded-xl text-sm font-semibold hover:bg-white/80 transition-colors"
               >
-                Book a Demo
+                {c.ctaSecondary}
               </Link>
             </div>
           </div>
 
-          <KanbanBoard />
+          <KanbanBoard locale={locale} />
         </div>
       </div>
     </div>

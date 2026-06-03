@@ -2,6 +2,12 @@
 
 import { useState } from "react";
 import { useReveal } from "./hooks";
+import type { Locale } from "./i18n";
+
+const HEADING: Record<Locale, { label: string; titlePrefix: string; titleAccent: string }> = {
+  en: { label: "Testimonials", titlePrefix: "Loved by", titleAccent: "teams." },
+  id: { label: "Testimoni", titlePrefix: "Disukai", titleAccent: "banyak tim." }
+};
 
 /* ── Social-proof tweets ──────────────────────────────────── */
 const TWEETS = [
@@ -161,10 +167,11 @@ const REVIEWS = {
   ],
 };
 
-export function Testimonials() {
+export function Testimonials({ locale = "en" }: { locale?: Locale }) {
   const tweetsReveal = useReveal();
   const reviewsReveal = useReveal();
-  const [lang, setLang] = useState<"en" | "id">("en");
+  const [lang, setLang] = useState<"en" | "id">(locale);
+  const h = HEADING[locale];
 
   const reviews = REVIEWS[lang];
 
@@ -174,9 +181,9 @@ export function Testimonials() {
       <section id="testimonials" className="py-28 px-8 overflow-hidden bg-white">
         <div ref={reviewsReveal.ref} className="max-w-6xl mx-auto w-full">
           <div className={`text-center mb-14 reveal-up ${reviewsReveal.visible ? "revealed" : ""}`}>
-            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Testimonials</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">{h.label}</p>
             <h2 className="text-4xl md:text-5xl font-serif font-bold text-gray-900 leading-tight">
-              Loved by <span style={{ color: "#53A3FF" }}>teams.</span>
+              {h.titlePrefix} <span style={{ color: "#53A3FF" }}>{h.titleAccent}</span>
             </h2>
             <div className="mt-6 inline-flex items-center bg-white border border-gray-200 rounded-xl p-1 gap-1">
               <button

@@ -9,7 +9,12 @@ export const metadata: Metadata = {
   description:
     "Manage projects, tasks, sprints, teams, and software development workflows in one platform. PapanClip helps teams plan, track, and deliver projects faster.",
   alternates: {
-    canonical: "/"
+    canonical: "/",
+    languages: {
+      en: "/",
+      id: "/id",
+      "x-default": "/"
+    }
   }
 };
 

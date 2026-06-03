@@ -6,7 +6,12 @@ export const metadata: Metadata = {
   description:
     "Frequently asked questions about PapanClip — the project management and task management software for agile teams, sprint planning, and software development workflows.",
   alternates: {
-    canonical: "/faq"
+    canonical: "/faq",
+    languages: {
+      en: "/faq",
+      id: "/id/faq",
+      "x-default": "/faq"
+    }
   }
 };
 

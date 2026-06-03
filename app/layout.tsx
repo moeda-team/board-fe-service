@@ -15,7 +15,10 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Papanclip",
   description:
-    "Project management board — manage spaces, tasks, members, and track developer KPIs"
+    "Project management board — manage spaces, tasks, members, and track developer KPIs",
+  verification: {
+    google: "6dRmZQkL7tBQSoYX3eBQb_0eVNoGltIg98YHPE9Uy2A"
+  }
 };
 
 export default function RootLayout({

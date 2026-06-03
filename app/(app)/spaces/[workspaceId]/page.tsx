@@ -425,7 +425,7 @@ export default function WorkspaceDetailPage() {
       {/* Main Content */}
       <div className="flex flex-1 min-w-0 flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between border-b px-6 py-3">
+        <div className="flex items-center justify-between px-6 py-3">
           <div className="flex items-center gap-4">
             <SidebarTrigger className="-ml-1" />
             <div className="flex items-center gap-2">
@@ -443,7 +443,6 @@ export default function WorkspaceDetailPage() {
                 </Button>
               )}
             </div>
-            <ViewTabs activeView={activeView} onChange={setActiveView} />
           </div>
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -478,6 +477,11 @@ export default function WorkspaceDetailPage() {
               New Task
             </Button>
           </div>
+        </div>
+
+        {/* View Tabs */}
+        <div className="flex items-center border-b px-6 py-2">
+          <ViewTabs activeView={activeView} onChange={setActiveView} />
         </div>
 
         {/* Content Area */}

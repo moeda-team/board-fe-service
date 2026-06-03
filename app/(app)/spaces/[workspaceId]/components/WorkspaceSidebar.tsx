@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { Plus, Building2, ChevronDown, Check } from "lucide-react";
+import { Plus, Building2, ChevronDown, Check, GripVertical, Folder as FolderIcon, FolderOpen, FileText } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,15 +16,20 @@ import {
 } from "@/components/ui/tooltip";
 import {
   DndContext,
+  DragOverlay,
   KeyboardSensor,
+  MeasuringStrategy,
   MouseSensor,
   TouchSensor,
   closestCorners,
+  pointerWithin,
+  rectIntersection,
   useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
-  type DragOverEvent
+  type DragOverEvent,
+  type DragStartEvent
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -125,6 +130,14 @@ export function WorkspaceSidebar({
   const folderDropId = (folderId: string) => `folder-drop-${folderId}`;
   const rootDropId = "root-drop";
 
+  const customCollisionDetection = (args: Parameters<typeof pointerWithin>[0]) => {
+    const pointerCollisions = pointerWithin(args);
+    if (pointerCollisions && pointerCollisions.length > 0) {
+      return pointerCollisions;
+    }
+    return rectIntersection(args);
+  };
+
   const rootBoards = boardsByFolder["uncategorized"] || [];
   const folderItems = folders.map((f) => folderDndId(f.id));
   const rootBoardItems = rootBoards.map((b) => boardDndId(b.id));
@@ -134,6 +147,12 @@ export function WorkspaceSidebar({
   const dragStateRef = useRef<{
     originalBoards: Board[] | null;
   }>({ originalBoards: null });
+
+  const [dragActiveId, setDragActiveId] = useState<string | null>(null);
+
+  const handleDragStart = ({ active }: DragStartEvent) => {
+    setDragActiveId(String(active.id));
+  };
 
   const handleDragOver = ({ active, over }: DragOverEvent) => {
     if (!over) return;
@@ -240,12 +259,23 @@ export function WorkspaceSidebar({
   };
 
   const handleDragEnd = async ({ active, over }: DragEndEvent) => {
+    setDragActiveId(null);
     if (!over) return;
 
     const activeId = String(active.id);
     const overId = String(over.id);
 
-    if (activeId.startsWith("folder-") && overId.startsWith("folder-")) {
+    let resolvedOverId = overId;
+    if (activeId.startsWith("folder-") && overId.startsWith("board-")) {
+      const overBoardId = overId.slice("board-".length);
+      const allBoards = Object.values(boardsByFolder).flat();
+      const overBoard = allBoards.find((b) => b.id === overBoardId);
+      if (overBoard?.folderId) {
+        resolvedOverId = folderDndId(overBoard.folderId);
+      }
+    }
+
+    if (activeId.startsWith("folder-") && resolvedOverId.startsWith("folder-")) {
       const previousFolders =
         queryClient.getQueryData<Folder[]>(
           foldersQueryKey(tenantId, workspaceId)
@@ -255,7 +285,7 @@ export function WorkspaceSidebar({
         (f) => folderDndId(f.id) === activeId
       );
       const newIndex = previousFolders.findIndex(
-        (f) => folderDndId(f.id) === overId
+        (f) => folderDndId(f.id) === resolvedOverId
       );
 
       if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return;
@@ -479,7 +509,9 @@ export function WorkspaceSidebar({
         ) : (
           <DndContext
             sensors={sensors}
-            collisionDetection={closestCorners}
+            collisionDetection={customCollisionDetection}
+            measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+            onDragStart={handleDragStart}
             onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
           >
@@ -534,6 +566,47 @@ export function WorkspaceSidebar({
                 New Folder
               </Button>
             </div>
+
+            <DragOverlay dropAnimation={{ duration: 200, easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)" }}>
+              {dragActiveId ? (() => {
+                if (dragActiveId.startsWith("folder-")) {
+                  const fid = dragActiveId.slice("folder-".length);
+                  const folder = folders.find((f) => f.id === fid);
+                  if (!folder) return null;
+                  return (
+                    <div
+                      className="flex items-center gap-1 rounded-md border bg-background px-1 py-1 shadow-lg opacity-90"
+                      style={{ width: 240 }}
+                    >
+                      <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground opacity-50" />
+                      <FolderOpen className="h-4 w-4 shrink-0 text-amber-500" />
+                      <span className="flex-1 truncate text-sm font-medium">
+                        {folder.name || "Untitled"}
+                      </span>
+                    </div>
+                  );
+                }
+                if (dragActiveId.startsWith("board-")) {
+                  const bid = dragActiveId.slice("board-".length);
+                  const allBoards = Object.values(boardsByFolder).flat();
+                  const board = allBoards.find((b) => b.id === bid);
+                  if (!board) return null;
+                  return (
+                    <div
+                      className="flex items-center gap-2 rounded-md border bg-background px-2 py-1.5 shadow-lg opacity-90"
+                      style={{ width: 240 }}
+                    >
+                      <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground opacity-50" />
+                      <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <span className="truncate text-sm">
+                        {board.name || "Untitled"}
+                      </span>
+                    </div>
+                  );
+                }
+                return null;
+              })() : null}
+            </DragOverlay>
           </DndContext>
         )}
       </div>

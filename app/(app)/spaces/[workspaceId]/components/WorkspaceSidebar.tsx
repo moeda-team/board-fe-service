@@ -108,7 +108,7 @@ export function WorkspaceSidebar({
   const sensors = useSensors(
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 250,
+        delay: 150,
         tolerance: 5
       }
     }),

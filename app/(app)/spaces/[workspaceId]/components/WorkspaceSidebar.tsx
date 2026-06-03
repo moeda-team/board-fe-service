@@ -503,9 +503,20 @@ export function WorkspaceSidebar({
             ))}
           </div>
         ) : folders.length === 0 && rootBoards.length === 0 ? (
-          <p className="px-2 py-4 text-center text-xs text-muted-foreground">
-            No folders yet.
-          </p>
+          <div className="flex flex-col gap-1">
+            <p className="px-2 py-4 text-center text-xs text-muted-foreground">
+              No folders yet.
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-1 w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+              onClick={onCreateFolder}
+            >
+              <Plus className="h-4 w-4" />
+              New Folder
+            </Button>
+          </div>
         ) : (
           <DndContext
             sensors={sensors}

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import {
   SidebarProvider,
   SidebarInset,
@@ -5,6 +6,13 @@ import {
 } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ApiAuthProvider } from "@/providers/api-auth-provider";
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false
+  }
+};
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (

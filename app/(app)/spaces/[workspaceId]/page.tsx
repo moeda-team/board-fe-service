@@ -564,7 +564,6 @@ export default function WorkspaceDetailPage() {
         onOpenChange={setIsCreateTaskOpen}
         columns={columns}
         defaultColumnId={creatingInColumnId}
-        members={members}
         tenantId={tenantId}
         workspaceId={workspaceId}
         boardId={activeBoardId || ""}

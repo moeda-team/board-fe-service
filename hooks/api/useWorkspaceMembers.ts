@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import apiClient from "@/lib/apiClient";
-import { unwrapApiArrayData, unwrapApiData } from "@/types/api";
+import { unwrapApiArrayData, unwrapApiData, type ApiEnvelope } from "@/types/api";
 import {
   AddWorkspaceMemberParams,
   Member,
@@ -17,11 +17,38 @@ export const useAvailableWorkspaceMembers = (tenantId: string, workspaceId: stri
   }
 });
 
+interface WorkspaceMemberRecord {
+  workspaceId?: string;
+  userId?: string;
+  addedBy?: string;
+  createdAt?: string;
+  user?: {
+    id?: string;
+    email?: string;
+    username?: string;
+    fullName?: string;
+    avatarUrl?: string | null;
+  };
+}
+
+const normalizeWorkspaceMember = (record: WorkspaceMemberRecord): Member => {
+  const user = record.user ?? {};
+  return {
+    id: user.id ?? record.userId ?? "",
+    userId: record.userId ?? user.id,
+    email: user.email,
+    username: user.username,
+    fullName: user.fullName,
+    avatarUrl: user.avatarUrl ?? null,
+    joinedAt: record.createdAt ?? null
+  };
+};
+
 export const useWorkspaceMembers = (tenantId: string, workspaceId: string) => useQuery({
   queryKey: ["workspaceMembers", tenantId, workspaceId],
   queryFn: async () => {
-    const { data } = await apiClient.get<WorkspaceMembersEnvelope>(`/api/tenants/${tenantId}/workspaces/${workspaceId}/members`);
-    return unwrapApiArrayData(data);
+    const { data } = await apiClient.get<ApiEnvelope<WorkspaceMemberRecord[] | WorkspaceMemberRecord>>(`/api/tenants/${tenantId}/workspaces/${workspaceId}/members`);
+    return unwrapApiArrayData(data).map(normalizeWorkspaceMember);
   }
 });
 

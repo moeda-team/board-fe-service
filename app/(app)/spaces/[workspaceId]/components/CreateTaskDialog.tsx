@@ -50,8 +50,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Controller, useForm } from "react-hook-form";
 import type { Column } from "@/types/type-kanban-columns";
 import type { CreateTaskDto, Tag } from "@/types/api";
-import type { Member } from "@/types/api";
 import { useCustomFields } from "@/hooks/api/useCustomFields";
+import { useWorkspaceMembers } from "@/hooks/api/useWorkspaceMembers";
 import type { CustomField } from "@/types/type-custom-fields";
 import {
   useTags,
@@ -62,7 +62,6 @@ import {
 
 interface CreateTaskDialogProps {
   columns: Column[];
-  members: Member[];
   tenantId: string;
   workspaceId: string;
   boardId: string;
@@ -77,7 +76,6 @@ type CustomFieldValuePath = `customFieldValues.${string}`;
 
 export function CreateTaskDialog({
   columns,
-  members,
   tenantId,
   workspaceId,
   boardId,
@@ -117,6 +115,8 @@ export function CreateTaskDialog({
     workspaceId,
     boardId
   );
+
+  const { data: members = [] } = useWorkspaceMembers(tenantId, workspaceId);
 
   const { data: tags = [] } = useTags(tenantId, workspaceId);
   const createTag = useCreateTag();

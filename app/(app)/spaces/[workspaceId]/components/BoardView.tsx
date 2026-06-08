@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   Plus,
   MoreHorizontal,
@@ -11,8 +11,10 @@ import {
 } from "lucide-react";
 import { EditColumnDialog } from "./EditColumnDialog";
 import { CreateColumnDialog } from "./CreateColumnDialog";
+import { CreateTaskDialog } from "./CreateTaskDialog";
 import type { Column } from "@/types/type-kanban-columns";
 import type { Task } from "@/types/type-tasks";
+import type { CreateTaskDto } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -47,11 +49,15 @@ interface CreateColumnPayload extends ColumnFormValues {
 interface BoardViewProps {
   columns: Column[];
   tasks: Task[];
+  tenantId: string;
+  workspaceId: string;
+  boardId: string;
   onCreateColumn: (payload: CreateColumnPayload) => void;
   onUpdateColumn: (columnId: string, values: ColumnFormValues) => void;
   onDeleteColumn: (columnId: string) => void;
   onReorderColumns?: (newColumns: { id: string; position: number }[]) => void;
-  onCreateTask: (columnId: string) => void;
+  optimisticTasks: Task[];
+  onCreateTask: (dto: CreateTaskDto) => Promise<void>;
   onMoveTask: (
     taskId: string,
     sourceColumnId: string,
@@ -66,10 +72,14 @@ interface BoardViewProps {
 export function BoardView({
   columns,
   tasks,
+  tenantId,
+  workspaceId,
+  boardId,
   onCreateColumn,
   onUpdateColumn,
   onDeleteColumn,
   onReorderColumns,
+  optimisticTasks,
   onCreateTask,
   onMoveTask,
   movingTaskIds,
@@ -91,6 +101,10 @@ export function BoardView({
   }>({ open: false, title: "", description: "", onConfirm: () => {} });
   const [localTasks, setLocalTasks] = useState<Task[]>(tasks);
   const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null);
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const [creatingInColumnId, setCreatingInColumnId] = useState<
+    string | undefined
+  >(undefined);
 
   useEffect(() => {
     setIsMounted(true);
@@ -104,14 +118,24 @@ export function BoardView({
     setLocalTasks(tasks);
   }, [tasks]);
 
+  const allTasks = useMemo(
+    () => [...localTasks, ...optimisticTasks],
+    [localTasks, optimisticTasks]
+  );
+
   const tasksByColumn = localColumns.reduce<Record<string, Task[]>>(
     (acc, col) => {
       // Sort tasks logically if needed, for now just filter by column
-      acc[col.id] = localTasks.filter((t) => t.columnId === col.id);
+      acc[col.id] = allTasks.filter((t) => t.columnId === col.id);
       return acc;
     },
     {}
   );
+
+  const handleCreateTask = (dto: CreateTaskDto) => {
+    setIsCreateTaskOpen(false);
+    onCreateTask(dto);
+  };
 
   const handleDragUpdate = (update: DragUpdate) => {
     const destinationId = update.destination?.droppableId;
@@ -318,7 +342,10 @@ export function BoardView({
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-36">
                                 <DropdownMenuItem
-                                  onClick={() => onCreateTask(col.id)}
+                                  onClick={() => {
+                                    setCreatingInColumnId(col.id);
+                                    setIsCreateTaskOpen(true);
+                                  }}
                                 >
                                   <Plus className="mr-2 h-3.5 w-3.5" />
                                   Add Task
@@ -432,12 +459,14 @@ export function BoardView({
                                 )}
                                 {colTasks.map((task, index) => {
                                   const isMoving = movingTaskIds?.has(task.id);
+                                  const isOptimistic =
+                                    task.id.startsWith("optimistic-");
                                   return (
                                     <Draggable
                                       key={task.id}
                                       draggableId={task.id}
                                       index={index}
-                                      isDragDisabled={isMoving}
+                                      isDragDisabled={isMoving || isOptimistic}
                                     >
                                       {(provided, snapshot) => (
                                         <div
@@ -521,7 +550,10 @@ export function BoardView({
                               variant="ghost"
                               size="sm"
                               className="w-full justify-start gap-1 text-muted-foreground hover:text-foreground"
-                              onClick={() => onCreateTask(col.id)}
+                              onClick={() => {
+                                setCreatingInColumnId(col.id);
+                                setIsCreateTaskOpen(true);
+                              }}
                             >
                               <Plus className="h-3.5 w-3.5" />
                               Add Task
@@ -551,6 +583,16 @@ export function BoardView({
         </div>
       </div>
 
+      <CreateTaskDialog
+        open={isCreateTaskOpen}
+        onOpenChange={setIsCreateTaskOpen}
+        columns={localColumns}
+        defaultColumnId={creatingInColumnId}
+        tenantId={tenantId}
+        workspaceId={workspaceId}
+        boardId={boardId}
+        onSubmit={handleCreateTask}
+      />
       <CreateColumnDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
@@ -579,7 +621,10 @@ export function BoardView({
         title={confirmDialog.title}
         description={confirmDialog.description}
         confirmLabel="Delete"
-        onConfirm={confirmDialog.onConfirm}
+        onConfirm={() => {
+          confirmDialog.onConfirm();
+          setConfirmDialog((prev) => ({ ...prev, open: false }));
+        }}
       />
     </DragDropContext>
   );

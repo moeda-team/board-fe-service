@@ -41,7 +41,7 @@ import {
 } from "@/hooks/api/useTasks";
 import { useTenantMembers } from "@/hooks/api/useTenantMembers";
 import { useTenantSocket } from "@/hooks/useTenantSocket";
-import type { CreateTaskDto, Member } from "@/types/api";
+import type { CreateTaskDto, Member, Task } from "@/types/api";
 import type { Board } from "@/types/type-boards";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -86,11 +86,9 @@ export default function WorkspaceDetailPage() {
   const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<ViewType>("board");
   const [searchQuery, setSearchQuery] = useState("");
-  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [creatingInColumnId, setCreatingInColumnId] = useState<
-    string | undefined
-  >(undefined);
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const [optimisticTasks, setOptimisticTasks] = useState<Task[]>([]);
 
   const [isRenameBoardOpen, setIsRenameBoardOpen] = useState(false);
   const [isCustomFieldManagerOpen, setIsCustomFieldManagerOpen] =
@@ -191,7 +189,40 @@ export default function WorkspaceDetailPage() {
   const { mutate: updateColumn } = useUpdateColumn();
   const { mutate: deleteColumn } = useDeleteColumn();
   const { mutate: reorderColumns } = useReorderColumns();
-  const { mutate: createTask } = useCreateTask();
+  const { mutateAsync: createTaskAsync } = useCreateTask();
+
+  const handleCreateTask = async (dto: CreateTaskDto) => {
+    const tempId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const tempTask: Task = {
+      id: tempId,
+      columnId: dto.columnId,
+      title: dto.title,
+      description: dto.description || null,
+      priority: dto.priority || null,
+      dueDate: dto.dueDate || null,
+      assigneeIds: dto.assigneeIds || [],
+      subtaskCount: 0,
+      completedSubtaskCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      order: 0
+    };
+
+    setOptimisticTasks((prev) => [...prev, tempTask]);
+
+    try {
+      await createTaskAsync({
+        tenantId,
+        workspaceId,
+        boardId: activeBoardId!,
+        dto
+      });
+    } catch {
+      // Error handled by mutation meta toast
+    } finally {
+      setOptimisticTasks((prev) => prev.filter((t) => t.id !== tempId));
+    }
+  };
   const { mutate: moveTask } = useMoveTask();
   const { mutate: deleteTask } = useDeleteTask();
   const queryClient = useQueryClient();
@@ -468,10 +499,7 @@ export default function WorkspaceDetailPage() {
             <Button
               size="sm"
               className="h-8 gap-1 text-xs"
-              onClick={() => {
-                setCreatingInColumnId(undefined);
-                setIsCreateTaskOpen(true);
-              }}
+              onClick={() => setIsCreateTaskOpen(true)}
             >
               <Plus className="h-3.5 w-3.5" />
               New Task
@@ -532,10 +560,11 @@ export default function WorkspaceDetailPage() {
                   dto: { columns: newOrder }
                 })
               }
-              onCreateTask={(columnId) => {
-                setCreatingInColumnId(columnId);
-                setIsCreateTaskOpen(true);
-              }}
+              tenantId={tenantId}
+              workspaceId={workspaceId}
+              boardId={activeBoardId || ""}
+              optimisticTasks={optimisticTasks}
+              onCreateTask={handleCreateTask}
               onMoveTask={handleMoveTask}
               onTaskClick={(taskId) => setSelectedTaskId(taskId)}
               onDeleteTask={(taskId) =>
@@ -563,18 +592,12 @@ export default function WorkspaceDetailPage() {
         open={isCreateTaskOpen}
         onOpenChange={setIsCreateTaskOpen}
         columns={columns}
-        defaultColumnId={creatingInColumnId}
         tenantId={tenantId}
         workspaceId={workspaceId}
         boardId={activeBoardId || ""}
         onSubmit={(dto: CreateTaskDto) => {
           if (activeBoardId) {
-            createTask({
-              tenantId,
-              workspaceId,
-              boardId: activeBoardId,
-              dto
-            });
+            handleCreateTask(dto);
             setIsCreateTaskOpen(false);
           }
         }}

@@ -4,6 +4,21 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { ChevronsUpDown, LayoutDashboard, LogOut } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import { useAuthMe } from "@/hooks/api/useAuth";
+import { getActiveTenantEntry } from "@/lib/tenant";
+import { authService } from "@/lib/auth";
 import { anim } from "./hooks";
 import { localizedPath } from "./i18n";
 import type { Locale } from "./i18n";
@@ -45,6 +60,19 @@ export function Navbar({ locale = "en" }: NavbarProps) {
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
   const t = NAV_LABELS[locale];
+  const { status } = useSession();
+  const isAuthenticated = status === "authenticated";
+  const { data: authMe } = useAuthMe();
+  const user = authMe?.user;
+  const activeTenantEntry = getActiveTenantEntry(authMe);
+  const userRole = activeTenantEntry?.role?.name ?? "Member";
+  const initials =
+    user?.fullName
+      ?.split(" ")
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() ?? "";
   const home = localizedPath(locale, "/");
   const navItems = [
     { label: t.product, href: `${home}#product` },
@@ -75,7 +103,8 @@ export function Navbar({ locale = "en" }: NavbarProps) {
         setLangOpen(false);
       }
     };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setLangOpen(false);
+    const onKey = (e: KeyboardEvent) =>
+      e.key === "Escape" && setLangOpen(false);
     document.addEventListener("mousedown", onClick);
     document.addEventListener("keydown", onKey);
     return () => {
@@ -90,11 +119,13 @@ export function Navbar({ locale = "en" }: NavbarProps) {
       style={{
         backdropFilter: scrolled ? "blur(16px)" : "blur(8px)",
         WebkitBackdropFilter: scrolled ? "blur(16px)" : "blur(8px)",
-        background: scrolled ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.85)",
+        background: scrolled
+          ? "rgba(255,255,255,0.95)"
+          : "rgba(255,255,255,0.85)",
         borderBottom: scrolled
           ? "1px solid rgba(0,0,0,0.08)"
           : "1px solid rgba(255,255,255,0.3)",
-        boxShadow: scrolled ? "0 2px 20px rgba(0,0,0,0.06)" : "none",
+        boxShadow: scrolled ? "0 2px 20px rgba(0,0,0,0.06)" : "none"
       }}
     >
       <nav
@@ -137,7 +168,16 @@ export function Navbar({ locale = "en" }: NavbarProps) {
               aria-label={locale === "en" ? "Change language" : "Ganti bahasa"}
               className="flex items-center gap-1.5 text-sm font-semibold text-gray-600 hover:text-gray-900 transition-colors border border-gray-200 rounded-lg px-2.5 py-2"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <circle cx="12" cy="12" r="10" />
                 <path d="M2 12h20" />
                 <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
@@ -175,11 +215,22 @@ export function Navbar({ locale = "en" }: NavbarProps) {
                     }`}
                   >
                     <span className="flex items-center gap-2">
-                      <span className="text-[11px] font-bold text-gray-400 w-5">{l.short}</span>
+                      <span className="text-[11px] font-bold text-gray-400 w-5">
+                        {l.short}
+                      </span>
                       {l.label}
                     </span>
                     {l.code === locale && (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#53A3FF" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#53A3FF"
+                        strokeWidth="2.4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
                         <path d="M20 6L9 17l-5-5" />
                       </svg>
                     )}
@@ -188,18 +239,75 @@ export function Navbar({ locale = "en" }: NavbarProps) {
               </div>
             )}
           </div>
-          <Link
-            href="/login"
-            className="hidden sm:inline text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            {t.login}
-          </Link>
-          <Link
-            href="/login"
-            className="text-sm font-semibold bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-          >
-            {t.cta}
-          </Link>
+          {isAuthenticated ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-2.5 py-1.5 transition-colors hover:bg-gray-50 outline-none focus-visible:ring-2 focus-visible:ring-gray-300">
+                <Avatar className="size-7 shrink-0">
+                  <AvatarImage
+                    src={user?.avatarUrl ?? ""}
+                    alt={user?.fullName ?? ""}
+                  />
+                  <AvatarFallback className="bg-gray-900 text-white text-[11px] font-bold">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="hidden sm:flex min-w-0 flex-col items-start gap-0.5">
+                  <span className="truncate max-w-30 text-[13px] font-semibold leading-none text-gray-900">
+                    {user?.fullName ?? "User"}
+                  </span>
+                  <span className="text-[11px] font-medium uppercase tracking-wide leading-none text-gray-400">
+                    {userRole}
+                  </span>
+                </div>
+                <ChevronsUpDown className="size-3.5 shrink-0 text-gray-400" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" sideOffset={8} className="w-56">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel className="flex flex-col gap-0.5">
+                    <span className="text-sm font-semibold text-gray-900">
+                      {user?.fullName ?? "User"}
+                    </span>
+                    {user?.email && (
+                      <span className="truncate text-xs font-normal text-muted-foreground">
+                        {user.email}
+                      </span>
+                    )}
+                  </DropdownMenuLabel>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  render={<Link href="/spaces" />}
+                >
+                  <LayoutDashboard className="size-4" />
+                  <span>Dashboard</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => authService.logout()}
+                >
+                  <LogOut className="size-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="hidden sm:inline text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                {t.login}
+              </Link>
+              <Link
+                href="/login"
+                className="text-sm font-semibold bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                {t.cta}
+              </Link>
+            </>
+          )}
         </div>
       </nav>
     </div>

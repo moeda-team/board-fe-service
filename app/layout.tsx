@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { SessionProvider } from "@/providers/session-provider";
 import { PhosphorProvider } from "@/providers/phosphor-provider";
 import { QueryProvider } from "@/providers/query-provider";
+import { ApiTokenProvider } from "@/providers/api-token-provider";
 import "./globals.css";
 
 const inter = Inter({
@@ -104,13 +105,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col bg-background">
+      <body
+        className="min-h-full flex flex-col bg-background"
+        suppressHydrationWarning
+      >
         <SessionProvider>
           <PhosphorProvider>
             <QueryProvider>
-              {children}
-              <Toaster />
-              <Analytics />
+              <ApiTokenProvider>
+                {children}
+                <Toaster />
+                <Analytics />
+              </ApiTokenProvider>
             </QueryProvider>
           </PhosphorProvider>
         </SessionProvider>

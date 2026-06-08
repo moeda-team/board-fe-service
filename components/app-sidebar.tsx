@@ -14,7 +14,8 @@ import {
   KeyRound,
   Check,
   Loader2,
-  Pencil
+  Pencil,
+  Settings
 } from "lucide-react";
 import {
   Sidebar,
@@ -54,8 +55,8 @@ const mainNavItems = [
 const securityNavItems = [
   { title: "Access", href: "/role-access", icon: ShieldCheck },
   { title: "Members", href: "/members", icon: Users },
-  { title: "API Key", href: "/api-keys", icon: KeyRound }
-  // { title: "Settings", href: "/settings", icon: Settings }
+  { title: "API Key", href: "/api-keys", icon: KeyRound },
+  { title: "Settings", href: "/settings", icon: Settings }
 ];
 
 export function AppSidebar() {

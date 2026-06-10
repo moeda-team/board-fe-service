@@ -506,8 +506,11 @@ const Members = () => {
           [workspaces, row.original.workspaceIds]
         );
         const canManageWorkspaceAccess =
-          tenantPermissions.includes("member.manage") ||
-          tenantPermissions.includes("member.edit");
+          (tenantPermissions.includes("member.manage") ||
+            tenantPermissions.includes("member.edit")) &&
+          row.original.roleName?.toLowerCase() !== "admin";
+
+        const isAdminRole = row.original.roleName?.toLowerCase() === "admin";
 
         const handleWorkspaceToggle = (
           workspaceId: string,
@@ -608,7 +611,7 @@ const Members = () => {
                       filteredSpaces.map((ws) => (
                         <label
                           key={ws.id}
-                          className={`flex items-center gap-2 px-2 py-2 rounded cursor-pointer hover:bg-slate-100 ${!canManageWorkspaceAccess ? "opacity-50 cursor-not-allowed" : ""}`}
+                          className={`flex items-center gap-2 px-2 py-2 rounded ${isAdminRole ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-slate-100"}`}
                           onClick={(e) => {
                             if (!canManageWorkspaceAccess) {
                               e.preventDefault();
@@ -631,6 +634,9 @@ const Members = () => {
                           <span className="text-sm">
                             {ws.name || "Untitled"}
                           </span>
+                          {isAdminRole && (
+                            <span className="text-xs text-muted-foreground ml-auto">Admin</span>
+                          )}
                         </label>
                       ))
                     )}

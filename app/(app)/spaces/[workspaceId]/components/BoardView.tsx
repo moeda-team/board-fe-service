@@ -486,7 +486,7 @@ export function BoardView({
                                           {/* Quick move menu */}
                                           {!snapshot.isDragging && (
                                             <DropdownMenu>
-                                              <DropdownMenuTrigger className="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded opacity-0 group-hover:opacity-100 hover:bg-accent">
+                                              <DropdownMenuTrigger className="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded bg-background/80 backdrop-blur-sm shadow-sm hover:bg-accent transition-opacity lg:opacity-0 lg:group-hover:opacity-100">
                                                 <MoreHorizontal className="h-3 w-3 text-muted-foreground" />
                                               </DropdownMenuTrigger>
                                               <DropdownMenuContent

@@ -71,9 +71,31 @@ export interface PaymentHistoryResponse {
   };
 }
 
+export interface CurrentPlanResponse {
+  tenantId: string;
+  tier: PaymentTier;
+  maxUsers: number;
+  maxStorage: number; // bytes
+  usedStorage: number; // bytes
+  tierValidUntil: string | null;
+  isExpired: boolean;
+  plan: {
+    tier: PaymentTier;
+    name: string;
+    description: string;
+    basePrice: number;
+    maxUsers: number;
+    baseStorage: number;
+    pricePerGb: number;
+    durationDays: number;
+    isActive: boolean;
+  };
+}
+
 // API Envelope types
 export type CheckoutEnvelope = ApiEnvelope<CheckoutResponse>;
 export type PaymentHistoryEnvelope = ApiEnvelope<PaymentHistoryResponse>;
 export type PendingPaymentEnvelope = ApiEnvelope<PaymentTransaction | null>;
 export type CancelPaymentEnvelope = ApiEnvelope<{ message: string }>;
 export type PlansEnvelope = ApiEnvelope<Plan[]>;
+export type CurrentPlanEnvelope = ApiEnvelope<CurrentPlanResponse>;

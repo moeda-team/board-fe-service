@@ -12,7 +12,9 @@ import {
   PaymentHistoryEnvelope,
   PendingPaymentEnvelope,
   CancelPaymentEnvelope,
-  PlansEnvelope
+  PlansEnvelope,
+  CurrentPlanEnvelope,
+  CurrentPlanResponse
 } from "@/types/payments";
 
 // Query keys
@@ -68,6 +70,18 @@ export const usePendingPayment = (tenantId: string) => useQuery({
   queryKey: pendingPaymentQueryKey(tenantId),
   queryFn: async (): Promise<PaymentTransaction | null> => {
     const { data } = await apiClient.get<PendingPaymentEnvelope>("/api/payments/pending", {
+      params: { tenantId }
+    });
+    return unwrapApiData(data);
+  },
+  enabled: !!tenantId && tenantId !== "undefined" && tenantId !== "null"
+});
+
+// Fetch current plan for a tenant
+export const useCurrentPlan = (tenantId: string) => useQuery({
+  queryKey: ["payments", "current-plan", tenantId],
+  queryFn: async (): Promise<CurrentPlanResponse> => {
+    const { data } = await apiClient.get<CurrentPlanEnvelope>("/api/payments/current-plan", {
       params: { tenantId }
     });
     return unwrapApiData(data);

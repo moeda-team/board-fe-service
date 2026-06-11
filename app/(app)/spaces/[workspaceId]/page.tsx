@@ -50,7 +50,13 @@ import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { BoardView } from "./components/BoardView";
 import { CreateTaskDialog } from "./components/CreateTaskDialog";
 import { GanttView } from "./components/GanttView";
-import { ListView } from "./components/ListView";
+import {
+  ListView,
+  FilterPanel,
+  emptyFilter,
+  deriveAllTags,
+  type FilterState
+} from "./components/ListView";
 import { NameDialog } from "./components/NameDialog";
 import { RenameBoardDialog } from "./components/RenameBoardDialog";
 import { CustomFieldManager } from "./components/CustomFieldManager";
@@ -89,6 +95,8 @@ export default function WorkspaceDetailPage() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [optimisticTasks, setOptimisticTasks] = useState<Task[]>([]);
+  const [listFilter, setListFilter] = useState<FilterState>(emptyFilter);
+  const [showFilterPanel, setShowFilterPanel] = useState(true);
 
   const [isRenameBoardOpen, setIsRenameBoardOpen] = useState(false);
   const [isCustomFieldManagerOpen, setIsCustomFieldManagerOpen] =
@@ -479,10 +487,10 @@ export default function WorkspaceDetailPage() {
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search tasks..."
+                placeholder="Search Task"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-8 w-64 pl-8 text-sm"
+                className="h-8 w-48 pl-8 text-sm"
               />
             </div>
             {activeBoardId && (
@@ -498,7 +506,7 @@ export default function WorkspaceDetailPage() {
             )}
             <Button
               size="sm"
-              className="h-8 gap-1 text-xs"
+              className="h-8 gap-1 bg-blue-600 text-xs hover:bg-blue-700"
               onClick={() => setIsCreateTaskOpen(true)}
             >
               <Plus className="h-3.5 w-3.5" />
@@ -508,8 +516,14 @@ export default function WorkspaceDetailPage() {
         </div>
 
         {/* View Tabs */}
-        <div className="flex items-center border-b px-6 py-2">
+        <div className="flex items-center justify-between border-b px-6 py-2">
           <ViewTabs activeView={activeView} onChange={setActiveView} />
+          {activeView === "list" && (
+            <span className="text-xs text-gray-400">
+              {members.length} members{" "}
+              {members.length > 0 && "\u2022 Updated just now"}
+            </span>
+          )}
         </div>
 
         {/* Content Area */}
@@ -580,13 +594,34 @@ export default function WorkspaceDetailPage() {
           )}
           {activeView === "list" && (
             <ListView
-              tasks={filteredTasks}
+              tasks={tasks}
               onTaskClick={(taskId) => setSelectedTaskId(taskId)}
+              kanbanColumns={columns}
+              members={members}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              onCreateTask={() => setIsCreateTaskOpen(true)}
+              filter={listFilter}
+              setFilter={setListFilter}
+              showFilterPanel={showFilterPanel}
+              setShowFilterPanel={setShowFilterPanel}
             />
           )}
           {activeView === "gantt" && <GanttView tasks={filteredTasks} />}
         </div>
       </div>
+
+      {/* Filter Panel — page-level right sidebar (pushes the layout) */}
+      {activeView === "list" && showFilterPanel && (
+        <FilterPanel
+          filter={listFilter}
+          setFilter={setListFilter}
+          kanbanColumns={columns}
+          members={members}
+          allTags={deriveAllTags(tasks)}
+          onClose={() => setShowFilterPanel(false)}
+        />
+      )}
 
       <CreateTaskDialog
         open={isCreateTaskOpen}

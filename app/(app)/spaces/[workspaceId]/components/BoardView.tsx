@@ -279,6 +279,7 @@ export function BoardView({
                             <div className="flex items-center gap-2">
                               <DropdownMenu>
                                 <DropdownMenuTrigger
+                                  nativeButton={false}
                                   render={
                                     <div
                                       className="h-2.5 w-2.5 rounded-full cursor-pointer hover:scale-125 transition-transform"

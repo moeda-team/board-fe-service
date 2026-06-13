@@ -1,5 +1,8 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { Metadata } from "next";
 import PrivacyClient from "./PrivacyClient";
+import { parsePrivacyPolicy } from "./parse";
 
 export const metadata: Metadata = {
   title: "Privacy Policy — PapanClip",
@@ -16,5 +19,8 @@ export const metadata: Metadata = {
 };
 
 export default function PrivacyPage() {
-  return <PrivacyClient />;
+  const filePath = path.join(process.cwd(), "content", "privacy-policy.md");
+  const markdown = fs.readFileSync(filePath, "utf8");
+  const document = parsePrivacyPolicy(markdown);
+  return <PrivacyClient document={document} />;
 }

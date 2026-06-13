@@ -1,61 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  BarChart3,
-  CheckSquare,
-  FileText,
-  Headphones,
-  Link2,
-  Monitor,
-  Printer,
-  Scale,
-  Search,
-  Settings,
-  Shield,
-  User,
-  Users,
-  Calendar
-} from "lucide-react";
+import { Calendar, Printer, Search, Shield } from "lucide-react";
 import { Navbar } from "../home";
 import { Footer } from "../home";
 import type { Locale } from "../home";
-import { privacySections } from "./data";
-
-const ICON_MAP: Record<string, React.ElementType> = {
-  User,
-  Monitor,
-  Link2,
-  Settings,
-  Users,
-  CheckSquare,
-  BarChart3,
-  FileText,
-  Headphones,
-  Shield,
-  Scale
-};
-
-function SectionIcon({
-  icon,
-  color,
-  bg
-}: {
-  icon: string;
-  color: string;
-  bg: string;
-}) {
-  const Icon = ICON_MAP[icon];
-  if (!Icon) return null;
-  return (
-    <div
-      className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-      style={{ backgroundColor: bg }}
-    >
-      <Icon size={20} style={{ color }} />
-    </div>
-  );
-}
+import type { PrivacyBlock, PrivacyDocument } from "./parse";
 
 function HeroIllustration() {
   return (
@@ -191,20 +141,27 @@ function HeroIllustration() {
   );
 }
 
-export default function PrivacyClient({ locale = "en" }: { locale?: Locale }) {
-  const [activeId, setActiveId] = useState<string>(privacySections[0].id);
+export default function PrivacyClient({
+  document,
+  locale = "en"
+}: {
+  document: PrivacyDocument;
+  locale?: Locale;
+}) {
+  const sections = document.sections;
+  const [activeId, setActiveId] = useState<string>(sections[0]?.id ?? "");
   const [searchQuery, setSearchQuery] = useState("");
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
   const tocRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const tocItems = useMemo(
     () =>
-      privacySections.map((s) => ({
+      sections.map((s) => ({
         id: s.id,
         number: s.number,
         title: s.title
       })),
-    []
+    [sections]
   );
 
   useEffect(() => {
@@ -264,9 +221,41 @@ export default function PrivacyClient({ locale = "en" }: { locale?: Locale }) {
     );
   };
 
-  const contentVisible = (text: string) => {
+  const blockText = (block: PrivacyBlock) =>
+    block.type === "list" ? block.items.join(" ") : block.text;
+
+  const sectionMatchesSearch = (
+    section: PrivacyDocument["sections"][number]
+  ) => {
     if (!searchQuery.trim()) return true;
-    return text.toLowerCase().includes(searchQuery.toLowerCase());
+    const haystack = (
+      section.title +
+      " " +
+      section.blocks.map(blockText).join(" ")
+    ).toLowerCase();
+    return haystack.includes(searchQuery.toLowerCase());
+  };
+
+  const renderBlock = (block: PrivacyBlock, index: number) => {
+    if (block.type === "heading") {
+      return (
+        <p key={index} className="font-semibold text-[#060718] mt-4 mb-2">
+          {highlightText(block.text, searchQuery)}
+        </p>
+      );
+    }
+    if (block.type === "list") {
+      return (
+        <ul key={index} className="list-disc pl-5 mb-3">
+          {block.items.map((item, j) => (
+            <li key={j} className="text-sm text-gray-600">
+              {highlightText(item, searchQuery)}
+            </li>
+          ))}
+        </ul>
+      );
+    }
+    return <p key={index}>{highlightText(block.text, searchQuery)}</p>;
   };
 
   return (
@@ -369,15 +358,19 @@ export default function PrivacyClient({ locale = "en" }: { locale?: Locale }) {
               <div className="flex items-start justify-between gap-6">
                 <div className="flex-1 min-w-0">
                   <h1 className="text-3xl font-bold text-[#060718] mb-2">
-                    Privacy Policy
+                    {document.title}
                   </h1>
-                  <p className="text-base text-gray-500 mb-4">
-                    Task Management Application
-                  </p>
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-100 text-sm text-gray-600">
-                    <Calendar size={15} className="text-gray-400" />
-                    Last Updated: May 18, 2025
-                  </div>
+                  {document.subtitle && (
+                    <p className="text-base text-gray-500 mb-4">
+                      {document.subtitle}
+                    </p>
+                  )}
+                  {document.lastUpdated && (
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-100 text-sm text-gray-600">
+                      <Calendar size={15} className="text-gray-400" />
+                      Last Updated: {document.lastUpdated}
+                    </div>
+                  )}
                 </div>
                 <div className="shrink-0 hidden sm:block">
                   <HeroIllustration />
@@ -387,17 +380,8 @@ export default function PrivacyClient({ locale = "en" }: { locale?: Locale }) {
 
             {/* Sections */}
             <div className="space-y-6">
-              {privacySections.map((section) => {
-                const isVisible =
-                  contentVisible(section.content || "") ||
-                  (section.subsections?.some((sub) =>
-                    contentVisible(sub.title + " " + sub.items.join(" "))
-                  ) ??
-                    false) ||
-                  (section.cards?.some((c) => contentVisible(c.title)) ??
-                    false);
-
-                if (searchQuery && !isVisible) return null;
+              {sections.map((section) => {
+                if (searchQuery && !sectionMatchesSearch(section)) return null;
 
                 return (
                   <section
@@ -418,122 +402,21 @@ export default function PrivacyClient({ locale = "en" }: { locale?: Locale }) {
                       </h2>
                     </div>
 
-                    {/* Regular content */}
-                    {section.content && (
-                      <div className="text-sm text-gray-600 leading-relaxed">
-                        {section.content.split("\n\n").map((para, i) => {
-                          if (
-                            para.startsWith("With Your Organization") ||
-                            para.startsWith("Service Providers") ||
-                            para.startsWith("Legal Requirements")
-                          ) {
-                            return (
-                              <p
-                                key={i}
-                                className="font-semibold text-[#060718] mt-4 mb-2"
-                              >
-                                {highlightText(para, searchQuery)}
-                              </p>
-                            );
-                          }
-                          if (para.includes("* ")) {
-                            const items = para
-                              .split("\n")
-                              .filter((l) => l.trim().startsWith("* "));
-                            return (
-                              <ul key={i} className="list-disc pl-5 mb-3">
-                                {items.map((item, j) => (
-                                  <li key={j} className="text-sm text-gray-600">
-                                    {highlightText(
-                                      item.replace("* ", ""),
-                                      searchQuery
-                                    )}
-                                  </li>
-                                ))}
-                              </ul>
-                            );
-                          }
-                          return (
-                            <p key={i}>{highlightText(para, searchQuery)}</p>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Subsection cards (Section 2) */}
-                    {section.subsections && (
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {section.subsections.map((sub) => (
-                          <div
-                            key={sub.id}
-                            className="rounded-xl border border-gray-100 p-5 bg-white"
-                          >
-                            <div className="flex items-center gap-3 mb-4">
-                              <SectionIcon
-                                icon={sub.icon || ""}
-                                color={sub.iconColor || "#227bfe"}
-                                bg={sub.iconBg || "#ebf1fd"}
-                              />
-                              <div>
-                                <span className="text-xs font-semibold text-gray-400">
-                                  {sub.number}
-                                </span>
-                                <h3 className="text-sm font-semibold text-[#060718]">
-                                  {sub.title}
-                                </h3>
-                              </div>
-                            </div>
-                            <ul className="space-y-2">
-                              {sub.items.map((item, idx) => (
-                                <li
-                                  key={idx}
-                                  className="flex items-start gap-2 text-sm text-gray-600"
-                                >
-                                  <span className="mt-1.5 w-1 h-1 rounded-full bg-gray-400 shrink-0" />
-                                  {highlightText(item, searchQuery)}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Icon cards (Section 3) */}
-                    {section.cards && (
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        {section.cards.map((card, idx) => {
-                          const CardIcon = ICON_MAP[card.icon] || Settings;
-                          return (
-                            <div
-                              key={idx}
-                              className="flex flex-col items-center text-center gap-2 p-4 rounded-xl border border-gray-100 bg-white hover:border-gray-200 transition-colors"
-                            >
-                              <div className="w-10 h-10 rounded-full bg-[#ebf1fd] flex items-center justify-center">
-                                <CardIcon
-                                  size={20}
-                                  className="text-[#227bfe]"
-                                />
-                              </div>
-                              <span className="text-xs font-medium text-[#060718] leading-snug">
-                                {highlightText(card.title, searchQuery)}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                    <div className="text-sm text-gray-600 leading-relaxed">
+                      {section.blocks.map((block, i) => renderBlock(block, i))}
+                    </div>
                   </section>
                 );
               })}
 
               {/* Closing statement */}
-              <div className="bg-white rounded-2xl border border-gray-100 p-8">
-                <p className="text-sm text-gray-600 text-center">
-                  By using the Task Management Application, you acknowledge that
-                  you have read and understood this Privacy Policy.
-                </p>
-              </div>
+              {document.closing && (
+                <div className="bg-white rounded-2xl border border-gray-100 p-8">
+                  <p className="text-sm text-gray-600 text-center">
+                    {document.closing}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Footer spacing */}

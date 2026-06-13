@@ -153,6 +153,7 @@ export default function PrivacyClient({
   const [searchQuery, setSearchQuery] = useState("");
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
   const tocRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const tocNavRef = useRef<HTMLElement | null>(null);
 
   const tocItems = useMemo(
     () =>
@@ -188,8 +189,21 @@ export default function PrivacyClient({
 
   useEffect(() => {
     const el = tocRefs.current[activeId];
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const container = tocNavRef.current;
+    if (!el || !container) return;
+    // Scroll only within the TOC container, never the page, otherwise the
+    // window scroll fights the user's manual scrolling.
+    const elTop = el.offsetTop;
+    const elBottom = elTop + el.offsetHeight;
+    const viewTop = container.scrollTop;
+    const viewBottom = viewTop + container.clientHeight;
+    if (elTop < viewTop) {
+      container.scrollTo({ top: elTop, behavior: "smooth" });
+    } else if (elBottom > viewBottom) {
+      container.scrollTo({
+        top: elBottom - container.clientHeight,
+        behavior: "smooth"
+      });
     }
   }, [activeId]);
 
@@ -318,7 +332,10 @@ export default function PrivacyClient({
               <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">
                 On this page
               </h3>
-              <nav className="flex flex-col gap-0.5">
+              <nav
+                ref={tocNavRef}
+                className="flex flex-col gap-0.5 max-h-[calc(100vh-12rem)] overflow-y-auto"
+              >
                 {tocItems.map((item) => {
                   const isActive = activeId === item.id;
                   return (

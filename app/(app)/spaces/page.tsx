@@ -10,6 +10,7 @@ function useImageFallback() {
 import { Loader2, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { useAuthMe } from "@/hooks/api/useAuth";
 import { useWorkspaces, useDeleteWorkspace } from "@/hooks/api/useWorkspaces";
+import { useCurrentPlan } from "@/hooks/api/usePayments";
 import { getActiveTenantId, setActiveTenantId } from "@/lib/tenant";
 import type { Workspace } from "@/types/type-workspaces";
 import { Button } from "@/components/ui/button";
@@ -148,6 +149,11 @@ export default function SpacesPage() {
   const { data: workspaces = [], isLoading: isWorkspacesLoading } =
     useWorkspaces(tenantId);
 
+  const { data: currentPlan } = useCurrentPlan(tenantId || "");
+
+  const maxWorkspaces = currentPlan?.maxWorkspaces ?? 0; // 0 = unlimited
+  const isAtQuota = maxWorkspaces > 0 && workspaces.length >= maxWorkspaces;
+
   const { mutate: deleteWorkspace, isPending: isDeleting } =
     useDeleteWorkspace();
 
@@ -228,13 +234,18 @@ export default function SpacesPage() {
       description="Manage workspaces for better projects"
       actions={
         <div className="flex items-center gap-2">
+          {maxWorkspaces > 0 && (
+            <span className={`text-xs ${isAtQuota ? "text-amber-600 font-medium" : "text-muted-foreground"}`}>
+              {workspaces.length} / {maxWorkspaces} workspaces
+            </span>
+          )}
           <SearchBox
             value={search}
             onChange={setSearch}
             placeholder="Search"
             resultCount={filteredWorkspaces.length}
           />
-          <Button type="button" onClick={openCreate} disabled={isDeleting}>
+          <Button type="button" onClick={openCreate} disabled={isDeleting || isAtQuota}>
             <Plus className="h-4 w-4" />
             Create New Space
           </Button>
@@ -252,12 +263,22 @@ export default function SpacesPage() {
           <p className="text-slate-500">
             {search.trim()
               ? "No workspaces match your search."
+              : isAtQuota
+              ? `Workspace limit reached (${workspaces.length}/${maxWorkspaces}). Upgrade your plan to create more.`
               : "No workspaces yet. Create your first space to get started."}
           </p>
-          {!search.trim() && (
+          {!search.trim() && !isAtQuota && (
             <Button type="button" onClick={openCreate}>
               <Plus className="h-4 w-4" />
               Create New Space
+            </Button>
+          )}
+          {isAtQuota && (
+            <Button
+              variant="outline"
+              onClick={() => (window.location.href = "/pricing")}
+            >
+              Upgrade Plan
             </Button>
           )}
         </div>
@@ -280,6 +301,7 @@ export default function SpacesPage() {
         onOpenChange={setIsSheetOpen}
         editingWorkspace={editingWorkspace}
         tenantId={tenantId}
+        isAtQuota={isAtQuota}
       />
       <ConfirmDialog
         open={confirmDialog.open}

@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import apiClient from "@/lib/apiClient";
 import { unwrapApiArrayData, unwrapApiData } from "@/types/api";
 import {
@@ -40,6 +41,15 @@ export const useCreateWorkspace = () => {
     },
     onSuccess: async (_data, variables) => {
       await queryClient.invalidateQueries({ queryKey: workspacesQueryKey(variables.tenantId) });
+      // Refresh workspace quota display
+      await queryClient.invalidateQueries({ queryKey: ["payments", "current-plan", variables.tenantId] });
+    },
+    onError: (error: any) => {
+      const status = error?.response?.status;
+      const message = error?.response?.data?.message;
+      if (status === 400 && message?.toLowerCase().includes("workspace limit reached")) {
+        toast.error(message + " Please upgrade your plan.");
+      }
     }
   });
 };
@@ -76,6 +86,8 @@ export const useDeleteWorkspace = () => {
     },
     onSuccess: async (_data, variables) => {
       await queryClient.invalidateQueries({ queryKey: workspacesQueryKey(variables.tenantId) });
+      // Refresh workspace quota display
+      await queryClient.invalidateQueries({ queryKey: ["payments", "current-plan", variables.tenantId] });
     }
   });
 };

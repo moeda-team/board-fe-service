@@ -22,6 +22,7 @@ import {
   Check,
   CreditCard,
   HardDrive,
+  LayoutGrid,
   Lock,
   MoreHorizontal,
   Shield,
@@ -80,8 +81,8 @@ const Settings = () => {
   const getTierBadge = (tier: string) => {
     const styles: Record<string, string> = {
       FREE: "text-blue-700 bg-blue-100 hover:bg-blue-100",
+      BASIC: "text-teal-700 bg-teal-100 hover:bg-teal-100",
       PRO: "text-purple-700 bg-purple-100 hover:bg-purple-100",
-      ENTERPRISE: "text-amber-700 bg-amber-100 hover:bg-amber-100",
       CUSTOM: "text-gray-700 bg-gray-100 hover:bg-gray-100"
     };
     return styles[tier] || "text-gray-700 bg-gray-100";
@@ -311,6 +312,15 @@ const Settings = () => {
                                 </span>
                               </span>
                             </div>
+                            <div className="flex items-center gap-2">
+                              <LayoutGrid className="w-4 h-4 text-muted-foreground" />
+                              <span className="text-sm">
+                                <span className="font-medium">
+                                  {currentPlan.maxWorkspaces === 0 ? "Unlimited" : currentPlan.maxWorkspaces}
+                                </span>{" "}
+                                <span className="text-muted-foreground">max workspaces</span>
+                              </span>
+                            </div>
                           </div>
                         </div>
 
@@ -386,7 +396,9 @@ const Settings = () => {
                           minimumFractionDigits: 0
                         }).format(currentPlan.plan.basePrice)}{" "}
                         <span className="text-sm font-normal text-muted-foreground">
-                          / {currentPlan.plan.durationDays} days
+                          {currentPlan.plan.durationDays === 0
+                            ? "/ forever"
+                            : `/ ${currentPlan.plan.durationDays} days`}
                         </span>
                       </h3>
                     </div>
@@ -407,6 +419,16 @@ const Settings = () => {
                         </div>
                         <span className="text-sm">
                           {formatBytes(currentPlan.plan.baseStorage)} storage
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
+                          <Check className="w-3 h-3 text-green-600" />
+                        </div>
+                        <span className="text-sm">
+                          {currentPlan.plan.maxWorkspaces === 0
+                            ? "Unlimited workspaces"
+                            : `Up to ${currentPlan.plan.maxWorkspaces} workspaces`}
                         </span>
                       </div>
                       {currentPlan.plan.pricePerGb > 0 && (

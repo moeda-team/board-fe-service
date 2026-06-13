@@ -132,6 +132,7 @@ export interface Tenant {
     name: string;
     domain: string | null;
     logoUrl: string | null;
+    maxWorkspaces: number; // 0 = unlimited
     [key: string]: unknown;
 }
 

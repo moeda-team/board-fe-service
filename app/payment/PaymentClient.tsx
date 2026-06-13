@@ -98,10 +98,7 @@ export default function PaymentClient() {
     });
   }, [loadSnapScript]);
 
-  const total = selectedPlan ? parseFloat(selectedPlan.basePrice) : 0;
-  const storageGb = selectedPlan
-    ? Math.round(selectedPlan.baseStorage / (1024 * 1024 * 1024))
-    : 50;
+  const total = selectedPlan ? selectedPlan.basePrice : 0;
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -159,18 +156,18 @@ export default function PaymentClient() {
     }
 
     try {
-      if (!selectedPlan || selectedPlan.tier === "FREE") {
-        toast.error("Invalid plan selected");
+      if (!selectedPlan || selectedPlan.tier === "FREE" || selectedPlan.tier === "CUSTOM") {
+        toast.error(
+          selectedPlan?.tier === "CUSTOM"
+            ? "Custom plan requires sales negotiation. Please contact support."
+            : "Invalid plan selected"
+        );
         return;
       }
       // Create checkout session via backend API
       const checkout = await createCheckout({
         tenantId,
-        tierToUpgrade: selectedPlan.tier as Exclude<
-          import("@/types/payments").PaymentTier,
-          "FREE"
-        >,
-        requestedStorageGb: storageGb
+        tierToUpgrade: selectedPlan.tier as "BASIC" | "PRO",
       });
 
       toast.success("Redirecting to payment...");
@@ -202,9 +199,11 @@ export default function PaymentClient() {
         }
       }
     } catch (error: any) {
-      toast.error(
-        error?.message || "Payment initiation failed. Please try again."
-      );
+      const msg =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Payment initiation failed. Please try again.";
+      toast.error(msg);
     }
   };
 
@@ -354,8 +353,7 @@ export default function PaymentClient() {
                       {pendingPayment.snapshotPlan?.name ?? "Pro Plan"}
                     </h3>
                     <p className="text-sm text-gray-500">
-                      {pendingPayment.tierToUpgrade} —{" "}
-                      {pendingPayment.requestedStorageGb} GB storage
+                      {pendingPayment.tierToUpgrade}
                     </p>
                   </div>
                   <Badge

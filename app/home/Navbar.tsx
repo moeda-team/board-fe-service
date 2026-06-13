@@ -36,6 +36,7 @@ const NAV_LABELS: Record<Locale, Record<string, string>> = {
     testimonials: "Testimonials",
     pricing: "Pricing",
     faq: "FAQ",
+    changelog: "Changelog",
     login: "Login",
     cta: "Start Free",
     privacy: "Privacy"
@@ -47,6 +48,7 @@ const NAV_LABELS: Record<Locale, Record<string, string>> = {
     testimonials: "Testimoni",
     pricing: "Harga",
     faq: "FAQ",
+    changelog: "Changelog",
     login: "Masuk",
     cta: "Coba Gratis",
     privacy: "Privasi"
@@ -83,6 +85,7 @@ export function Navbar({ locale = "en" }: NavbarProps) {
     { label: t.testimonials, href: `${home}#testimonials` },
     { label: t.pricing, href: localizedPath(locale, "/pricing") },
     { label: t.faq, href: localizedPath(locale, "/faq") },
+    { label: t.changelog, href: localizedPath(locale, "/changelog") },
     { label: t.privacy, href: localizedPath(locale, "/privacy") }
   ];
   // Resolve the current page in each locale (strip any leading "/id").

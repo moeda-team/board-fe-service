@@ -154,6 +154,9 @@ export default function PrivacyClient({
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
   const tocRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const tocNavRef = useRef<HTMLElement | null>(null);
+  const isManualScroll = useRef(false);
+  const visibilityRef = useRef<Record<string, number>>({});
+  const scrollDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const tocItems = useMemo(
     () =>
@@ -169,13 +172,20 @@ export default function PrivacyClient({
     if (typeof window === "undefined") return;
     const observer = new IntersectionObserver(
       (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-        if (visible.length > 0) {
-          const id = visible[0].target.getAttribute("data-section-id") || "";
-          if (id) setActiveId(id);
-        }
+        if (isManualScroll.current) return;
+        entries.forEach((entry) => {
+          const id = entry.target.getAttribute("data-section-id") || "";
+          visibilityRef.current[id] = entry.intersectionRatio;
+        });
+        if (scrollDebounceRef.current) clearTimeout(scrollDebounceRef.current);
+        scrollDebounceRef.current = setTimeout(() => {
+          const visible = Object.entries(visibilityRef.current)
+            .filter(([, ratio]) => ratio > 0)
+            .sort(([, a], [, b]) => b - a);
+          if (visible.length > 0) {
+            setActiveId(visible[0][0]);
+          }
+        }, 100);
       },
       { rootMargin: "-20% 0px -60% 0px", threshold: [0, 0.25, 0.5, 0.75, 1] }
     );
@@ -210,8 +220,17 @@ export default function PrivacyClient({
   const handleTocClick = (id: string) => {
     const el = sectionRefs.current[id];
     if (el) {
+      isManualScroll.current = true;
       el.scrollIntoView({ behavior: "smooth", block: "start" });
       setActiveId(id);
+      const clear = () => {
+        isManualScroll.current = false;
+      };
+      if ("onscrollend" in window) {
+        window.addEventListener("scrollend", clear, { once: true });
+      } else {
+        setTimeout(clear, 1200);
+      }
     }
   };
 
@@ -327,8 +346,8 @@ export default function PrivacyClient({
 
         <div className="max-w-7xl mx-auto px-6 pb-8 flex gap-8">
           {/* Sidebar */}
-          <aside className="privacy-sidebar privacy-no-print w-64 shrink-0 hidden lg:block bg-white rounded-2xl border border-gray-100 p-5 h-fit">
-            <div className="sticky top-28">
+          <aside className="privacy-sidebar privacy-no-print w-64 shrink-0 hidden lg:block">
+            <div className="sticky top-28 bg-white rounded-2xl border border-gray-100 p-5">
               <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">
                 On this page
               </h3>

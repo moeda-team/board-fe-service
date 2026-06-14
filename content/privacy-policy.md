@@ -185,10 +185,10 @@ Continued use of the Application after changes become effective constitutes acce
 
 If you have questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us:
 
-[Company Name]
-Email: [support@company.com]
-Address: [Company Address]
-Phone: [Company Phone Number]
+PapanClip
+Email: papanclip.official@gmail.com
+Address: Bandung, West Java, Indonesia
+Phone: -
 
 ⸻
 

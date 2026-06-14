@@ -103,6 +103,7 @@ export interface AuthMeUser {
     username: string;
     fullName: string;
     avatarUrl: string | null;
+    isSuperAdmin?: boolean;
 }
 
 export interface AuthMeTenantRole {

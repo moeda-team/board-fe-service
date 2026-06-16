@@ -31,7 +31,9 @@ export default async function proxy(req: NextRequest) {
     nextUrl.pathname === "/login" ||
     nextUrl.pathname === "/auth/callback" ||
     nextUrl.pathname === "/pricing" ||
-    nextUrl.pathname === "/faq";
+    nextUrl.pathname === "/faq" ||
+    nextUrl.pathname === "/changelog" ||
+    nextUrl.pathname === "/privacy";
 
   if (isApiAuthRoute) return NextResponse.next();
   if (!isLoggedIn && !isPublicRoute) {
@@ -46,6 +48,6 @@ export default async function proxy(req: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.mp4|.*\\.webm|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.gif|.*\\.svg|.*\\.ico|.*\\.woff2?|.*\\.ttf).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.mp4|.*\\.webm|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.gif|.*\\.svg|.*\\.webp|.*\\.avif|.*\\.ico|.*\\.woff2?|.*\\.ttf).*)",
   ],
 };

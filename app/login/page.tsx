@@ -168,7 +168,7 @@ function LoginForm() {
             <span className="h-px flex-1 bg-gray-100" />
           </div> */}
 
-          <div className="flex flex-col items-center gap-2">
+          <div className="flex flex-col items-center gap-2 mt-6">
             <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
               <ShieldCheck className="h-4 w-4 text-blue-500" />
               Aman dan terpercaya.

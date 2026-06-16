@@ -8,12 +8,18 @@ export interface ChangelogCreator {
 }
 
 export interface ChangelogAttachment {
-  id?: string;
-  fileUrl?: string;
-  fileName?: string;
-  fileSize?: number;
-  mimeType?: string;
-  [key: string]: unknown;
+  id: string;
+  tenantId: string | null;
+  uploadedBy: string | null;
+  fileName: string;
+  fileUrl: string;
+  fileType: string;
+  fileSize: number;
+  taskId: string | null;
+  commentId: string | null;
+  feedbackId: string | null;
+  changelogId: string;
+  createdAt: string;
 }
 
 export interface Changelog {

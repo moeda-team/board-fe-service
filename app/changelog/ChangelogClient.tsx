@@ -8,143 +8,26 @@ import {
   ChevronDown,
   ChevronUp,
   Calendar,
-  CheckCircle2,
   Bell,
-  Clock,
-  Play,
-  Users,
-  Zap,
-  Puzzle,
-  MoreHorizontal,
-  FolderKanban,
-  BarChart3
+  Loader2,
+  AlertCircle,
+  ImageIcon
 } from "lucide-react";
+import { useChangelogs } from "@/hooks/api/useChangelogs";
+import type { Changelog } from "@/types/type-changelogs";
 
-interface ChangelogEntry {
-  id: string;
-  date: string;
-  title: string;
-  description: string;
-  category: string;
-  isLatest?: boolean;
-  whatsNew?: string[];
-  screenshots?: { count?: number };
-  demoVideo?: { title: string; duration: string };
+function formatDate(iso: string | null) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric"
+  });
 }
 
-const CATEGORIES: {
-  key: string;
-  label: string;
-  count: number;
-  icon: React.ReactNode;
-}[] = [
-  {
-    key: "all",
-    label: "All new features",
-    count: 16,
-    icon: <FolderKanban size={16} />
-  },
-  {
-    key: "dashboard",
-    label: "Dashboard & Reports",
-    count: 5,
-    icon: <BarChart3 size={16} />
-  },
-  {
-    key: "collaboration",
-    label: "Collaboration",
-    count: 3,
-    icon: <Users size={16} />
-  },
-  { key: "automation", label: "Automation", count: 2, icon: <Zap size={16} /> },
-  {
-    key: "integrations",
-    label: "Integrations",
-    count: 4,
-    icon: <Puzzle size={16} />
-  },
-  { key: "other", label: "Other", count: 2, icon: <MoreHorizontal size={16} /> }
-];
-
-const ENTRIES: ChangelogEntry[] = [
-  {
-    id: "bulk-edit",
-    date: "May 15, 2024",
-    title: "Bulk edit for tasks",
-    description:
-      "You can now edit multiple tasks at once, saving time and reducing repetitive work.",
-    category: "dashboard",
-    isLatest: true,
-    whatsNew: [
-      "Select multiple tasks from any view",
-      "Edit fields like status, assignee, due date, priority, and labels",
-      "Changes are applied instantly",
-      "Works across board, list, and calendar views"
-    ],
-    screenshots: { count: 4 },
-    demoVideo: { title: "Bulk edit for tasks — PapanClip", duration: "1:25" }
-  },
-  {
-    id: "new-dashboard",
-    date: "May 8, 2024",
-    title: "New dashboard layout",
-    description:
-      "A cleaner, more intuitive dashboard to help you find insights faster.",
-    category: "dashboard"
-  },
-  {
-    id: "recurring-tasks",
-    date: "Apr 30, 2024",
-    title: "Add recurring tasks",
-    description:
-      "Set tasks to repeat daily, weekly, or monthly with custom intervals.",
-    category: "automation"
-  },
-  {
-    id: "export-pdf",
-    date: "Apr 22, 2024",
-    title: "Export task to PDF",
-    description: "Export any task or task list directly to a PDF file.",
-    category: "dashboard"
-  },
-  {
-    id: "keyboard-shortcuts",
-    date: "Apr 10, 2024",
-    title: "Add keyboard shortcuts",
-    description: "Speed up your workflow with new keyboard shortcuts.",
-    category: "other"
-  }
-];
-
-const CATEGORY_COLORS: Record<
-  string,
-  { bg: string; text: string; border: string }
-> = {
-  dashboard: {
-    bg: "bg-purple-50",
-    text: "text-purple-600",
-    border: "border-purple-200"
-  },
-  collaboration: {
-    bg: "bg-emerald-50",
-    text: "text-emerald-600",
-    border: "border-emerald-200"
-  },
-  automation: {
-    bg: "bg-amber-50",
-    text: "text-amber-600",
-    border: "border-amber-200"
-  },
-  integrations: {
-    bg: "bg-sky-50",
-    text: "text-sky-600",
-    border: "border-sky-200"
-  },
-  other: { bg: "bg-gray-50", text: "text-gray-600", border: "border-gray-200" }
-};
-
-function getCategoryLabel(key: string) {
-  return CATEGORIES.find((c) => c.key === key)?.label ?? key;
+function isImageAttachment(att: { fileType: string }) {
+  return att.fileType.startsWith("image/");
 }
 
 function HeroIllustration() {
@@ -230,25 +113,17 @@ export default function ChangelogClient({
   locale?: Locale;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState("all");
-  const [expandedId, setExpandedId] = useState<string | null>("bulk-edit");
-  const [timeFilter, setTimeFilter] = useState("all");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const { data: changelogs = [], isLoading, isError } = useChangelogs();
 
   const filteredEntries = useMemo(() => {
-    let result = ENTRIES;
-    if (activeCategory !== "all") {
-      result = result.filter((e) => e.category === activeCategory);
-    }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (e) =>
-          e.title.toLowerCase().includes(q) ||
-          e.description.toLowerCase().includes(q)
-      );
-    }
-    return result;
-  }, [activeCategory, searchQuery]);
+    if (!searchQuery.trim()) return changelogs;
+    const q = searchQuery.toLowerCase();
+    return changelogs.filter(
+      (e: Changelog) =>
+        e.title.toLowerCase().includes(q) || e.content.toLowerCase().includes(q)
+    );
+  }, [changelogs, searchQuery]);
 
   const toggleExpanded = (id: string) => {
     setExpandedId((prev) => (prev === id ? null : id));
@@ -308,46 +183,6 @@ export default function ChangelogClient({
                 />
               </div>
 
-              {/* Categories */}
-              <div className="bg-white rounded-2xl border border-gray-100 p-2">
-                <div className="flex flex-col gap-0.5">
-                  {CATEGORIES.map((cat) => {
-                    const isActive = activeCategory === cat.key;
-                    return (
-                      <button
-                        key={cat.key}
-                        onClick={() => setActiveCategory(cat.key)}
-                        className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all ${
-                          isActive
-                            ? "bg-[#ebf1fd] text-[#227bfe] font-semibold"
-                            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                        }`}
-                      >
-                        <span className="flex items-center gap-2.5">
-                          <span
-                            className={
-                              isActive ? "text-[#227bfe]" : "text-gray-400"
-                            }
-                          >
-                            {cat.icon}
-                          </span>
-                          {cat.label}
-                        </span>
-                        <span
-                          className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                            isActive
-                              ? "bg-[#227bfe] text-white"
-                              : "bg-gray-100 text-gray-500"
-                          }`}
-                        >
-                          {cat.count}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
               {/* Subscribe card */}
               <div className="bg-white rounded-2xl border border-gray-100 p-5 text-center">
                 <div className="w-10 h-10 rounded-full bg-[#ebf1fd] flex items-center justify-center mx-auto mb-3">
@@ -384,225 +219,158 @@ export default function ChangelogClient({
               </div>
             </div>
 
+            {/* Loading */}
+            {isLoading && (
+              <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+                <Loader2 size={32} className="animate-spin mb-3" />
+                <span className="text-sm">Loading changelogs…</span>
+              </div>
+            )}
+
+            {/* Error */}
+            {isError && (
+              <div className="flex flex-col items-center justify-center py-20 text-red-400">
+                <AlertCircle size={32} className="mb-3" />
+                <span className="text-sm">Failed to load changelogs.</span>
+              </div>
+            )}
+
             {/* Entries */}
-            <div className="space-y-0">
-              {filteredEntries.map((entry, idx) => {
-                const isExpanded = expandedId === entry.id;
-                const catStyle =
-                  CATEGORY_COLORS[entry.category] ?? CATEGORY_COLORS.other;
-                const isFirst = idx === 0;
+            {!isLoading && !isError && (
+              <div className="space-y-0">
+                {filteredEntries.map((entry: Changelog, idx: number) => {
+                  const isExpanded = expandedId === entry.id;
+                  const isFirst = idx === 0;
+                  const images = entry.attachments.filter(isImageAttachment);
 
-                return (
-                  <div
-                    key={entry.id}
-                    className="changelog-entry bg-white border border-gray-100 first:rounded-t-2xl last:rounded-b-2xl first:mb-4 last:mb-4 mb-4 overflow-hidden"
-                  >
-                    <button
-                      onClick={() => toggleExpanded(entry.id)}
-                      className="w-full text-left p-6 flex items-start gap-5 hover:bg-gray-50/50 transition-colors"
+                  return (
+                    <div
+                      key={entry.id}
+                      className="changelog-entry bg-white border border-gray-100 first:rounded-t-2xl last:rounded-b-2xl first:mb-4 last:mb-4 mb-4 overflow-hidden"
                     >
-                      {/* Timeline dot */}
-                      <div className="relative flex flex-col items-center pt-1 shrink-0">
-                        <div
-                          className={`w-2.5 h-2.5 rounded-full ${isFirst ? "bg-[#8b5cf6]" : "bg-[#227bfe]"} ring-4 ring-white`}
-                        />
-                      </div>
+                      <button
+                        onClick={() => toggleExpanded(entry.id)}
+                        className="w-full text-left p-6 flex items-start gap-5 hover:bg-gray-50/50 transition-colors"
+                      >
+                        {/* Timeline dot */}
+                        <div className="relative flex flex-col items-center pt-1 shrink-0">
+                          <div
+                            className={`w-2.5 h-2.5 rounded-full ${isFirst ? "bg-[#8b5cf6]" : "bg-[#227bfe]"} ring-4 ring-white`}
+                          />
+                        </div>
 
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <span className="text-xs text-gray-400 font-medium">
-                            {entry.date}
-                          </span>
-                          {entry.isLatest && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-[#ebf1fd] text-[#227bfe] text-[10px] font-bold">
-                              NEW
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            {entry.version && (
+                              <span className="text-xs text-gray-400 font-medium">
+                                v{entry.version}
+                              </span>
+                            )}
+                            <span className="text-xs text-gray-400 font-medium">
+                              {formatDate(entry.releaseDate)}
                             </span>
-                          )}
-                        </div>
-                        <h3 className="text-base font-bold text-[#060718] mb-1">
-                          {entry.title}
-                        </h3>
-                        <p className="text-sm text-gray-500 mb-2">
-                          {entry.description}
-                        </p>
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold border ${catStyle.bg} ${catStyle.text} ${catStyle.border}`}
-                        >
-                          {getCategoryLabel(entry.category)}
-                        </span>
-                      </div>
-
-                      {/* Thumbnail / Chevron */}
-                      <div className="shrink-0 flex flex-col items-end gap-3">
-                        {isFirst ? (
-                          <div className="w-28 h-20 bg-gray-100 rounded-xl border border-gray-100 flex items-center justify-center">
-                            <div className="w-16 h-12 bg-white rounded-lg border border-gray-200 shadow-sm flex items-center justify-center">
-                              <svg
-                                width="20"
-                                height="20"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="#8b5cf6"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              >
-                                <path d="M12 20h9" />
-                                <path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
-                              </svg>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="w-28 h-20 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-center">
-                            {entry.category === "dashboard" && (
-                              <div className="flex flex-col gap-1.5">
-                                <div className="w-12 h-1.5 bg-purple-200 rounded-full" />
-                                <div className="w-8 h-1.5 bg-purple-200 rounded-full" />
-                                <div className="w-10 h-1.5 bg-purple-200 rounded-full" />
-                              </div>
-                            )}
-                            {entry.category === "automation" && (
-                              <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                                <Clock size={16} className="text-emerald-500" />
-                              </div>
-                            )}
-                            {entry.category === "other" && (
-                              <div className="flex items-center gap-1">
-                                <div className="w-5 h-5 rounded bg-purple-100 flex items-center justify-center text-[10px] font-bold text-purple-500">
-                                  ⌘
-                                </div>
-                                <div className="w-5 h-5 rounded bg-purple-100 flex items-center justify-center text-[10px] font-bold text-purple-500">
-                                  K
-                                </div>
-                              </div>
+                            {isFirst && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-[#ebf1fd] text-[#227bfe] text-[10px] font-bold">
+                                NEW
+                              </span>
                             )}
                           </div>
-                        )}
-                        <div className="text-gray-400">
-                          {isExpanded ? (
-                            <ChevronUp size={18} />
-                          ) : (
-                            <ChevronDown size={18} />
-                          )}
+                          <h3 className="text-base font-bold text-[#060718] mb-1">
+                            {entry.title}
+                          </h3>
+                          <p className="text-sm text-gray-500">
+                            {entry.content}
+                          </p>
                         </div>
-                      </div>
-                    </button>
 
-                    {/* Expanded content */}
-                    {isExpanded && (
-                      <div className="px-6 pb-6 pl-13">
-                        {/* What's new */}
-                        {entry.whatsNew && entry.whatsNew.length > 0 && (
-                          <div className="mb-6">
-                            <h4 className="text-sm font-bold text-[#060718] mb-3 flex items-center gap-2">
-                              <CheckCircle2
-                                size={16}
-                                className="text-emerald-500"
+                        {/* Thumbnail / Chevron */}
+                        <div className="shrink-0 flex flex-col items-end gap-3">
+                          {images.length > 0 ? (
+                            <div className="w-28 h-20 rounded-xl border border-gray-100 overflow-hidden">
+                              <img
+                                src={images[0].fileUrl}
+                                alt={images[0].fileName}
+                                className="w-full h-full object-cover"
                               />
-                              What&apos;s new?
-                            </h4>
-                            <ul className="space-y-2">
-                              {entry.whatsNew.map((item, i) => (
-                                <li
-                                  key={i}
-                                  className="flex items-start gap-2 text-sm text-gray-600"
-                                >
-                                  <CheckCircle2
-                                    size={14}
-                                    className="text-emerald-500 mt-0.5 shrink-0"
-                                  />
-                                  {item}
-                                </li>
-                              ))}
-                            </ul>
+                            </div>
+                          ) : (
+                            <div className="w-28 h-20 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-center">
+                              <ImageIcon size={20} className="text-gray-300" />
+                            </div>
+                          )}
+                          <div className="text-gray-400">
+                            {isExpanded ? (
+                              <ChevronUp size={18} />
+                            ) : (
+                              <ChevronDown size={18} />
+                            )}
                           </div>
-                        )}
+                        </div>
+                      </button>
 
-                        {/* Screenshots */}
-                        {entry.screenshots && (
+                      {/* Expanded content */}
+                      {isExpanded && (
+                        <div className="px-6 pb-6 pl-13">
+                          {/* Content detail */}
                           <div className="mb-6">
-                            <h4 className="text-sm font-bold text-[#060718] mb-3">
-                              Screenshots
-                            </h4>
-                            <div className="flex gap-3 overflow-x-auto pb-2">
-                              {[1, 2, 3].map((i) => (
-                                <div
-                                  key={i}
-                                  className="w-40 h-28 bg-gray-100 rounded-xl border border-gray-100 shrink-0 flex items-center justify-center"
-                                >
-                                  <div className="w-32 h-20 bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col gap-1.5 p-2">
-                                    <div className="w-full h-1.5 bg-gray-100 rounded-full" />
-                                    <div className="w-3/4 h-1.5 bg-gray-100 rounded-full" />
-                                    <div className="w-full h-1.5 bg-gray-100 rounded-full" />
-                                    <div className="w-1/2 h-1.5 bg-gray-100 rounded-full" />
-                                  </div>
-                                </div>
-                              ))}
-                              {entry.screenshots.count &&
-                                entry.screenshots.count > 3 && (
-                                  <div className="w-24 h-28 bg-[#ebf1fd] rounded-xl border border-[#d6e4ff] shrink-0 flex items-center justify-center">
-                                    <span className="text-sm font-bold text-[#227bfe]">
-                                      +{entry.screenshots.count - 3} more
-                                    </span>
-                                  </div>
-                                )}
-                            </div>
+                            <p className="text-sm text-gray-600 whitespace-pre-wrap">
+                              {entry.content}
+                            </p>
                           </div>
-                        )}
 
-                        {/* Demo Video */}
-                        {entry.demoVideo && (
-                          <div>
-                            <h4 className="text-sm font-bold text-[#060718] mb-3">
-                              Demo Video
-                            </h4>
-                            <div className="w-full h-48 bg-linear-to-r from-[#7c3aed] to-[#a78bfa] rounded-2xl flex items-center justify-center relative overflow-hidden">
-                              <div className="absolute inset-0 flex items-center justify-center">
-                                <button className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center hover:scale-105 transition-transform shadow-lg">
-                                  <Play
-                                    size={24}
-                                    className="text-[#7c3aed] ml-1"
-                                    fill="#7c3aed"
-                                  />
-                                </button>
-                              </div>
-                              <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-6 h-6 rounded bg-white/20 flex items-center justify-center">
-                                    <span className="text-[10px] font-bold text-white">
-                                      P
-                                    </span>
-                                  </div>
-                                  <span className="text-xs text-white/90 font-medium">
-                                    {entry.demoVideo.title}
-                                  </span>
-                                </div>
-                                <span className="text-xs text-white/70 font-medium">
-                                  {entry.demoVideo.duration}
-                                </span>
-                              </div>
-                              {/* Progress bar */}
-                              <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
-                                <div className="w-1/4 h-full bg-white/60" />
+                          {/* Attachments / Screenshots */}
+                          {images.length > 0 && (
+                            <div className="mb-6">
+                              <h4 className="text-sm font-bold text-[#060718] mb-3">
+                                Screenshots
+                              </h4>
+                              <div className="flex gap-3 overflow-x-auto pb-2">
+                                {images.map((att) => (
+                                  <a
+                                    key={att.id}
+                                    href={att.fileUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="shrink-0"
+                                  >
+                                    <img
+                                      src={att.fileUrl}
+                                      alt={att.fileName}
+                                      className="w-40 h-28 rounded-xl border border-gray-100 object-cover hover:opacity-90 transition-opacity"
+                                    />
+                                  </a>
+                                ))}
                               </div>
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                          )}
+
+                          {/* Creator info */}
+                          {entry.creator && (
+                            <div className="flex items-center gap-2 text-xs text-gray-400">
+                              {entry.creator.avatarUrl && (
+                                <img
+                                  src={entry.creator.avatarUrl}
+                                  alt={entry.creator.fullName}
+                                  className="w-5 h-5 rounded-full"
+                                />
+                              )}
+                              <span>{entry.creator.fullName}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {filteredEntries.length === 0 && (
+                  <div className="text-center py-16 text-gray-400 text-sm">
+                    No changelogs found.
                   </div>
-                );
-              })}
-            </div>
-
-            {/* View older updates */}
-            <div className="flex justify-center mt-4">
-              <button className="flex items-center gap-2 text-sm font-medium text-[#227bfe] hover:text-[#1d6fea] transition-colors">
-                View older updates
-                <ChevronDown size={16} />
-              </button>
-            </div>
+                )}
+              </div>
+            )}
 
             <div className="h-8" />
           </main>

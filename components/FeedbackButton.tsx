@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useSubmitFeedback } from "@/hooks/api/useFeedback";
-import { toast } from "sonner";
+import { gooeyToast } from "goey-toast";
 
 type FeedbackCategory = "bug" | "feature";
 
@@ -70,7 +70,7 @@ function FeedbackDialog({
     const combined = [...files, ...newFiles].slice(0, MAX_FILES);
     const valid = combined.filter((f) => f.size <= MAX_FILE_SIZE);
     if (valid.length < combined.length) {
-      toast.error("Some files exceed the 10 MB limit and were skipped.");
+      gooeyToast.error("Some files exceed the 10 MB limit and were skipped.");
     }
     setFiles(valid);
   };
@@ -93,7 +93,7 @@ function FeedbackDialog({
       },
       {
         onSuccess: () => {
-          toast.success(
+          gooeyToast.success(
             isBug
               ? "Bug report submitted. Thank you!"
               : "Feature request submitted. Thank you!"
@@ -101,7 +101,7 @@ function FeedbackDialog({
           handleOpenChange(false);
         },
         onError: () => {
-          toast.error("Failed to submit feedback. Please try again.");
+          gooeyToast.error("Failed to submit feedback. Please try again.");
         }
       }
     );

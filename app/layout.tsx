@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/goey-toaster";
 import { SessionProvider } from "@/providers/session-provider";
 import { PhosphorProvider } from "@/providers/phosphor-provider";
 import { QueryProvider } from "@/providers/query-provider";

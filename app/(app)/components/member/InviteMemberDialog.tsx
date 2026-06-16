@@ -28,7 +28,7 @@ import { useRoles } from "@/hooks/api/useTenantRoles";
 import { useWorkspaces } from "@/hooks/api/useWorkspaces";
 import { Plus, Loader2, ChevronDown } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { gooeyToast } from "goey-toast";
 
 interface InviteMemberDialogProps {
   tenantId: string;
@@ -118,7 +118,7 @@ export function InviteMemberDialog({
     if (!tenantId || !email || !inviteRoleId || isInvitingMember) return;
 
     if (!canInviteMember) {
-      toast.error("You don't have permission to invite members.");
+      gooeyToast.error("You don't have permission to invite members.");
       return;
     }
 
@@ -127,7 +127,7 @@ export function InviteMemberDialog({
       : inviteWorkspaceIds;
 
     if (isAdminRole && workspaceIdsToSend.length === 0) {
-      toast.warning("No workspaces available to assign to admin.");
+      gooeyToast.warning("No workspaces available to assign to admin.");
       return;
     }
 

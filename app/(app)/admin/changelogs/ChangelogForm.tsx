@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
+import { gooeyToast } from "goey-toast";
 import {
   ChevronRight,
   Bold,
@@ -93,9 +93,7 @@ function buildInitialState(changelog: Changelog | null): FormState {
     content: changelog?.content ?? "",
     attachments: [],
     youtubeUrl: changelog?.youtubeUrl ?? "",
-    highlights: changelog?.highlights?.length
-      ? [...changelog.highlights]
-      : [""]
+    highlights: changelog?.highlights?.length ? [...changelog.highlights] : [""]
   };
 }
 
@@ -149,7 +147,7 @@ export default function ChangelogForm({
     const valid: File[] = [];
     for (const file of Array.from(fileList)) {
       if (file.size > MAX_FILE_SIZE) {
-        toast.error(`"${file.name}" exceeds the 10MB limit`);
+        gooeyToast.error(`"${file.name}" exceeds the 10MB limit`);
         continue;
       }
       valid.push(file);
@@ -157,7 +155,7 @@ export default function ChangelogForm({
     setForm((prev) => {
       const merged = [...prev.attachments, ...valid];
       if (merged.length > MAX_FILES) {
-        toast.error(`You can attach up to ${MAX_FILES} files`);
+        gooeyToast.error(`You can attach up to ${MAX_FILES} files`);
       }
       return { ...prev, attachments: merged.slice(0, MAX_FILES) };
     });
@@ -186,11 +184,11 @@ export default function ChangelogForm({
 
   const submit = (isDraft: boolean) => {
     if (!form.title.trim()) {
-      toast.error("Nama update wajib diisi");
+      gooeyToast.error("Nama update wajib diisi");
       return;
     }
     if (!form.content.trim()) {
-      toast.error("Deskripsi update wajib diisi");
+      gooeyToast.error("Deskripsi update wajib diisi");
       return;
     }
 

@@ -34,7 +34,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import LayoutWrapper from "../components/Layout/LayoutWrapper";
 import DynamicTabs from "../components/Layout/DynamicTabs";
 import { DataTable } from "../components/table/DataTable";
-import { toast } from "sonner";
+import { gooeyToast } from "goey-toast";
 
 // Status badge helper
 const getStatusBadge = (status: string) => {
@@ -55,7 +55,9 @@ const Settings = () => {
   const [pageIndex, setPageIndex] = useState(0);
 
   // Current plan data
-  const { data: currentPlan, isLoading: isCurrentPlanLoading } = useCurrentPlan(tenantId || "");
+  const { data: currentPlan, isLoading: isCurrentPlanLoading } = useCurrentPlan(
+    tenantId || ""
+  );
 
   // Payment history data
   const { data: paymentHistory, isLoading: isPaymentHistoryLoading } =
@@ -92,10 +94,10 @@ const Settings = () => {
     if (!tenantId) return;
     cancelPayment(tenantId, {
       onSuccess: () => {
-        toast.success("Payment cancelled successfully");
+        gooeyToast.success("Payment cancelled successfully");
       },
       onError: () => {
-        toast.error("Failed to cancel payment");
+        gooeyToast.error("Failed to cancel payment");
       }
     });
   };
@@ -281,7 +283,9 @@ const Settings = () => {
                           </p>
                           <p className="text-sm text-muted-foreground">
                             {currentPlan.tierValidUntil
-                              ? new Date(currentPlan.tierValidUntil).toLocaleDateString("en-GB", {
+                              ? new Date(
+                                  currentPlan.tierValidUntil
+                                ).toLocaleDateString("en-GB", {
                                   day: "2-digit",
                                   month: "short",
                                   year: "numeric"
@@ -299,14 +303,20 @@ const Settings = () => {
                             <div className="flex items-center gap-2">
                               <Users className="w-4 h-4 text-muted-foreground" />
                               <span className="text-sm">
-                                <span className="font-medium">{currentPlan.maxUsers}</span>{" "}
-                                <span className="text-muted-foreground">max users</span>
+                                <span className="font-medium">
+                                  {currentPlan.maxUsers}
+                                </span>{" "}
+                                <span className="text-muted-foreground">
+                                  max users
+                                </span>
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
                               <HardDrive className="w-4 h-4 text-muted-foreground" />
                               <span className="text-sm">
-                                <span className="font-medium">{formatBytes(currentPlan.usedStorage)}</span>{" "}
+                                <span className="font-medium">
+                                  {formatBytes(currentPlan.usedStorage)}
+                                </span>{" "}
                                 <span className="text-muted-foreground">
                                   / {formatBytes(currentPlan.maxStorage)}
                                 </span>
@@ -316,9 +326,13 @@ const Settings = () => {
                               <LayoutGrid className="w-4 h-4 text-muted-foreground" />
                               <span className="text-sm">
                                 <span className="font-medium">
-                                  {currentPlan.maxWorkspaces === 0 ? "Unlimited" : currentPlan.maxWorkspaces}
+                                  {currentPlan.maxWorkspaces === 0
+                                    ? "Unlimited"
+                                    : currentPlan.maxWorkspaces}
                                 </span>{" "}
-                                <span className="text-muted-foreground">max workspaces</span>
+                                <span className="text-muted-foreground">
+                                  max workspaces
+                                </span>
                               </span>
                             </div>
                           </div>
@@ -341,7 +355,9 @@ const Settings = () => {
                           <div className="space-y-2">
                             <Button
                               className="w-full bg-blue-600 hover:bg-blue-700"
-                              onClick={() => (window.location.href = "/pricing")}
+                              onClick={() =>
+                                (window.location.href = "/pricing")
+                              }
                             >
                               Update Plan
                             </Button>
@@ -388,7 +404,9 @@ const Settings = () => {
 
                     {/* Amount */}
                     <div>
-                      <p className="text-sm text-muted-foreground mb-1">Amount</p>
+                      <p className="text-sm text-muted-foreground mb-1">
+                        Amount
+                      </p>
                       <h3 className="text-xl font-semibold">
                         {new Intl.NumberFormat("id-ID", {
                           style: "currency",
@@ -437,11 +455,13 @@ const Settings = () => {
                             <Check className="w-3 h-3 text-green-600" />
                           </div>
                           <span className="text-sm">
-                            Additional storage: {new Intl.NumberFormat("id-ID", {
+                            Additional storage:{" "}
+                            {new Intl.NumberFormat("id-ID", {
                               style: "currency",
                               currency: "IDR",
                               minimumFractionDigits: 0
-                            }).format(currentPlan.plan.pricePerGb)}/GB
+                            }).format(currentPlan.plan.pricePerGb)}
+                            /GB
                           </span>
                         </div>
                       )}

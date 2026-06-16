@@ -50,7 +50,7 @@ import {
   Users
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { gooeyToast } from "goey-toast";
 import SearchBox from "../components/input/SearchBox";
 import DynamicTabs from "../components/Layout/DynamicTabs";
 import LayoutWrapper from "../components/Layout/LayoutWrapper";
@@ -293,7 +293,7 @@ const Members = () => {
     }
 
     if (!canEditMemberRole) {
-      toast.error("You don't have permission to update member roles.");
+      gooeyToast.error("You don't have permission to update member roles.");
       return;
     }
 
@@ -313,7 +313,7 @@ const Members = () => {
 
     if (row.kind === "invite") {
       if (!canInviteMember && !canRemoveMember) {
-        toast.error("You don't have permission to cancel invitations.");
+        gooeyToast.error("You don't have permission to cancel invitations.");
         return;
       }
 
@@ -344,7 +344,7 @@ const Members = () => {
     // Active tab: Archive member, Archived tab: Remove member
     if (activeTab === "active") {
       if (!canRemoveMember) {
-        toast.error("You don't have permission to archive members.");
+        gooeyToast.error("You don't have permission to archive members.");
         return;
       }
 
@@ -364,7 +364,7 @@ const Members = () => {
     } else {
       // archived tab - permanently remove
       if (!canRemoveMember) {
-        toast.error("You don't have permission to remove members.");
+        gooeyToast.error("You don't have permission to remove members.");
         return;
       }
 
@@ -394,7 +394,7 @@ const Members = () => {
     }
 
     if (!canRemoveMember) {
-      toast.error("You don't have permission to restore members.");
+      gooeyToast.error("You don't have permission to restore members.");
       return;
     }
 
@@ -540,7 +540,7 @@ const Members = () => {
               },
               {
                 onError: () => {
-                  toast.error("Failed to update workspace access");
+                  gooeyToast.error("Failed to update workspace access");
                 }
               }
             );
@@ -635,7 +635,9 @@ const Members = () => {
                             {ws.name || "Untitled"}
                           </span>
                           {isAdminRole && (
-                            <span className="text-xs text-muted-foreground ml-auto">Admin</span>
+                            <span className="text-xs text-muted-foreground ml-auto">
+                              Admin
+                            </span>
                           )}
                         </label>
                       ))

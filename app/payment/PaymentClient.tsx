@@ -17,7 +17,7 @@ import {
   ChevronRight,
   Loader2
 } from "lucide-react";
-import { toast } from "sonner";
+import { gooeyToast } from "goey-toast";
 import {
   useCreateCheckout,
   useCancelPendingPayment,
@@ -94,7 +94,7 @@ export default function PaymentClient() {
   // Load Midtrans Snap script on mount
   useEffect(() => {
     loadSnapScript().catch(() => {
-      toast.error("Failed to load payment system");
+      gooeyToast.error("Failed to load payment system");
     });
   }, [loadSnapScript]);
 
@@ -103,7 +103,7 @@ export default function PaymentClient() {
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!tenantId && authMe) {
-      toast.error("Please select a tenant first");
+      gooeyToast.error("Please select a tenant first");
       router.push("/spaces");
     }
   }, [tenantId, authMe, router]);
@@ -113,24 +113,24 @@ export default function PaymentClient() {
     try {
       openSnapPopup(pendingPayment.snapToken, {
         onSuccess: () => {
-          toast.success("Payment successful!");
+          gooeyToast.success("Payment successful!");
           setStep(3);
         },
         onPending: () => {
-          toast.info("Payment is pending.");
+          gooeyToast.info("Payment is pending.");
         },
         onError: () => {
-          toast.error("Payment failed.");
+          gooeyToast.error("Payment failed.");
         },
         onClose: () => {
-          toast.info("Payment window closed");
+          gooeyToast.info("Payment window closed");
         }
       });
     } catch {
       if (pendingPayment.snapRedirectUrl) {
         window.location.href = pendingPayment.snapRedirectUrl;
       } else {
-        toast.error("Unable to open payment window.");
+        gooeyToast.error("Unable to open payment window.");
       }
     }
   };
@@ -139,10 +139,10 @@ export default function PaymentClient() {
     if (!tenantId) return;
     cancelPendingPayment(tenantId, {
       onSuccess: () => {
-        toast.success("Pending payment cancelled");
+        gooeyToast.success("Pending payment cancelled");
       },
       onError: () => {
-        toast.error("Failed to cancel payment");
+        gooeyToast.error("Failed to cancel payment");
       }
     });
   };
@@ -151,13 +151,17 @@ export default function PaymentClient() {
     e.preventDefault();
 
     if (!tenantId) {
-      toast.error("Please login first");
+      gooeyToast.error("Please login first");
       return;
     }
 
     try {
-      if (!selectedPlan || selectedPlan.tier === "FREE" || selectedPlan.tier === "CUSTOM") {
-        toast.error(
+      if (
+        !selectedPlan ||
+        selectedPlan.tier === "FREE" ||
+        selectedPlan.tier === "CUSTOM"
+      ) {
+        gooeyToast.error(
           selectedPlan?.tier === "CUSTOM"
             ? "Custom plan requires sales negotiation. Please contact support."
             : "Invalid plan selected"
@@ -167,27 +171,29 @@ export default function PaymentClient() {
       // Create checkout session via backend API
       const checkout = await createCheckout({
         tenantId,
-        tierToUpgrade: selectedPlan.tier as "BASIC" | "PRO",
+        tierToUpgrade: selectedPlan.tier as "BASIC" | "PRO"
       });
 
-      toast.success("Redirecting to payment...");
+      gooeyToast.success("Redirecting to payment...");
 
       try {
         // Open Midtrans Snap popup with the token from backend
         openSnapPopup(checkout.token, {
           onSuccess: () => {
-            toast.success("Payment successful!");
+            gooeyToast.success("Payment successful!");
             setStep(3); // Go to confirmation step
           },
           onPending: () => {
-            toast.info("Payment is pending. Please complete your payment.");
+            gooeyToast.info(
+              "Payment is pending. Please complete your payment."
+            );
           },
           onError: () => {
-            toast.error("Payment failed. Please try again.");
+            gooeyToast.error("Payment failed. Please try again.");
           },
           onClose: () => {
             // User closed the popup
-            toast.info("Payment window closed");
+            gooeyToast.info("Payment window closed");
           }
         });
       } catch {
@@ -195,7 +201,7 @@ export default function PaymentClient() {
         if (checkout.redirect_url) {
           window.location.href = checkout.redirect_url;
         } else {
-          toast.error("Unable to open payment window. Please try again.");
+          gooeyToast.error("Unable to open payment window. Please try again.");
         }
       }
     } catch (error: any) {
@@ -203,7 +209,7 @@ export default function PaymentClient() {
         error?.response?.data?.message ||
         error?.message ||
         "Payment initiation failed. Please try again.";
-      toast.error(msg);
+      gooeyToast.error(msg);
     }
   };
 

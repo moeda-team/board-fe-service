@@ -25,6 +25,12 @@ export interface UpdateRoleParams {
   dto: UpdateRoleDto;
 }
 
+export interface UpdateRolePermissionsParams {
+  tenantId: string;
+  roleId: string;
+  permissions: string[];
+}
+
 export interface DeleteRoleParams {
   tenantId: string;
   roleId: string;

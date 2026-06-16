@@ -1,5 +1,5 @@
 import { MutationCache, QueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { gooeyToast } from "goey-toast";
 
 export function makeQueryClient() {
   return new QueryClient({
@@ -8,14 +8,14 @@ export function makeQueryClient() {
         if (typeof window === "undefined") return;
         const message = mutation.meta?.successMessage as string | undefined;
         if (message) {
-          toast.success(message);
+          gooeyToast.success(message);
         }
       },
       onError: (_error, _variables, _context, mutation) => {
         if (typeof window === "undefined") return;
         const message = mutation.meta?.errorMessage as string | undefined;
         if (message) {
-          toast.error(message);
+          gooeyToast.error(message);
         }
       },
     }),

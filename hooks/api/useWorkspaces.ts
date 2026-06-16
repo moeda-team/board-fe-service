@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { gooeyToast } from "goey-toast";
 import apiClient from "@/lib/apiClient";
 import { unwrapApiArrayData, unwrapApiData } from "@/types/api";
 import {
@@ -48,7 +48,7 @@ export const useCreateWorkspace = () => {
       const status = error?.response?.status;
       const message = error?.response?.data?.message;
       if (status === 400 && message?.toLowerCase().includes("workspace limit reached")) {
-        toast.error(message + " Please upgrade your plan.");
+        gooeyToast.error(message + " Please upgrade your plan.");
       }
     }
   });

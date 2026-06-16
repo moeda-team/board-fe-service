@@ -23,11 +23,11 @@ import {
   useDeleteRole,
   useRoleDetail,
   useRoles,
-  useUpdateRole
+  useUpdateRolePermissions
 } from "@/hooks/api/useTenantRoles";
 import { usePermissions } from "@/hooks/api/useMasterData";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { gooeyToast } from "goey-toast";
 import type { ColumnDef } from "@tanstack/react-table";
 
 interface PermissionTablePanelProps {
@@ -102,7 +102,8 @@ export function PermissionTablePanel({
   const { data: roles = [] } = useRoles(tenantId);
   const { data: role, isLoading } = useRoleDetail(tenantId, roleId || "");
   const { data: permissions = [] } = usePermissions();
-  const { mutate: updateRole, isPending: isUpdatingRole } = useUpdateRole();
+  const { mutate: updateRolePermissions, isPending: isUpdatingPermissions } =
+    useUpdateRolePermissions();
   const { mutate: deleteRole, isPending: isDeletingRole } = useDeleteRole();
   const isSystem =
     role?.isDefault ||
@@ -210,24 +211,17 @@ export function PermissionTablePanel({
     nextPermissionIds: Set<string>,
     previousPermissionIds: Set<string>
   ) => {
-    if (!tenantId || !roleId || !role?.name || !canUpdatePermissions) {
+    if (!tenantId || !roleId || !canUpdatePermissions) {
       return;
     }
 
-    updateRole(
+    updateRolePermissions(
       {
         tenantId,
         roleId,
-        dto: {
-          permissions: Array.from(nextPermissionIds)
-        }
+        permissions: Array.from(nextPermissionIds)
       },
       {
-        onSuccess: async () => {
-          await queryClient.invalidateQueries({
-            queryKey: ["roles", tenantId]
-          });
-        },
         onError: () => {
           setSelectedPermissionIds(previousPermissionIds);
         }
@@ -241,13 +235,13 @@ export function PermissionTablePanel({
     checked: boolean
   ) => {
     if (!canEditPermissions) {
-      toast.error("You don't have permission to edit role access.");
+      gooeyToast.error("You don't have permission to edit role access.");
       return;
     }
 
     const permissionId = permissionCatalog[module]?.[action];
 
-    if (!permissionId || isUpdatingRole) {
+    if (!permissionId || isUpdatingPermissions) {
       return;
     }
 
@@ -266,11 +260,11 @@ export function PermissionTablePanel({
 
   const handleAllAccessToggle = (module: string, checked: boolean) => {
     if (!canEditPermissions) {
-      toast.error("You don't have permission to edit role access.");
+      gooeyToast.error("You don't have permission to edit role access.");
       return;
     }
 
-    if (isUpdatingRole) {
+    if (isUpdatingPermissions) {
       return;
     }
 
@@ -371,7 +365,7 @@ export function PermissionTablePanel({
                 !hasAllActions ||
                 isSystem ||
                 !canEditPermissions ||
-                isUpdatingRole
+                isUpdatingPermissions
               }
               onCheckedChange={(checked) =>
                 handleAllAccessToggle(module, checked === true)
@@ -405,7 +399,7 @@ export function PermissionTablePanel({
                 !permissionCatalog[module]?.create ||
                 isSystem ||
                 !canEditPermissions ||
-                isUpdatingRole
+                isUpdatingPermissions
               }
               onCheckedChange={(checked) =>
                 handleActionToggle(module, "create", checked === true)
@@ -441,7 +435,7 @@ export function PermissionTablePanel({
                 !permissionCatalog[module]?.edit ||
                 isSystem ||
                 !canEditPermissions ||
-                isUpdatingRole
+                isUpdatingPermissions
               }
               onCheckedChange={(checked) =>
                 handleActionToggle(module, "edit", checked === true)
@@ -477,7 +471,7 @@ export function PermissionTablePanel({
                 !permissionCatalog[module]?.delete ||
                 isSystem ||
                 !canEditPermissions ||
-                isUpdatingRole
+                isUpdatingPermissions
               }
               onCheckedChange={(checked) =>
                 handleActionToggle(module, "delete", checked === true)
@@ -513,7 +507,7 @@ export function PermissionTablePanel({
                 !permissionCatalog[module]?.view ||
                 isSystem ||
                 !canEditPermissions ||
-                isUpdatingRole
+                isUpdatingPermissions
               }
               onCheckedChange={(checked) =>
                 handleActionToggle(module, "view", checked === true)

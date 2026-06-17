@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
   Plus,
@@ -116,8 +116,16 @@ export default function AdminChangelog() {
 
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("all");
+  const [dateRange, setDateRange] = useState<
+    "all" | "this-month" | "last-3-months" | "this-year"
+  >("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
+
+  const [menuDropdownOpen, setMenuDropdownOpen] = useState(false);
+  const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
+  const menuDropdownRef = useRef<HTMLDivElement>(null);
+  const dateDropdownRef = useRef<HTMLDivElement>(null);
 
   const sortedChangelogs = useMemo(
     () =>
@@ -145,22 +153,86 @@ export default function AdminChangelog() {
     ];
   }, [sortedChangelogs]);
 
+  const getDateRangeBounds = useCallback((range: typeof dateRange) => {
+    const now = new Date();
+    switch (range) {
+      case "this-month": {
+        const start = new Date(now.getFullYear(), now.getMonth(), 1);
+        return { start, end: now };
+      }
+      case "last-3-months": {
+        const start = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+        return { start, end: now };
+      }
+      case "this-year": {
+        const start = new Date(now.getFullYear(), 0, 1);
+        return { start, end: now };
+      }
+      default:
+        return null;
+    }
+  }, []);
+
+  const dateRangeLabel = useMemo(() => {
+    switch (dateRange) {
+      case "this-month":
+        return "Bulan ini";
+      case "last-3-months":
+        return "3 Bulan terakhir";
+      case "this-year":
+        return "Tahun ini";
+      default:
+        return "Semua waktu";
+    }
+  }, [dateRange]);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (
+        menuDropdownRef.current &&
+        !menuDropdownRef.current.contains(e.target as Node)
+      ) {
+        setMenuDropdownOpen(false);
+      }
+      if (
+        dateDropdownRef.current &&
+        !dateDropdownRef.current.contains(e.target as Node)
+      ) {
+        setDateDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   const filtered = useMemo(() => {
     let result = sortedChangelogs;
+    // Tab / menu filter
     if (activeTab !== "all") {
       result = result.filter((e) => e.menu === activeTab);
     }
+    // Date range filter
+    const bounds = getDateRangeBounds(dateRange);
+    if (bounds) {
+      result = result.filter((e) => {
+        const d = new Date(e.releaseDate ?? e.createdAt);
+        return d >= bounds.start && d <= bounds.end;
+      });
+    }
+    // Search filter
     if (search.trim()) {
       const q = search.toLowerCase();
+      const stripHtml = (html: string) => html.replace(/<[^>]*>/g, "");
       result = result.filter(
         (e) =>
           e.title.toLowerCase().includes(q) ||
-          e.content.toLowerCase().includes(q) ||
+          stripHtml(e.content).toLowerCase().includes(q) ||
           (e.version ?? "").toLowerCase().includes(q)
       );
     }
     return result;
-  }, [sortedChangelogs, activeTab, search]);
+  }, [sortedChangelogs, activeTab, search, dateRange, getDateRangeBounds]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -193,6 +265,38 @@ export default function AdminChangelog() {
       { id: deleteTarget.id },
       { onSuccess: () => setDeleteTarget(null) }
     );
+  };
+
+  const handleExport = () => {
+    const headers = [
+      "Menu",
+      "Nama Update",
+      "Versi",
+      "Tanggal Rilis",
+      "Status",
+      "Dipublikasikan Oleh",
+      "Dibuat Pada"
+    ];
+    const rows = filtered.map((e) =>
+      [
+        e.menu ?? "-",
+        '"' + e.title.replace(/"/g, '""') + '"',
+        e.version ?? "-",
+        e.releaseDate ? formatDate(e.releaseDate) : "-",
+        e.status ?? "-",
+        e.creator?.fullName ?? "-",
+        formatDate(e.createdAt) + " " + formatTimeWIB(e.createdAt)
+      ].join(",")
+    );
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download =
+      "changelog-export-" + new Date().toISOString().slice(0, 10) + ".csv";
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // ── Auth gating ──────────────────────────────────────────────────────────
@@ -328,18 +432,126 @@ export default function AdminChangelog() {
                   }}
                 />
               </div>
-              <Button variant="outline" className="text-slate-600">
-                <ListFilter className="size-4" />
-                Menu
-                <ChevronDown className="size-4" />
-              </Button>
-              <Button variant="outline" className="text-slate-600">
-                <CalendarDays className="size-4" />
-                Tanggal Rilis
-                <ChevronDown className="size-4" />
-              </Button>
+              <div className="relative" ref={menuDropdownRef}>
+                <Button
+                  variant="outline"
+                  className={
+                    "text-slate-600 " +
+                    (activeTab !== "all"
+                      ? "border-blue-300 bg-blue-50/50 text-blue-600"
+                      : "")
+                  }
+                  onClick={() => setMenuDropdownOpen((v) => !v)}
+                >
+                  <ListFilter className="size-4" />
+                  {activeTab === "all" ? "Menu" : activeTab}
+                  <ChevronDown
+                    className={
+                      "size-4 transition-transform " +
+                      (menuDropdownOpen ? "rotate-180" : "")
+                    }
+                  />
+                </Button>
+                {menuDropdownOpen && (
+                  <div className="absolute left-0 top-full mt-1 z-10 w-48 rounded-lg border border-slate-200 bg-white shadow-lg py-1">
+                    <button
+                      onClick={() => {
+                        setActiveTab("all");
+                        setMenuDropdownOpen(false);
+                        setPage(1);
+                      }}
+                      className={
+                        "w-full text-left px-3 py-2 text-sm " +
+                        (activeTab === "all"
+                          ? "bg-blue-50 text-blue-600 font-semibold"
+                          : "text-slate-600 hover:bg-slate-50")
+                      }
+                    >
+                      Semua
+                    </button>
+                    {tabs
+                      .filter((t) => t.key !== "all")
+                      .map((tab) => (
+                        <button
+                          key={tab.key}
+                          onClick={() => {
+                            setActiveTab(tab.key);
+                            setMenuDropdownOpen(false);
+                            setPage(1);
+                          }}
+                          className={
+                            "w-full text-left px-3 py-2 text-sm " +
+                            (activeTab === tab.key
+                              ? "bg-blue-50 text-blue-600 font-semibold"
+                              : "text-slate-600 hover:bg-slate-50")
+                          }
+                        >
+                          {tab.label}
+                          <span className="ml-1.5 text-[11px] text-slate-400">
+                            ({tab.count})
+                          </span>
+                        </button>
+                      ))}
+                  </div>
+                )}
+              </div>
+              <div className="relative" ref={dateDropdownRef}>
+                <Button
+                  variant="outline"
+                  className={
+                    "text-slate-600 " +
+                    (dateRange !== "all"
+                      ? "border-blue-300 bg-blue-50/50 text-blue-600"
+                      : "")
+                  }
+                  onClick={() => setDateDropdownOpen((v) => !v)}
+                >
+                  <CalendarDays className="size-4" />
+                  {dateRangeLabel}
+                  <ChevronDown
+                    className={
+                      "size-4 transition-transform " +
+                      (dateDropdownOpen ? "rotate-180" : "")
+                    }
+                  />
+                </Button>
+                {dateDropdownOpen && (
+                  <div className="absolute left-0 top-full mt-1 z-10 w-48 rounded-lg border border-slate-200 bg-white shadow-lg py-1">
+                    {(
+                      [
+                        ["all", "Semua waktu"],
+                        ["this-month", "Bulan ini"],
+                        ["last-3-months", "3 Bulan terakhir"],
+                        ["this-year", "Tahun ini"]
+                      ] as const
+                    ).map(([key, label]) => (
+                      <button
+                        key={key}
+                        onClick={() => {
+                          setDateRange(key);
+                          setDateDropdownOpen(false);
+                          setPage(1);
+                        }}
+                        className={
+                          "w-full text-left px-3 py-2 text-sm " +
+                          (dateRange === key
+                            ? "bg-blue-50 text-blue-600 font-semibold"
+                            : "text-slate-600 hover:bg-slate-50")
+                        }
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-            <Button variant="outline" className="text-slate-600">
+            <Button
+              variant="outline"
+              className="text-slate-600"
+              onClick={handleExport}
+              disabled={filtered.length === 0}
+            >
               <Download className="size-4" />
               Export
             </Button>
@@ -416,7 +628,7 @@ export default function AdminChangelog() {
                             {entry.title}
                           </p>
                           <p className="mt-0.5 line-clamp-1 max-w-xs text-xs text-slate-500">
-                            {entry.content}
+                            {entry.content.replace(/<[^>]*>/g, "")}
                           </p>
                         </td>
                         {/* Versi */}

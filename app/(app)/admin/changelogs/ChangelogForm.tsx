@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { gooeyToast } from "goey-toast";
 import {
   ChevronRight,
@@ -24,8 +24,14 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter
+} from "@/components/ui/dialog";
 import {
   useCreateChangelog,
   useUpdateChangelog
@@ -108,10 +114,22 @@ const SectionNumber = ({ n }: { n: number }) => (
   </span>
 );
 
-const ToolbarBtn = ({ children }: { children: React.ReactNode }) => (
+const ToolbarBtn = ({
+  children,
+  onAction,
+  active
+}: {
+  children: React.ReactNode;
+  onAction: () => void;
+  active?: boolean;
+}) => (
   <button
     type="button"
-    className="flex size-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100"
+    onMouseDown={(e) => {
+      e.preventDefault();
+      onAction();
+    }}
+    className={`flex size-7 items-center justify-center rounded-md transition-colors ${active ? "bg-slate-200 text-slate-800" : "text-slate-500 hover:bg-slate-100"}`}
     tabIndex={-1}
   >
     {children}
@@ -139,8 +157,64 @@ export default function ChangelogForm({
   const [activePreview, setActivePreview] = useState(0);
   const youtubeId = getYoutubeId(form.youtubeUrl);
 
+  const editorRef = useRef<HTMLDivElement>(null);
+  const savedSelectionRef = useRef<Range | null>(null);
+  const dialogJustOpenedRef = useRef(false);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+
+  // Sync editor innerHTML when form initializes (edit mode) or changelog changes
+  useEffect(() => {
+    if (editorRef.current && form.content) {
+      editorRef.current.innerHTML = form.content;
+    }
+    // Only run on mount / when changelog changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [changelog?.id]);
+
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  const saveSelection = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      savedSelectionRef.current = sel.getRangeAt(0).cloneRange();
+    }
+  };
+
+  const restoreSelection = () => {
+    const range = savedSelectionRef.current;
+    if (!range) return;
+    const sel = window.getSelection();
+    if (sel) {
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+  };
+
+  const execCommand = (command: string, value?: string) => {
+    restoreSelection();
+    editorRef.current?.focus();
+    // Ensure there's a selection range in the editor
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount === 0 && editorRef.current) {
+      const range = document.createRange();
+      range.selectNodeContents(editorRef.current);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    document.execCommand(command, false, value);
+    syncContent();
+  };
+
+  const syncContent = () => {
+    if (editorRef.current) {
+      update("content", editorRef.current.innerHTML);
+    }
+  };
+
+  const stripHtml = (html: string) => html.replace(/<[^>]*>/g, "").trim();
 
   const handleSelectFiles = (fileList: FileList | null) => {
     if (!fileList?.length) return;
@@ -182,26 +256,34 @@ export default function ChangelogForm({
       form.highlights.filter((_, i) => i !== index)
     );
 
-  const submit = (isDraft: boolean) => {
+  const submit = (status: "DRAFT" | "PUBLISHED") => {
+    if (!form.menu.trim()) {
+      gooeyToast.error("Menu yang diupdate wajib diisi");
+      return;
+    }
     if (!form.title.trim()) {
       gooeyToast.error("Nama update wajib diisi");
       return;
     }
-    if (!form.content.trim()) {
+    if (!stripHtml(form.content)) {
       gooeyToast.error("Deskripsi update wajib diisi");
+      return;
+    }
+    if (form.youtubeUrl.trim() && !getYoutubeId(form.youtubeUrl.trim())) {
+      gooeyToast.error("URL YouTube tidak valid");
       return;
     }
 
     const dto: ChangelogFormDto = {
-      menu: form.menu || undefined,
+      menu: form.menu.trim(),
       version: form.version.trim() || undefined,
       title: form.title.trim(),
       content: form.content.trim(),
+      status,
       releaseDate: form.releaseDate || undefined,
       youtubeUrl: form.youtubeUrl.trim() || undefined,
       highlights: form.highlights.filter((h) => h.trim()),
-      attachments: form.attachments.length ? form.attachments : undefined,
-      isDraft
+      attachments: form.attachments.length ? form.attachments : undefined
     };
 
     const onSuccess = () => onClose();
@@ -327,37 +409,99 @@ export default function ChangelogForm({
             </p>
             <div className="ml-7 overflow-hidden rounded-lg border border-input">
               <div className="flex items-center gap-0.5 border-b bg-slate-50 px-2 py-1">
-                <ToolbarBtn>
+                <ToolbarBtn onAction={() => execCommand("bold")}>
                   <Bold className="size-4" />
                 </ToolbarBtn>
-                <ToolbarBtn>
+                <ToolbarBtn onAction={() => execCommand("italic")}>
                   <Italic className="size-4" />
                 </ToolbarBtn>
                 <span className="mx-1 h-4 w-px bg-slate-200" />
-                <ToolbarBtn>
+                <ToolbarBtn onAction={() => execCommand("insertUnorderedList")}>
                   <List className="size-4" />
                 </ToolbarBtn>
-                <ToolbarBtn>
+                <ToolbarBtn onAction={() => execCommand("insertOrderedList")}>
                   <ListOrdered className="size-4" />
                 </ToolbarBtn>
                 <span className="mx-1 h-4 w-px bg-slate-200" />
-                <ToolbarBtn>
+                <ToolbarBtn
+                  onAction={() => {
+                    saveSelection();
+                    setLinkUrl("");
+                    dialogJustOpenedRef.current = true;
+                    setTimeout(() => setLinkDialogOpen(true), 0);
+                    setTimeout(() => {
+                      dialogJustOpenedRef.current = false;
+                    }, 300);
+                  }}
+                >
                   <Link2 className="size-4" />
                 </ToolbarBtn>
-                <ToolbarBtn>
+                <ToolbarBtn
+                  onAction={() => execCommand("formatBlock", "blockquote")}
+                >
                   <Quote className="size-4" />
                 </ToolbarBtn>
               </div>
-              <Textarea
-                rows={5}
-                maxLength={2000}
-                className="rounded-none border-0 focus-visible:ring-0"
-                placeholder="Kami menambahkan fitur export dashboard ke PDF..."
-                value={form.content}
-                onChange={(e) => update("content", e.target.value)}
+              <div
+                ref={editorRef}
+                contentEditable
+                role="textbox"
+                aria-label="Changelog content"
+                onInput={syncContent}
+                onBlur={syncContent}
+                suppressContentEditableWarning
+                className="min-h-[120px] max-h-[400px] overflow-y-auto px-3 py-2 text-sm outline-none prose prose-sm prose-slate max-w-none focus:outline-none"
+                data-placeholder="Kami menambahkan fitur export dashboard ke PDF..."
               />
+              <style>{`
+                [data-placeholder]:empty::before {
+                  content: attr(data-placeholder);
+                  color: #94a3b8;
+                  pointer-events: none;
+                }
+                .prose[data-placeholder] b, .prose[data-placeholder] strong { font-weight: 700; }
+                .prose[data-placeholder] i, .prose[data-placeholder] em { font-style: italic; }
+                .prose[data-placeholder] u { text-decoration: underline; }
+                .prose[data-placeholder] s, .prose[data-placeholder] strike, .prose[data-placeholder] del { text-decoration: line-through; }
+                .prose[data-placeholder] br { display: block; content: ""; margin-top: 0.25em; }
+                .prose[data-placeholder] p { margin: 0.5em 0; }
+                .prose[data-placeholder] ul { list-style: disc; padding-left: 1.5em; margin: 0.5em 0; }
+                .prose[data-placeholder] ol { list-style: decimal; padding-left: 1.5em; margin: 0.5em 0; }
+                .prose[data-placeholder] li { margin: 0.15em 0; }
+                .prose[data-placeholder] li > ul, .prose[data-placeholder] li > ol { margin: 0.1em 0; }
+                .prose[data-placeholder] blockquote { border-left: 3px solid #d1d5db; padding-left: 1em; color: #6b7280; margin: 0.5em 0; font-style: italic; }
+                .prose[data-placeholder] a { color: #2563eb; text-decoration: underline; }
+                .prose[data-placeholder] h1 { font-size: 1.25em; font-weight: 700; margin: 0.5em 0 0.25em; }
+                .prose[data-placeholder] h2 { font-size: 1.125em; font-weight: 700; margin: 0.5em 0 0.25em; }
+                .prose[data-placeholder] h3 { font-size: 1em; font-weight: 600; margin: 0.5em 0 0.25em; }
+                .prose[data-placeholder] code { background: #f1f5f9; padding: 0.1em 0.3em; border-radius: 0.25em; font-size: 0.9em; }
+                .prose[data-placeholder] hr { border: none; border-top: 1px solid #e5e7eb; margin: 0.75em 0; }
+                .changelog-preview b, .changelog-preview strong { font-weight: 700; }
+                .changelog-preview i, .changelog-preview em { font-style: italic; }
+                .changelog-preview u { text-decoration: underline; }
+                .changelog-preview s, .changelog-preview strike, .changelog-preview del { text-decoration: line-through; }
+                .changelog-preview br { display: block; content: ""; margin-top: 0.25em; }
+                .changelog-preview p { margin: 0.5em 0; }
+                .changelog-preview ul { list-style: disc; padding-left: 1.5em; margin: 0.5em 0; }
+                .changelog-preview ol { list-style: decimal; padding-left: 1.5em; margin: 0.5em 0; }
+                .changelog-preview li { margin: 0.2em 0; }
+                .changelog-preview li > ul, .changelog-preview li > ol { margin: 0.15em 0; }
+                .changelog-preview blockquote { border-left: 3px solid #d1d5db; padding-left: 1em; color: #6b7280; margin: 0.75em 0; font-style: italic; }
+                .changelog-preview a { color: #2563eb; text-decoration: underline; }
+                .changelog-preview h1 { font-size: 1.25em; font-weight: 700; margin: 0.75em 0 0.25em; }
+                .changelog-preview h2 { font-size: 1.125em; font-weight: 700; margin: 0.75em 0 0.25em; }
+                .changelog-preview h3 { font-size: 1em; font-weight: 600; margin: 0.5em 0 0.25em; }
+                .changelog-preview code { background: #f1f5f9; padding: 0.15em 0.35em; border-radius: 0.25em; font-size: 0.9em; }
+                .changelog-preview pre { background: #f1f5f9; padding: 0.75em 1em; border-radius: 0.5em; overflow-x: auto; margin: 0.75em 0; }
+                .changelog-preview pre code { background: none; padding: 0; }
+                .changelog-preview hr { border: none; border-top: 1px solid #e5e7eb; margin: 1em 0; }
+                .changelog-preview img { max-width: 100%; border-radius: 0.5em; margin: 0.5em 0; }
+                .changelog-preview table { border-collapse: collapse; width: 100%; margin: 0.75em 0; }
+                .changelog-preview th, .changelog-preview td { border: 1px solid #e5e7eb; padding: 0.4em 0.75em; text-align: left; }
+                .changelog-preview th { background: #f8fafc; font-weight: 600; }
+              `}</style>
               <div className="bg-white px-3 py-1.5 text-right text-[11px] text-slate-400">
-                {form.content.length} / 2000
+                {stripHtml(form.content).length} / 2000
               </div>
             </div>
           </div>
@@ -448,7 +592,17 @@ export default function ChangelogForm({
                 placeholder="https://www.youtube.com/watch?v=..."
                 value={form.youtubeUrl}
                 onChange={(e) => update("youtubeUrl", e.target.value)}
+                className={
+                  form.youtubeUrl.trim() && !youtubeId
+                    ? "border-red-300 focus-visible:border-red-400"
+                    : ""
+                }
               />
+              {form.youtubeUrl.trim() && !youtubeId && (
+                <p className="mt-1.5 text-xs text-red-500">
+                  Masukkan URL YouTube yang valid (youtube.com atau youtu.be)
+                </p>
+              )}
               {youtubeId && (
                 <div className="mt-2 flex items-center gap-3 rounded-lg border bg-slate-50 p-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -519,7 +673,7 @@ export default function ChangelogForm({
           <div className="mt-8 flex flex-col gap-2 border-t pt-5 sm:flex-row sm:items-center">
             <Button
               variant="outline"
-              onClick={() => submit(true)}
+              onClick={() => submit("DRAFT")}
               disabled={isSaving}
             >
               Simpan Draft
@@ -527,7 +681,7 @@ export default function ChangelogForm({
             <div className="flex-1 text-center sm:text-right">
               <Button
                 className="w-full bg-blue-600 hover:bg-blue-700 sm:w-auto"
-                onClick={() => submit(false)}
+                onClick={() => submit("PUBLISHED")}
                 disabled={isSaving}
               >
                 {isSaving ? (
@@ -564,10 +718,10 @@ export default function ChangelogForm({
               {form.title || "Judul update"}
             </h2>
 
-            {form.content && (
-              <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-600">
-                {form.content}
-              </p>
+            {form.content && stripHtml(form.content) && (
+              <div className="mt-2 changelog-preview text-sm leading-relaxed text-slate-600 max-w-none">
+                <div dangerouslySetInnerHTML={{ __html: form.content }} />
+              </div>
             )}
 
             {previewHighlights.length > 0 && (
@@ -657,6 +811,60 @@ export default function ChangelogForm({
           </div>
         </div>
       </div>
+
+      {/* Link URL Dialog */}
+      <Dialog
+        open={linkDialogOpen}
+        onOpenChange={(open, eventDetails) => {
+          if (
+            !open &&
+            dialogJustOpenedRef.current &&
+            eventDetails.reason === "outside-press"
+          ) {
+            return;
+          }
+          setLinkDialogOpen(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Insert Link</DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <Input
+              placeholder="https://example.com"
+              value={linkUrl}
+              onChange={(e) => setLinkUrl(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (linkUrl.trim()) {
+                    execCommand("createLink", linkUrl.trim());
+                    setLinkDialogOpen(false);
+                  }
+                }
+              }}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLinkDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (linkUrl.trim()) {
+                  execCommand("createLink", linkUrl.trim());
+                  setLinkDialogOpen(false);
+                }
+              }}
+              disabled={!linkUrl.trim()}
+            >
+              Insert
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

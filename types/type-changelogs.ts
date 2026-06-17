@@ -33,11 +33,10 @@ export interface Changelog {
   updatedAt: string;
   creator: ChangelogCreator | null;
   attachments: ChangelogAttachment[];
-  // Optional fields (present only if the backend supports them)
-  menu?: string | null;
+  menu: string;
   youtubeUrl?: string | null;
   highlights?: string[] | null;
-  isDraft?: boolean;
+  status: "DRAFT" | "PUBLISHED";
 }
 
 export interface ChangelogListData {
@@ -49,13 +48,12 @@ export interface ChangelogFormDto {
   version?: string;
   title: string;
   content: string;
+  status: "DRAFT" | "PUBLISHED";
+  menu: string;
   releaseDate?: string; // ISO 8601 (e.g. 2026-06-14)
   attachments?: File[]; // max 5, max 10MB each
-  // Extra optional fields surfaced in the create/edit UI
-  menu?: string;
   youtubeUrl?: string;
   highlights?: string[];
-  isDraft?: boolean;
 }
 
 export interface CreateChangelogParams {

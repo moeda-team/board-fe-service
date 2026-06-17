@@ -22,19 +22,13 @@ const buildChangelogFormData = (dto: ChangelogFormDto): FormData => {
   if (dto.version) formData.append("version", dto.version);
   formData.append("title", dto.title);
   formData.append("content", dto.content);
+  formData.append("status", dto.status);
+  formData.append("menu", dto.menu);
   if (dto.releaseDate) formData.append("releaseDate", dto.releaseDate);
-  // NOTE: Backend currently rejects these extra properties (400 error).
-  // Kept commented for future use when the API supports them.
-  // if (dto.menu) formData.append("menu", dto.menu);
-  // if (dto.youtubeUrl) formData.append("youtubeUrl", dto.youtubeUrl);
-  // if (dto.highlights?.length) {
-  //   dto.highlights
-  //     .filter((h) => h.trim())
-  //     .forEach((h) => formData.append("highlights", h));
-  // }
-  // if (typeof dto.isDraft === "boolean") {
-  //   formData.append("isDraft", String(dto.isDraft));
-  // }
+  if (dto.youtubeUrl) formData.append("youtubeUrl", dto.youtubeUrl);
+  if (dto.highlights?.length) {
+    formData.append("highlights", JSON.stringify(dto.highlights.filter((h) => h.trim())));
+  }
   if (dto.attachments?.length) {
     dto.attachments.forEach((file) => formData.append("attachments", file));
   }

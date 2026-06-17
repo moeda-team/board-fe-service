@@ -212,7 +212,14 @@ export default function SpacesPage() {
       open: true,
       title: "Delete Workspace",
       description: `Are you sure you want to delete "${workspace.name}"? This action cannot be undone.`,
-      onConfirm: () => deleteWorkspace({ tenantId, workspaceId: workspace.id })
+      onConfirm: () =>
+        deleteWorkspace(
+          { tenantId, workspaceId: workspace.id },
+          {
+            onSuccess: () =>
+              setConfirmDialog((prev) => ({ ...prev, open: false }))
+          }
+        )
     });
   };
 

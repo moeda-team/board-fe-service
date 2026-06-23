@@ -47,8 +47,66 @@ export const useUpdateTask = () => {
       const { data } = await apiClient.patch<TaskEnvelope>(`/api/tenants/${tenantId}/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}`, dto);
       return unwrapApiData(data);
     },
+    onMutate: async (variables) => {
+      const { tenantId, workspaceId, boardId, taskId, dto } = variables;
+      const detailKey = taskDetailQueryKey(tenantId, workspaceId, boardId, taskId);
+      await queryClient.cancelQueries({ queryKey: detailKey });
+      const previousTask = queryClient.getQueryData<Task>(detailKey);
+      if (previousTask) {
+        queryClient.setQueryData<Task>(detailKey, (old) => {
+          if (!old) return old;
+          const updated: Task = { ...old, ...dto };
+          if (dto.assigneeIds) {
+            const existing = (old.assignees || []).filter((a) =>
+              dto.assigneeIds!.includes(a.userId)
+            );
+            const existingIds = existing.map((a) => a.userId);
+            const newIds = dto.assigneeIds.filter(
+              (id: string) => !existingIds.includes(id)
+            );
+            updated.assignees = [
+              ...existing,
+              ...newIds.map((id) => ({ userId: id, user: { id } as any })),
+            ];
+            updated.assigneeIds = dto.assigneeIds;
+          }
+          if (dto.tagIds) {
+            const existingTags = (old.tags || []).filter((t: any) => {
+              const tagId = t.tag?.id || t.id || t;
+              return dto.tagIds!.includes(tagId);
+            });
+            const existingTagIds = existingTags.map((t: any) =>
+              t.tag?.id || t.id || t
+            );
+            const newTagIds = dto.tagIds.filter(
+              (id: string) => !existingTagIds.includes(id)
+            );
+            updated.tags = [
+              ...existingTags,
+              ...newTagIds.map((id) => ({ tag: { id } })),
+            ];
+          }
+          return updated;
+        });
+      }
+      return { previousTask };
+    },
+    onError: (_err, variables, context) => {
+      if (context?.previousTask) {
+        queryClient.setQueryData(
+          taskDetailQueryKey(
+            variables.tenantId,
+            variables.workspaceId,
+            variables.boardId,
+            variables.taskId
+          ),
+          context.previousTask
+        );
+      }
+    },
     onSuccess: async (_data, variables) => {
       await queryClient.invalidateQueries({ queryKey: tasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId) });
+      queryClient.invalidateQueries({ queryKey: taskDetailQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId) });
     }
   });
 };

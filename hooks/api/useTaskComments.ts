@@ -59,6 +59,34 @@ export const useCreateTaskComment = () => {
       );
       return unwrapApiData(data);
     },
+    onMutate: async (variables) => {
+      const key = taskCommentsQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<TaskComment[]>(key);
+      if (previous) {
+        const tempId = `temp-${Date.now()}`;
+        const newComment: TaskComment = {
+          id: tempId,
+          content: variables.dto.content,
+          parentId: variables.dto.parentId ?? null,
+          taskId: variables.taskId,
+          createdBy: "",
+          createdAt: new Date().toISOString(),
+        };
+        queryClient.setQueryData<TaskComment[]>(key, (old) =>
+          old ? [...old, newComment] : [newComment]
+        );
+      }
+      return { previous };
+    },
+    onError: (_err, variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(
+          taskCommentsQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId),
+          context.previous
+        );
+      }
+    },
     onSuccess: async (_data, variables) => {
       await queryClient.invalidateQueries({
         queryKey: taskCommentsQueryKey(
@@ -128,6 +156,25 @@ export const useDeleteTaskComment = () => {
       await apiClient.delete(
         `/api/tenants/${tenantId}/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/comments/${commentId}`
       );
+    },
+    onMutate: async (variables) => {
+      const key = taskCommentsQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<TaskComment[]>(key);
+      if (previous) {
+        queryClient.setQueryData<TaskComment[]>(key, (old) =>
+          old ? old.filter((c) => c.id !== variables.commentId) : old
+        );
+      }
+      return { previous };
+    },
+    onError: (_err, variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(
+          taskCommentsQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId),
+          context.previous
+        );
+      }
     },
     onSuccess: async (_data, variables) => {
       await queryClient.invalidateQueries({

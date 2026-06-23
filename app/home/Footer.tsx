@@ -16,8 +16,24 @@ const CONTENT: Record<Locale, { description: string; tagline: string }> = {
   }
 };
 
+const FOOTER_LINKS: Record<Locale, { label: string; href: string }[]> = {
+  en: [
+    { label: "About", href: "/about" },
+    { label: "Contact", href: "/contact" },
+    { label: "Privacy Policy", href: "/privacy" },
+    { label: "Terms of Service", href: "/terms-of-service" }
+  ],
+  id: [
+    { label: "Tentang", href: "/about" },
+    { label: "Kontak", href: "/contact" },
+    { label: "Kebijakan Privasi", href: "/privacy" },
+    { label: "Ketentuan Layanan", href: "/terms-of-service" }
+  ]
+};
+
 export function Footer({ locale = "en" }: { locale?: Locale }) {
   const c = CONTENT[locale];
+  const links = FOOTER_LINKS[locale];
   return (
     <footer className="bg-gray-950 border-t border-white/5 py-8 px-8 text-center text-xs text-gray-400">
       <div className="flex flex-col items-center gap-3">
@@ -31,7 +47,20 @@ export function Footer({ locale = "en" }: { locale?: Locale }) {
         <p className="max-w-2xl text-balance leading-relaxed text-gray-500">
           {c.description}
         </p>
-        <span>© {new Date().getFullYear()} PapanClip · {c.tagline}</span>
+        <div className="flex flex-wrap items-center justify-center gap-4">
+          {links.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              className="text-gray-400 transition-colors hover:text-gray-200"
+            >
+              {link.label}
+            </a>
+          ))}
+        </div>
+        <span>
+          © {new Date().getFullYear()} PapanClip · {c.tagline}
+        </span>
       </div>
     </footer>
   );

@@ -180,9 +180,33 @@ function LoginForm() {
           </div>
         </div>
 
-        <p className="mt-8 text-xs text-gray-400">
-          © 2026 PapanClip. All rights reserved.
-        </p>
+        <div className="mt-8 flex flex-col items-center gap-2">
+          <p className="text-xs text-gray-400">
+            © 2026 PapanClip. All rights reserved.
+          </p>
+          <div className="flex items-center gap-4 text-xs">
+            <a
+              href="/privacy"
+              className="font-medium text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              Privacy Policy
+            </a>
+            <span className="text-gray-300">·</span>
+            <a
+              href="/terms-of-service"
+              className="font-medium text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              Terms of Service
+            </a>
+            <span className="text-gray-300">·</span>
+            <a
+              href="/contact"
+              className="font-medium text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              Contact
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   );

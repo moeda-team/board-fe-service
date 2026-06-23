@@ -26,21 +26,32 @@ export default async function proxy(req: NextRequest) {
     return NextResponse.rewrite(backendUrl);
   }
 
-  const isPublicRoute =
-    nextUrl.pathname === "/" ||
-    nextUrl.pathname === "/login" ||
-    nextUrl.pathname === "/auth/callback" ||
-    nextUrl.pathname === "/pricing" ||
-    nextUrl.pathname === "/faq" ||
-    nextUrl.pathname === "/changelog" ||
-    nextUrl.pathname === "/privacy";
+  const publicPaths = [
+    "/",
+    "/login",
+    "/auth/callback",
+    "/pricing",
+    "/faq",
+    "/changelog",
+    "/privacy",
+    "/about",
+    "/contact",
+    "/terms-of-service",
+  ];
+  const isPublicRoute = publicPaths.some(
+    (p) =>
+      nextUrl.pathname === p ||
+      nextUrl.pathname === `/id${p}` ||
+      (p !== "/" && nextUrl.pathname.startsWith(`${p}/`)) ||
+      (p !== "/" && nextUrl.pathname.startsWith(`/id${p}/`)),
+  );
 
   if (isApiAuthRoute) return NextResponse.next();
   if (!isLoggedIn && !isPublicRoute) {
     return NextResponse.redirect(new URL("/login", nextUrl));
   }
   if (isLoggedIn && nextUrl.pathname === "/login") {
-    return NextResponse.redirect(new URL("/dashboard", nextUrl));
+    return NextResponse.redirect(new URL("/spaces", nextUrl));
   }
 
   return NextResponse.next();

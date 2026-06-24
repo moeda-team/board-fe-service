@@ -14,7 +14,10 @@ import {
   CancelPaymentEnvelope,
   PlansEnvelope,
   CurrentPlanEnvelope,
-  CurrentPlanResponse
+  CurrentPlanResponse,
+  CustomInvoiceRequest,
+  CustomInvoiceResponse,
+  CustomInvoiceEnvelope
 } from "@/types/payments";
 
 // Query keys
@@ -45,6 +48,20 @@ export const useCreateCheckout = () => {
       await queryClient.invalidateQueries({
         queryKey: pendingPaymentQueryKey(variables.tenantId)
       });
+    }
+  });
+};
+
+// Create a custom (enterprise) invoice / proposal request
+export const useCreateCustomInvoice = () => {
+  return useMutation({
+    meta: {
+      successMessage: "Enterprise request submitted",
+      errorMessage: "Failed to submit enterprise request"
+    },
+    mutationFn: async (request: CustomInvoiceRequest): Promise<CustomInvoiceResponse> => {
+      const { data } = await apiClient.post<CustomInvoiceEnvelope>("/api/admin/invoices/custom", request);
+      return unwrapApiData(data);
     }
   });
 };

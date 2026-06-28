@@ -100,8 +100,31 @@ export interface CurrentPlanResponse {
   };
 }
 
+// Custom (enterprise) invoice request
+// Note on "unlimited" semantics expected by the backend:
+//  - amount, maxUsers, maxWorkspaces, maxStorageGb => 0 means unlimited
+//  - apiHitsLimit => -1 means unlimited
+export interface CustomInvoiceRequest {
+  tenantId: string;
+  amount: number;
+  maxUsers: number;
+  maxWorkspaces: number;
+  maxStorageGb: number;
+  apiHitsLimit: number;
+  durationDays: number;
+  description: string;
+  enterpriseRequestId: string;
+}
+
+export interface CustomInvoiceResponse {
+  id?: string;
+  orderId?: string;
+  [key: string]: unknown;
+}
+
 // API Envelope types
 export type CheckoutEnvelope = ApiEnvelope<CheckoutResponse>;
+export type CustomInvoiceEnvelope = ApiEnvelope<CustomInvoiceResponse>;
 export type PaymentHistoryEnvelope = ApiEnvelope<PaymentHistoryResponse>;
 export type PendingPaymentEnvelope = ApiEnvelope<PaymentTransaction | null>;
 export type CancelPaymentEnvelope = ApiEnvelope<{ message: string }>;

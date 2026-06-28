@@ -19,7 +19,11 @@ export default function robots(): MetadataRoute.Robots {
         "/api-keys",
         "/developers-kpi",
         "/payment",
-        "/settings"
+        "/settings",
+        "/admin",
+        "/admin/",
+        "/search",
+        "/search?q="
       ]
     },
     sitemap: `${siteUrl}/sitemap.xml`,

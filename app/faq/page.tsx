@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import FaqClient from "./FaqClient";
+import { JsonLd } from "../JsonLd";
+import { faqPageSchema, breadcrumbSchema } from "../structured-data";
 
 export const metadata: Metadata = {
   title: "FAQ — Project & Task Management Software",
@@ -16,5 +18,18 @@ export const metadata: Metadata = {
 };
 
 export default function FAQPage() {
-  return <FaqClient />;
+  return (
+    <>
+      <JsonLd
+        schema={[
+          faqPageSchema("en"),
+          breadcrumbSchema([
+            { name: "Home", path: "" },
+            { name: "FAQ", path: "/faq" }
+          ])
+        ]}
+      />
+      <FaqClient />
+    </>
+  );
 }

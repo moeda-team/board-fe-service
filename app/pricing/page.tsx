@@ -1,5 +1,11 @@
 import type { Metadata } from "next";
 import PricingClient from "./PricingClient";
+import { JsonLd } from "../JsonLd";
+import {
+  softwareApplicationSchema,
+  productSchema,
+  breadcrumbSchema
+} from "../structured-data";
 
 export const metadata: Metadata = {
   title: "Pricing — Project & Task Management Software",
@@ -12,9 +18,30 @@ export const metadata: Metadata = {
       id: "/id/pricing",
       "x-default": "/pricing"
     }
-  }
+  },
+  keywords: [
+    "aplikasi manajemen tugas gratis",
+    "tool project management harga terjangkau",
+    "project management gratis",
+    "software manajemen proyek",
+    "pricing PapanClip"
+  ]
 };
 
 export default function PricingPage() {
-  return <PricingClient />;
+  return (
+    <>
+      <JsonLd
+        schema={[
+          softwareApplicationSchema(),
+          productSchema(),
+          breadcrumbSchema([
+            { name: "Home", path: "" },
+            { name: "Pricing", path: "/pricing" }
+          ])
+        ]}
+      />
+      <PricingClient />
+    </>
+  );
 }

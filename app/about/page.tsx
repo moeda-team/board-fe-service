@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import AboutClient from "./AboutClient";
+import { JsonLd } from "../JsonLd";
+import { breadcrumbSchema } from "../structured-data";
 
 export const metadata: Metadata = {
   title: "About — PapanClip",
@@ -16,5 +18,15 @@ export const metadata: Metadata = {
 };
 
 export default function AboutPage() {
-  return <AboutClient />;
+  return (
+    <>
+      <JsonLd
+        schema={breadcrumbSchema([
+          { name: "Home", path: "" },
+          { name: "About", path: "/about" }
+        ])}
+      />
+      <AboutClient />
+    </>
+  );
 }

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import ChangelogClient from "../../changelog/ChangelogClient";
+import { JsonLd } from "../../JsonLd";
+import { breadcrumbSchema } from "../../structured-data";
 
 export const metadata: Metadata = {
   title: "Changelog — PapanClip",
@@ -16,5 +18,18 @@ export const metadata: Metadata = {
 };
 
 export default function ChangelogIdPage() {
-  return <ChangelogClient locale="id" />;
+  return (
+    <>
+      <JsonLd
+        schema={breadcrumbSchema(
+          [
+            { name: "Home", path: "" },
+            { name: "Changelog", path: "/changelog" }
+          ],
+          "id"
+        )}
+      />
+      <ChangelogClient locale="id" />
+    </>
+  );
 }

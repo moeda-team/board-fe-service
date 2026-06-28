@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import ContactClient from "./ContactClient";
+import { JsonLd } from "../JsonLd";
+import { breadcrumbSchema } from "../structured-data";
 
 export const metadata: Metadata = {
   title: "Contact — PapanClip",
@@ -16,5 +18,15 @@ export const metadata: Metadata = {
 };
 
 export default function ContactPage() {
-  return <ContactClient />;
+  return (
+    <>
+      <JsonLd
+        schema={breadcrumbSchema([
+          { name: "Home", path: "" },
+          { name: "Contact", path: "/contact" }
+        ])}
+      />
+      <ContactClient />
+    </>
+  );
 }

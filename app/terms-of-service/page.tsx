@@ -3,6 +3,8 @@ import path from "node:path";
 import type { Metadata } from "next";
 import TermsClient from "./TermsClient";
 import { parseTerms } from "./parse";
+import { JsonLd } from "../JsonLd";
+import { breadcrumbSchema } from "../structured-data";
 
 export const metadata: Metadata = {
   title: "Terms of Service — PapanClip",
@@ -22,5 +24,15 @@ export default function TermsPage() {
   const filePath = path.join(process.cwd(), "content", "terms-of-service.md");
   const markdown = fs.readFileSync(filePath, "utf8");
   const document = parseTerms(markdown);
-  return <TermsClient document={document} />;
+  return (
+    <>
+      <JsonLd
+        schema={breadcrumbSchema([
+          { name: "Home", path: "" },
+          { name: "Terms of Service", path: "/terms-of-service" }
+        ])}
+      />
+      <TermsClient document={document} />
+    </>
+  );
 }

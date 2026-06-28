@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import FaqClient from "../../faq/FaqClient";
+import { JsonLd } from "../../JsonLd";
+import { faqPageSchema, breadcrumbSchema } from "../../structured-data";
 
 export const metadata: Metadata = {
   title: "FAQ — Software Manajemen Proyek & Tugas",
@@ -16,5 +18,21 @@ export const metadata: Metadata = {
 };
 
 export default function FaqIdPage() {
-  return <FaqClient locale="id" />;
+  return (
+    <>
+      <JsonLd
+        schema={[
+          faqPageSchema("id"),
+          breadcrumbSchema(
+            [
+              { name: "Home", path: "" },
+              { name: "FAQ", path: "/faq" }
+            ],
+            "id"
+          )
+        ]}
+      />
+      <FaqClient locale="id" />
+    </>
+  );
 }

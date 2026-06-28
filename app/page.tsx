@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import HomeClient from "./HomeClient";
+import { JsonLd } from "./JsonLd";
+import { organizationSchema, websiteSchema } from "./structured-data";
 
 export const metadata: Metadata = {
   title: {
@@ -7,7 +9,7 @@ export const metadata: Metadata = {
       "PapanClip – Project Management & Task Management Software for Agile Teams"
   },
   description:
-    "Manage projects, tasks, sprints, teams, and software development workflows in one platform. PapanClip helps teams plan, track, and deliver projects faster.",
+    "PapanClip is a project management tool built for teams in Indonesia. Manage projects, tasks, sprints, and workflows with Kanban boards, RBAC, and real-time collaboration. Try it free.",
   alternates: {
     canonical: "/",
     languages: {
@@ -15,9 +17,26 @@ export const metadata: Metadata = {
       id: "/id",
       "x-default": "/"
     }
-  }
+  },
+  keywords: [
+    "project management tool Indonesia",
+    "software manajemen proyek",
+    "task management software",
+    "aplikasi project management",
+    "kanban online",
+    "project management gratis",
+    "software project management buatan Indonesia",
+    "alternatif trello",
+    "alternatif jira",
+    "PapanClip"
+  ]
 };
 
 export default function Home() {
-  return <HomeClient />;
+  return (
+    <>
+      <JsonLd schema={[organizationSchema(), websiteSchema()]} />
+      <HomeClient />
+    </>
+  );
 }

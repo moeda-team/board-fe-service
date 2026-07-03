@@ -28,7 +28,7 @@ import { useRoles } from "@/hooks/api/useTenantRoles";
 import { useWorkspaces } from "@/hooks/api/useWorkspaces";
 import { Plus, Loader2, ChevronDown } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { gooeyToast } from "goey-toast";
 
 interface InviteMemberDialogProps {
   tenantId: string;
@@ -51,6 +51,7 @@ export function InviteMemberDialog({
   const [inviteMessage, setInviteMessage] = useState("");
   const [workspaceSearch, setWorkspaceSearch] = useState("");
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const [savedWorkspaceIds, setSavedWorkspaceIds] = useState<string[]>([]);
 
   const { data: roles = [], isLoading: isRolesLoading } = useRoles(tenantId);
   const { data: workspaces = [], isLoading: isWorkspacesLoading } =
@@ -65,6 +66,8 @@ export function InviteMemberDialog({
   const selectedInviteRole = roleOptions.find(
     (role) => role.id === inviteRoleId
   );
+  const isAdminRole =
+    selectedInviteRole?.name?.trim().toLowerCase() === "admin";
   const selectedWorkspaces = useMemo(
     () => workspaces.filter((ws) => inviteWorkspaceIds.includes(ws.id)),
     [workspaces, inviteWorkspaceIds]
@@ -80,10 +83,25 @@ export function InviteMemberDialog({
     }
   }, [inviteRoleId, roleOptions]);
 
+  // Save/restore workspace selection when toggling Admin role
+  useEffect(() => {
+    if (isAdminRole) {
+      setInviteWorkspaceIds((prev) => {
+        setSavedWorkspaceIds(prev);
+        return [];
+      });
+      setWorkspaceOpen(false);
+    } else {
+      setInviteWorkspaceIds(savedWorkspaceIds);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdminRole]);
+
   useEffect(() => {
     if (!open) {
       setInviteEmail("");
       setInviteWorkspaceIds([]);
+      setSavedWorkspaceIds([]);
       setInviteMessage("");
     }
   }, [open]);
@@ -100,14 +118,23 @@ export function InviteMemberDialog({
     if (!tenantId || !email || !inviteRoleId || isInvitingMember) return;
 
     if (!canInviteMember) {
-      toast.error("You don't have permission to invite members.");
+      gooeyToast.error("You don't have permission to invite members.");
+      return;
+    }
+
+    const workspaceIdsToSend = isAdminRole
+      ? workspaces.map((ws) => ws.id)
+      : inviteWorkspaceIds;
+
+    if (isAdminRole && workspaceIdsToSend.length === 0) {
+      gooeyToast.warning("No workspaces available to assign to admin.");
       return;
     }
 
     inviteMember(
       {
         tenantId,
-        dto: { email, roleId: inviteRoleId, workspaceIds: inviteWorkspaceIds }
+        dto: { email, roleId: inviteRoleId, workspaceIds: workspaceIdsToSend }
       },
       {
         onSuccess: () => {
@@ -175,7 +202,16 @@ export function InviteMemberDialog({
 
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium">Select Space Invite</label>
-            {isWorkspacesLoading ? (
+            {isAdminRole ? (
+              <div className="flex flex-col gap-1">
+                <div className="flex min-h-9 w-full items-center rounded-md border border-dashed bg-slate-50 px-3 py-2 text-sm text-slate-500 cursor-not-allowed opacity-60">
+                  All workspaces (auto-assigned)
+                </div>
+                <p className="text-xs text-amber-600">
+                  Admin users are automatically assigned to all workspaces.
+                </p>
+              </div>
+            ) : isWorkspacesLoading ? (
               <div className="text-sm text-slate-500">Loading spaces...</div>
             ) : workspaces.length === 0 ? (
               <div className="text-sm text-slate-500">No spaces available</div>

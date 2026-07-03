@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/goey-toaster";
 import { SessionProvider } from "@/providers/session-provider";
 import { PhosphorProvider } from "@/providers/phosphor-provider";
 import { QueryProvider } from "@/providers/query-provider";
@@ -63,7 +63,33 @@ export const metadata: Metadata = {
     "alternatif jira",
     "alternatif clickup",
     "alternatif trello",
-    "PapanClip"
+    "PapanClip",
+    "project management tool Indonesia",
+    "aplikasi project management",
+    "kanban online",
+    "manajemen proyek terbaik",
+    "project manager tool",
+    "aplikasi manajemen tugas gratis",
+    "manajemen tugas",
+    "manajemen proyek tim",
+    "project management gratis",
+    "software project management Indonesia",
+    "kolaborasi tim online",
+    "tracking proyek online",
+    "software kolaborasi tim",
+    "manajemen workflow",
+    "dashboard proyek",
+    "remote team management",
+    "software manajemen proyek terbaik di Indonesia",
+    "project management tools untuk startup Indonesia",
+    "aplikasi kanban gratis untuk tim kecil",
+    "software project management buatan Indonesia",
+    "project management tool dengan RBAC",
+    "aplikasi manajemen proyek untuk agency",
+    "kanban board dengan time tracking",
+    "software manajemen proyek tanpa batas pengguna",
+    "alternatif trello yang lebih lengkap",
+    "tool project management harga terjangkau"
   ],
   alternates: {
     canonical: "/"

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useReveal } from "./hooks";
 import type { Locale } from "./i18n";
+import { usePlans } from "@/hooks/api/usePayments";
+import type { Plan } from "@/types/payments";
 
 const CONTENT: Record<
   Locale,
@@ -22,23 +24,35 @@ const CONTENT: Record<
     freeCta: string;
     freeFooter: string;
     recommended: string;
+    // Basic tier
+    basicName: string;
+    basicDesc: string;
+    basicDefaultPrice: string;
+    basicFeatures: string[];
+    basicCta: string;
+    basicFooter: string;
+    // Pro tier
     proName: string;
-    proPrice: string;
+    proDefaultPrice: string;
     proDesc: string;
-    testingTitle: string;
-    testingSubtitle: string;
     proFeatures: string[];
-    comingSoon: string;
     proCta: string;
     cancelAnytime: string;
     proFooter: string;
-    entName: string;
-    entPrice: string;
-    entDesc: string;
-    entFeatures: string[];
-    entCta: string;
-    entReply: string;
-    entFooter: string;
+    // Custom tier
+    customName: string;
+    customPrice: string;
+    customDesc: string;
+    customFeatures: string[];
+    customCta: string;
+    customReply: string;
+    customFooter: string;
+    // Promo / anchoring
+    promoBadge: string;
+    comingSoon: string;
+    perMonth: string;
+    forever: string;
+    // Shared
     bottomNotice: string;
     questions: string;
   }
@@ -66,11 +80,20 @@ const CONTENT: Record<
     freeCta: "Get Started for Free",
     freeFooter: "Free during beta period",
     recommended: "Recommended for growing teams",
+    basicName: "Basic",
+    basicDesc: "For small teams getting started.",
+    basicDefaultPrice: "Coming Soon",
+    basicFeatures: [
+      "Up to 10 members",
+      "Up to 5 workspaces",
+      "5 GB storage",
+      "Email support"
+    ],
+    basicCta: "Start Basic Trial",
+    basicFooter: "Affordable plan for growing teams",
     proName: "Pro",
-    proPrice: "Coming Soon",
+    proDefaultPrice: "Coming Soon",
     proDesc: "Everything in Free, plus more.",
-    testingTitle: "Features are being tested",
-    testingSubtitle: "We're preparing the best experience for you.",
     proFeatures: [
       "Advanced team management",
       "Advanced permissions & roles",
@@ -79,14 +102,13 @@ const CONTENT: Record<
       "Advanced security",
       "Priority support"
     ],
-    comingSoon: "Coming soon",
     proCta: "Start Pro Trial",
     cancelAnytime: "Cancel anytime",
     proFooter: "Full access coming soon",
-    entName: "Enterprise",
-    entPrice: "Custom",
-    entDesc: "For organizations with advanced needs.",
-    entFeatures: [
+    customName: "Custom",
+    customPrice: "Custom",
+    customDesc: "For organizations with advanced needs.",
+    customFeatures: [
       "Everything in Pro",
       "Custom security & compliance",
       "SSO & SAML",
@@ -94,9 +116,13 @@ const CONTENT: Record<
       "Custom integrations",
       "SLA & enterprise support"
     ],
-    entCta: "Contact Sales",
-    entReply: "We'll get back to you soon",
-    entFooter: "Enterprise features coming soon",
+    customCta: "Contact Sales",
+    customReply: "We'll get back to you soon",
+    customFooter: "Enterprise features coming soon",
+    promoBadge: "Limited Offer",
+    comingSoon: "Coming soon",
+    perMonth: "/month",
+    forever: "forever",
     bottomNotice:
       "Pricing will be updated after the beta testing phase ends. Thank you for being part of our journey!",
     questions: "Questions? Contact us at"
@@ -125,11 +151,20 @@ const CONTENT: Record<
     freeCta: "Mulai Gratis",
     freeFooter: "Gratis selama periode beta",
     recommended: "Direkomendasikan untuk tim yang berkembang",
+    basicName: "Basic",
+    basicDesc: "Untuk tim kecil yang baru memulai.",
+    basicDefaultPrice: "Segera Hadir",
+    basicFeatures: [
+      "Hingga 10 anggota",
+      "Hingga 5 workspace",
+      "5 GB penyimpanan",
+      "Dukungan email"
+    ],
+    basicCta: "Mulai Uji Coba Basic",
+    basicFooter: "Paket terjangkau untuk tim yang berkembang",
     proName: "Pro",
-    proPrice: "Segera Hadir",
+    proDefaultPrice: "Segera Hadir",
     proDesc: "Semua di Gratis, plus lebih banyak.",
-    testingTitle: "Fitur sedang diuji",
-    testingSubtitle: "Kami sedang menyiapkan pengalaman terbaik untuk Anda.",
     proFeatures: [
       "Manajemen tim lanjutan",
       "Permission & role lanjutan",
@@ -138,14 +173,13 @@ const CONTENT: Record<
       "Keamanan lanjutan",
       "Dukungan prioritas"
     ],
-    comingSoon: "Segera hadir",
     proCta: "Mulai Uji Coba Pro",
     cancelAnytime: "Batalkan kapan saja",
     proFooter: "Akses penuh segera hadir",
-    entName: "Enterprise",
-    entPrice: "Kustom",
-    entDesc: "Untuk organisasi dengan kebutuhan lanjutan.",
-    entFeatures: [
+    customName: "Kustom",
+    customPrice: "Kustom",
+    customDesc: "Untuk organisasi dengan kebutuhan lanjutan.",
+    customFeatures: [
       "Semua di Pro",
       "Keamanan & kepatuhan kustom",
       "SSO & SAML",
@@ -153,16 +187,40 @@ const CONTENT: Record<
       "Integrasi kustom",
       "SLA & dukungan enterprise"
     ],
-    entCta: "Hubungi Sales",
-    entReply: "Kami akan segera menghubungi Anda",
-    entFooter: "Fitur enterprise segera hadir",
+    customCta: "Hubungi Sales",
+    customReply: "Kami akan segera menghubungi Anda",
+    customFooter: "Fitur enterprise segera hadir",
+    promoBadge: "Penawaran Terbatas",
+    comingSoon: "Segera hadir",
+    perMonth: "/bulan",
+    forever: "selamanya",
     bottomNotice:
       "Harga akan diperbarui setelah fase beta testing berakhir. Terima kasih telah menjadi bagian dari perjalanan kami!",
     questions: "Ada pertanyaan? Hubungi kami di"
   }
 };
 
-/* ── Icon helpers ───────────────────────────────────────── */
+/* ── Helpers ───────────────────────────────────────────── */
+
+function formatIDR(n: number): string {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0
+  }).format(n);
+}
+
+function isCampaignActive(endDate: string | null): boolean {
+  if (!endDate) return false;
+  return new Date(endDate).getTime() > Date.now();
+}
+
+function findPlan(plans: Plan[] | undefined, tier: string): Plan | undefined {
+  return plans?.find((p) => p.tier === tier && p.isActive);
+}
+
+/* ── Icon helpers ──────────────────────────────────────── */
+
 function GreenCheck() {
   return (
     <svg
@@ -244,6 +302,71 @@ function ArrowUpRight() {
   );
 }
 
+/* ── Price display helper ──────────────────────────────── */
+
+function PriceDisplay({
+  plan,
+  fallback,
+  locale,
+  dark = false
+}: {
+  plan?: Plan;
+  fallback: string;
+  locale: Locale;
+  dark?: boolean;
+}) {
+  const c = CONTENT[locale];
+  if (!plan) {
+    return (
+      <span
+        className={`text-3xl font-bold leading-none ${dark ? "text-white" : "text-gray-900"}`}
+      >
+        {fallback}
+      </span>
+    );
+  }
+
+  const hasAnchoring =
+    plan.originalPrice != null && plan.originalPrice > plan.basePrice;
+  const hasPromo =
+    plan.campaignName != null && isCampaignActive(plan.campaignEndDate);
+  const durationLabel =
+    plan.durationDays === 0 ? c.forever : `${plan.durationDays}d`;
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      {hasAnchoring && (
+        <span
+          className={`text-xs line-through ${dark ? "text-gray-500" : "text-gray-400"}`}
+        >
+          {formatIDR(plan.originalPrice!)}
+        </span>
+      )}
+      <div className="flex items-end gap-1.5">
+        <span
+          className={`text-3xl font-bold leading-none ${dark ? "text-white" : "text-gray-900"}`}
+        >
+          {plan.basePrice === 0 ? "Free" : formatIDR(plan.basePrice)}
+        </span>
+        {plan.basePrice > 0 && (
+          <span
+            className={`text-sm mb-0.5 ${dark ? "text-gray-400" : "text-gray-500"}`}
+          >
+            /{durationLabel}
+          </span>
+        )}
+      </div>
+      {hasPromo && (
+        <span className="inline-block text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 w-fit mt-1">
+          {plan.campaignName}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/* ── Main Component ────────────────────────────────────── */
+
 interface PricingProps {
   standalone?: boolean;
   locale?: Locale;
@@ -253,12 +376,18 @@ export function Pricing({ standalone = false, locale = "en" }: PricingProps) {
   const r = useReveal();
   const c = CONTENT[locale];
 
+  const { data: plans } = usePlans();
+  const freePlan = findPlan(plans, "FREE");
+  const basicPlan = findPlan(plans, "BASIC");
+  const proPlan = findPlan(plans, "PRO");
+  const customPlan = findPlan(plans, "CUSTOM");
+
   return (
     <section
       id="pricing"
       className={`bg-[#f5f6fa] flex items-center px-6 ${standalone ? "py-12 pt-28 min-h-screen" : "py-24 min-h-screen"}`}
     >
-      <div ref={r.ref} className="max-w-5xl mx-auto w-full">
+      <div ref={r.ref} className="max-w-6xl mx-auto w-full">
         {/* ── Header ─────────────────────────────────────────── */}
         <div
           className={`text-center ${standalone ? "mb-8" : "mb-12"} reveal-up ${r.visible ? "revealed" : ""}`}
@@ -274,8 +403,6 @@ export function Pricing({ standalone = false, locale = "en" }: PricingProps) {
           <p className="text-gray-500 max-w-md mx-auto mt-3 text-[15px]">
             {c.subtitle}
           </p>
-
-          {/* Beta banner */}
           <div className="inline-flex items-center gap-3 mt-6 bg-white border border-gray-200 rounded-full px-5 py-2.5 text-sm shadow-sm">
             <span className="text-base">🚀</span>
             <span className="font-semibold text-blue-600">{c.betaPhase}</span>
@@ -285,12 +412,11 @@ export function Pricing({ standalone = false, locale = "en" }: PricingProps) {
         </div>
 
         {/* ── Cards grid ─────────────────────────────────────── */}
-        <div className="grid md:grid-cols-3 gap-5 items-center">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 items-center">
           {/* ── Card 1: Free ─────────────────────────────────── */}
           <div
             className={`bg-white rounded-2xl border border-gray-200 flex flex-col shadow-sm p-6 reveal-up stagger-1 ${r.visible ? "revealed" : ""}`}
           >
-            {/* Label */}
             <span className="inline-block text-[10px] font-bold uppercase tracking-widest text-blue-500 bg-blue-50 border border-blue-100 rounded-full px-3 py-1 mb-4 w-fit">
               {c.freeBadge}
             </span>
@@ -298,8 +424,6 @@ export function Pricing({ standalone = false, locale = "en" }: PricingProps) {
               {c.freeName}
             </h3>
             <p className="text-sm text-gray-500 mb-5">{c.freeDesc}</p>
-
-            {/* All-open banner */}
             <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 mb-5">
               <svg
                 width="16"
@@ -320,8 +444,6 @@ export function Pricing({ standalone = false, locale = "en" }: PricingProps) {
                 {c.freeOpen}
               </span>
             </div>
-
-            {/* Features */}
             <ul className="space-y-2.5 flex-1 mb-5">
               {c.freeFeatures.map((f) => (
                 <li
@@ -333,8 +455,6 @@ export function Pricing({ standalone = false, locale = "en" }: PricingProps) {
                 </li>
               ))}
             </ul>
-
-            {/* Info box */}
             <div className="flex items-start gap-2.5 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 mb-5">
               <svg
                 width="16"
@@ -358,26 +478,59 @@ export function Pricing({ standalone = false, locale = "en" }: PricingProps) {
                 <p className="text-xs text-blue-500">{c.betaInfoSubtitle}</p>
               </div>
             </div>
-
-            {/* CTA */}
             <Link
               href="/login"
               className="w-full text-center py-3 rounded-xl text-sm font-semibold bg-blue-500 text-white hover:bg-blue-600 transition-colors"
             >
               {c.freeCta}
             </Link>
-
-            {/* Footer note */}
             <p className="flex items-center justify-center gap-1 text-[11px] text-gray-400 mt-4">
               {c.freeFooter} <ArrowUpRight />
             </p>
           </div>
 
-          {/* ── Card 2: Pro (dark, recommended, elevated) ────── */}
+          {/* ── Card 2: Basic ────────────────────────────────── */}
           <div
-            className={`rounded-2xl flex flex-col bg-[#111827] shadow-2xl overflow-hidden -my-5 z-10 reveal-up stagger-2 ${r.visible ? "revealed" : ""}`}
+            className={`bg-white rounded-2xl border border-gray-200 flex flex-col shadow-sm p-6 reveal-up stagger-2 ${r.visible ? "revealed" : ""}`}
           >
-            {/* Recommended banner — inside the dark card at the very top */}
+            <span className="inline-block text-[10px] font-bold uppercase tracking-widest text-teal-600 bg-teal-50 border border-teal-100 rounded-full px-3 py-1 mb-4 w-fit">
+              {c.basicName}
+            </span>
+            <h3 className="text-2xl font-bold text-gray-900 mb-1">
+              {c.basicName}
+            </h3>
+            <PriceDisplay
+              plan={basicPlan}
+              fallback={c.basicDefaultPrice}
+              locale={locale}
+            />
+            <p className="text-sm text-gray-500 mb-5 mt-1">{c.basicDesc}</p>
+            <ul className="space-y-2.5 flex-1 mb-5">
+              {c.basicFeatures.map((f) => (
+                <li
+                  key={f}
+                  className="flex items-center gap-2.5 text-sm text-gray-700"
+                >
+                  <GreenCheck />
+                  {f}
+                </li>
+              ))}
+            </ul>
+            <Link
+              href="/payment?plan=basic"
+              className="w-full text-center py-3 rounded-xl text-sm font-semibold bg-teal-500 text-white hover:bg-teal-600 transition-colors"
+            >
+              {c.basicCta}
+            </Link>
+            <p className="flex items-center justify-center gap-1 text-[11px] text-gray-400 mt-4">
+              {c.basicFooter} <ArrowUpRight />
+            </p>
+          </div>
+
+          {/* ── Card 3: Pro (dark, recommended, elevated) ────── */}
+          <div
+            className={`rounded-2xl flex flex-col bg-[#111827] shadow-2xl overflow-hidden -my-5 z-10 reveal-up stagger-3 ${r.visible ? "revealed" : ""}`}
+          >
             <div className="flex items-center justify-center gap-1.5 pt-4 pb-3 px-6">
               <span className="text-sm">⭐</span>
               <span
@@ -390,45 +543,17 @@ export function Pricing({ standalone = false, locale = "en" }: PricingProps) {
                 {c.recommended}
               </span>
             </div>
-
             <div className="flex flex-col flex-1 px-6 pb-6">
               <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">
                 {c.proName}
               </span>
-              <div className="flex items-end gap-1.5 mb-1">
-                <span className="text-3xl font-bold text-white leading-none">
-                  {c.proPrice}
-                </span>
-                {/* <span className="text-sm text-gray-400 mb-0.5">/month</span> */}
-              </div>
-              <p className="text-sm text-gray-400 mb-5">{c.proDesc}</p>
-
-              {/* Testing box */}
-              <div className="flex items-start gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-3 mb-5">
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 20 20"
-                  fill="none"
-                  className="shrink-0 mt-0.5 opacity-60"
-                >
-                  <path
-                    d="M7 3h6M8 3v4l-3 5a2 2 0 002 3h6a2 2 0 002-3l-3-5V3"
-                    stroke="#9ca3af"
-                    strokeWidth="1.4"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                <div>
-                  <p className="text-xs font-semibold text-gray-300 mb-0.5">
-                    {c.testingTitle}
-                  </p>
-                  <p className="text-xs text-gray-500">{c.testingSubtitle}</p>
-                </div>
-              </div>
-
-              {/* Features */}
+              <PriceDisplay
+                plan={proPlan}
+                fallback={c.proDefaultPrice}
+                locale={locale}
+                dark
+              />
+              <p className="text-sm text-gray-400 mb-5 mt-1">{c.proDesc}</p>
               <ul className="space-y-3 flex-1 mb-6">
                 {c.proFeatures.map((f) => (
                   <li
@@ -445,8 +570,6 @@ export function Pricing({ standalone = false, locale = "en" }: PricingProps) {
                   </li>
                 ))}
               </ul>
-
-              {/* CTA */}
               <Link
                 href="/payment?plan=pro"
                 className="w-full text-center py-3.5 rounded-xl text-sm font-semibold bg-white text-gray-900 hover:bg-gray-100 transition-colors"
@@ -473,27 +596,23 @@ export function Pricing({ standalone = false, locale = "en" }: PricingProps) {
                 </svg>
                 {c.cancelAnytime}
               </p>
-
-              {/* Footer note */}
               <p className="flex items-center justify-center gap-1 text-[11px] text-gray-600 mt-4">
                 {c.proFooter} <ArrowUpRight />
               </p>
             </div>
           </div>
 
-          {/* ── Card 3: Enterprise ────────────────────────────── */}
+          {/* ── Card 4: Custom ────────────────────────────────── */}
           <div
-            className={`bg-white rounded-2xl border border-gray-200 flex flex-col shadow-sm p-6 reveal-up stagger-3 ${r.visible ? "revealed" : ""}`}
+            className={`bg-white rounded-2xl border border-gray-200 flex flex-col shadow-sm p-6 reveal-up stagger-4 ${r.visible ? "revealed" : ""}`}
           >
             <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-4">
-              {c.entName}
+              {c.customName}
             </span>
             <h3 className="text-4xl font-bold text-gray-900 mb-1">
-              {c.entPrice}
+              {c.customPrice}
             </h3>
-            <p className="text-sm text-gray-500 mb-5">{c.entDesc}</p>
-
-            {/* Testing box */}
+            <p className="text-sm text-gray-500 mb-5">{c.customDesc}</p>
             <div className="flex items-start gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mb-5">
               <svg
                 width="20"
@@ -512,41 +631,34 @@ export function Pricing({ standalone = false, locale = "en" }: PricingProps) {
               </svg>
               <div>
                 <p className="text-xs font-semibold text-gray-500 mb-0.5">
-                  {c.testingTitle}
+                  Tailored for you
                 </p>
-                <p className="text-xs text-gray-400">{c.testingSubtitle}</p>
+                <p className="text-xs text-gray-400">
+                  Contact our sales team for a custom quote.
+                </p>
               </div>
             </div>
-
-            {/* Features */}
             <ul className="space-y-3 flex-1 mb-6">
-              {c.entFeatures.map((f) => (
+              {c.customFeatures.map((f) => (
                 <li key={f} className="flex items-center justify-between gap-2">
                   <span className="flex items-center gap-2 text-sm text-gray-400">
                     <DimCheck />
                     {f}
                   </span>
-                  <span className="text-[10px] font-semibold text-amber-500 border border-amber-400/50 rounded-full px-2.5 py-0.5 whitespace-nowrap">
-                    {c.comingSoon}
-                  </span>
                 </li>
               ))}
             </ul>
-
-            {/* CTA */}
             <Link
-              href="/login"
+              href="/enterprise"
               className="w-full text-center py-3 rounded-xl text-sm font-semibold bg-gray-900 text-white hover:bg-gray-700 transition-colors"
             >
-              {c.entCta}
+              {c.customCta}
             </Link>
             <p className="text-center text-xs text-gray-400 mt-3">
-              {c.entReply}
+              {c.customReply}
             </p>
-
-            {/* Footer note */}
             <p className="flex items-center justify-center gap-1 text-[11px] text-gray-400 mt-4">
-              {c.entFooter} <ArrowUpRight />
+              {c.customFooter} <ArrowUpRight />
             </p>
           </div>
         </div>

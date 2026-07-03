@@ -3,9 +3,26 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { DndContext, rectIntersection, DragOverlay, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors } from "@dnd-kit/core";
-import type { DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import {
+  DndContext,
+  rectIntersection,
+  DragOverlay,
+  MouseSensor,
+  TouchSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors
+} from "@dnd-kit/core";
+import type {
+  DragEndEvent,
+  DragOverEvent,
+  DragStartEvent
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates
+} from "@dnd-kit/sortable";
 
 import { format } from "date-fns";
 
@@ -90,7 +107,8 @@ import {
 import {
   useTaskAttachments,
   useUploadAttachment,
-  useDeleteAttachment
+  useDeleteAttachment,
+  taskAttachmentsQueryKey
 } from "@/hooks/api/useTaskAttachments";
 
 import {
@@ -100,7 +118,8 @@ import {
 
 import {
   useCreateTaskComment,
-  useDeleteTaskComment
+  useDeleteTaskComment,
+  taskCommentsQueryKey
 } from "@/hooks/api/useTaskComments";
 
 import { useAuthMe } from "@/hooks/api/useAuth";
@@ -121,7 +140,8 @@ import {
   ChevronsUpDown,
   Edit2,
   Save,
-  GripVertical
+  GripVertical,
+  MoreHorizontal
 } from "lucide-react";
 
 import type { TaskActivity, Subtask } from "@/types/type-tasks";
@@ -129,7 +149,12 @@ import type { Column } from "@/types/type-kanban-columns";
 import type { Member, Tag as TagType } from "@/types/api";
 import type { CustomField } from "@/types/type-custom-fields";
 import { useQueryClient } from "@tanstack/react-query";
-import { useTags } from "@/hooks/api/useTags";
+import {
+  useTags,
+  useCreateTag,
+  useUpdateTag,
+  useDeleteTag
+} from "@/hooks/api/useTags";
 import { useTenantSocket } from "@/hooks/useTenantSocket";
 import { useMentions } from "@/hooks/api/useMentions";
 
@@ -181,7 +206,14 @@ function SubtaskItem({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const sortable = useSortable({ id: subtask.id, disabled: isOverlay });
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = sortable;
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = sortable;
 
   const style = isOverlay
     ? undefined
@@ -247,9 +279,7 @@ function SubtaskItem({
           "group flex items-center rounded-md border transition-all duration-200",
           isChild ? "gap-2 px-3 py-2 flex-1" : "gap-3 p-3",
           isDragging && "opacity-50 z-50",
-          subtask.isDone
-            ? "bg-muted/50"
-            : "bg-card hover:bg-muted/30"
+          subtask.isDone ? "bg-muted/50" : "bg-card hover:bg-muted/30"
         )}
       >
         <div
@@ -323,7 +353,12 @@ function SubtaskItem({
         )}
       </div>
 
-      <div className={cn("transition-opacity duration-150", dropIndicatorDepth !== null ? "opacity-100" : "opacity-0")}>
+      <div
+        className={cn(
+          "transition-opacity duration-150",
+          dropIndicatorDepth !== null ? "opacity-100" : "opacity-0"
+        )}
+      >
         <DropIndicator depth={dropIndicatorDepth ?? 0} />
       </div>
 
@@ -332,10 +367,12 @@ function SubtaskItem({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Subtask</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{subtask.title}</strong>? This action cannot be undone.
+              Are you sure you want to delete <strong>{subtask.title}</strong>?
+              This action cannot be undone.
               {subtask.children && subtask.children.length > 0 && (
                 <span className="block mt-1 text-destructive">
-                  This subtask has {subtask.children.length} child(ren) that will also be removed.
+                  This subtask has {subtask.children.length} child(ren) that
+                  will also be removed.
                 </span>
               )}
             </AlertDialogDescription>
@@ -375,7 +412,9 @@ export function TaskDetailSheet({
 }: TaskDetailSheetProps) {
   const queryClient = useQueryClient();
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
-  const [addingChildForParentId, setAddingChildForParentId] = useState<string | null>(null);
+  const [addingChildForParentId, setAddingChildForParentId] = useState<
+    string | null
+  >(null);
   const [newChildTitle, setNewChildTitle] = useState("");
   const [commentContent, setCommentContent] = useState("");
   const [activitySearch, setActivitySearch] = useState("");
@@ -413,6 +452,11 @@ export function TaskDetailSheet({
   const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
   const [columnPopoverOpen, setColumnPopoverOpen] = useState(false);
   const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
+  const [tagSearch, setTagSearch] = useState("");
+  const [editingTagId, setEditingTagId] = useState<string | null>(null);
+  const [editTagName, setEditTagName] = useState("");
+  const [editTagColor, setEditTagColor] = useState("#6366f1");
+  const [isCreatingTag, setIsCreatingTag] = useState(false);
 
   const { data: authMe } = useAuthMe();
 
@@ -460,29 +504,88 @@ export function TaskDetailSheet({
   const socket = useTenantSocket(tenantId);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // WebSocket listener for real-time comment updates
+  // WebSocket listener for real-time task updates
   useEffect(() => {
     if (!socket || !tenantId || !workspaceId || !boardId || !task?.id) return;
 
-    const handleNewActivity = () => {
-      queryClient.invalidateQueries({
-        queryKey: taskActivitiesQueryKey(
-          tenantId,
-          workspaceId,
-          boardId,
-          task.id
-        )
-      });
-    };
+    const detailKey = taskDetailQueryKey(
+      tenantId,
+      workspaceId,
+      boardId,
+      task.id
+    );
+    const subtasksKey = taskSubtasksQueryKey(
+      tenantId,
+      workspaceId,
+      boardId,
+      task.id
+    );
+    const activitiesKey = taskActivitiesQueryKey(
+      tenantId,
+      workspaceId,
+      boardId,
+      task.id
+    );
+    const commentsKey = taskCommentsQueryKey(
+      tenantId,
+      workspaceId,
+      boardId,
+      task.id
+    );
+    const attachmentsKey = taskAttachmentsQueryKey(
+      tenantId,
+      workspaceId,
+      boardId,
+      task.id
+    );
 
-    socket.on("task.comment.created", handleNewActivity);
-    socket.on("task.comment.updated", handleNewActivity);
-    socket.on("task.comment.deleted", handleNewActivity);
+    const invalidateDetail = () =>
+      queryClient.invalidateQueries({ queryKey: detailKey });
+    const invalidateSubtasks = () =>
+      queryClient.invalidateQueries({ queryKey: subtasksKey });
+    const invalidateActivities = () =>
+      queryClient.invalidateQueries({ queryKey: activitiesKey });
+    const invalidateComments = () =>
+      queryClient.invalidateQueries({ queryKey: commentsKey });
+    const invalidateAttachments = () =>
+      queryClient.invalidateQueries({ queryKey: attachmentsKey });
+
+    // Task events
+    socket.on("task.updated", invalidateDetail);
+
+    // Subtask events
+    socket.on("task.subtask.created", invalidateSubtasks);
+    socket.on("task.subtask.updated", invalidateSubtasks);
+    socket.on("task.subtask.deleted", invalidateSubtasks);
+
+    // Comment events
+    socket.on("task.comment.created", () => {
+      invalidateComments();
+      invalidateActivities();
+    });
+    socket.on("task.comment.updated", () => {
+      invalidateComments();
+      invalidateActivities();
+    });
+    socket.on("task.comment.deleted", () => {
+      invalidateComments();
+      invalidateActivities();
+    });
+
+    // Attachment events
+    socket.on("task.attachment.created", invalidateAttachments);
+    socket.on("task.attachment.deleted", invalidateAttachments);
 
     return () => {
-      socket.off("task.comment.created", handleNewActivity);
-      socket.off("task.comment.updated", handleNewActivity);
-      socket.off("task.comment.deleted", handleNewActivity);
+      socket.off("task.updated", invalidateDetail);
+      socket.off("task.subtask.created", invalidateSubtasks);
+      socket.off("task.subtask.updated", invalidateSubtasks);
+      socket.off("task.subtask.deleted", invalidateSubtasks);
+      socket.off("task.comment.created");
+      socket.off("task.comment.updated");
+      socket.off("task.comment.deleted");
+      socket.off("task.attachment.created", invalidateAttachments);
+      socket.off("task.attachment.deleted", invalidateAttachments);
     };
   }, [socket, tenantId, workspaceId, boardId, task?.id, queryClient]);
 
@@ -585,7 +688,8 @@ export function TaskDetailSheet({
 
   const { mutate: createSubtask } = useCreateSubtask();
 
-  const { mutate: updateSubtask, mutateAsync: updateSubtaskAsync } = useUpdateSubtask();
+  const { mutate: updateSubtask, mutateAsync: updateSubtaskAsync } =
+    useUpdateSubtask();
 
   const { mutate: reorderSubtask } = useReorderSubtask();
 
@@ -594,16 +698,31 @@ export function TaskDetailSheet({
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [projectedDepth, setProjectedDepth] = useState<number>(0);
 
-  const findSubtaskLocation = useCallback((subtasksData: Subtask[], id: string) => {
-    for (let i = 0; i < subtasksData.length; i++) {
-      if (subtasksData[i].id === id) return { parentId: null as string | null, index: i, item: subtasksData[i] };
-      if (subtasksData[i].children) {
-        const childIdx = subtasksData[i].children!.findIndex((c) => c.id === id);
-        if (childIdx !== -1) return { parentId: subtasksData[i].id, index: childIdx, item: subtasksData[i].children![childIdx] };
+  const findSubtaskLocation = useCallback(
+    (subtasksData: Subtask[], id: string) => {
+      for (let i = 0; i < subtasksData.length; i++) {
+        if (subtasksData[i].id === id)
+          return {
+            parentId: null as string | null,
+            index: i,
+            item: subtasksData[i]
+          };
+        if (subtasksData[i].children) {
+          const childIdx = subtasksData[i].children!.findIndex(
+            (c) => c.id === id
+          );
+          if (childIdx !== -1)
+            return {
+              parentId: subtasksData[i].id,
+              index: childIdx,
+              item: subtasksData[i].children![childIdx]
+            };
+        }
       }
-    }
-    return null;
-  }, []);
+      return null;
+    },
+    []
+  );
 
   const sensors = useSensors(
     useSensor(TouchSensor, {
@@ -723,175 +842,200 @@ export function TaskDetailSheet({
     setProjectedDepth(0);
   }, []);
 
-  const handleDragOver = useCallback((event: DragOverEvent) => {
-    const { active, over } = event;
-    if (!over) {
-      setDragOverId(null);
-      setProjectedDepth(0);
-      return;
-    }
+  const handleDragOver = useCallback(
+    (event: DragOverEvent) => {
+      const { active, over } = event;
+      if (!over) {
+        setDragOverId(null);
+        setProjectedDepth(0);
+        return;
+      }
 
-    const activeId = String(active.id);
-    const overId = String(over.id);
-    setDragOverId(overId);
+      const activeId = String(active.id);
+      const overId = String(over.id);
+      setDragOverId(overId);
 
-    const activeLoc = findSubtaskLocation(subtasks, activeId);
-    const overLoc = findSubtaskLocation(subtasks, overId);
+      const activeLoc = findSubtaskLocation(subtasks, activeId);
+      const overLoc = findSubtaskLocation(subtasks, overId);
 
-    let depth = 0;
-    if (overLoc) {
-      if (overLoc.parentId !== null) {
-        depth = 1;
-      } else {
-        if (activeLoc?.parentId === null && event.delta.x > 30) {
+      let depth = 0;
+      if (overLoc) {
+        if (overLoc.parentId !== null) {
           depth = 1;
         } else {
-          depth = 0;
-        }
-      }
-    }
-    setProjectedDepth(depth);
-  }, [subtasks, findSubtaskLocation]);
-
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const currentDepth = projectedDepth;
-    setDragActiveId(null);
-    setDragOverId(null);
-    setProjectedDepth(0);
-
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    if (!taskId || !tenantId || !workspaceId || !boardId) return;
-
-    const queryKey = taskSubtasksQueryKey(tenantId, workspaceId, boardId, taskId);
-    const currentData = queryClient.getQueryData<Subtask[]>(queryKey);
-    if (!currentData) return;
-
-    const activeId = String(active.id);
-    const overId = String(over.id);
-
-    let activeItem: Subtask | undefined;
-    let activeParentId: string | null = null;
-    let activeIndex = -1;
-
-    for (let i = 0; i < currentData.length; i++) {
-      const parent = currentData[i];
-      if (parent.id === activeId) {
-        activeItem = parent;
-        activeParentId = null;
-        activeIndex = i;
-        break;
-      }
-      if (parent.children) {
-        const childIdx = parent.children.findIndex((c) => c.id === activeId);
-        if (childIdx !== -1) {
-          activeItem = parent.children[childIdx];
-          activeParentId = parent.id;
-          activeIndex = childIdx;
-          break;
-        }
-      }
-    }
-
-    if (!activeItem) return;
-
-    let newParentId: string | null = null;
-    let overIndex = -1;
-
-    for (let i = 0; i < currentData.length; i++) {
-      const parent = currentData[i];
-      if (parent.id === overId) {
-        // If hovering a root parent with depth=1 intent, become child of that parent
-        if (currentDepth === 1) {
-          newParentId = overId;
-          overIndex = parent.children?.length ?? 0;
-        } else {
-          newParentId = null;
-          overIndex = i;
-        }
-        break;
-      }
-      if (parent.children) {
-        const childIdx = parent.children.findIndex((c) => c.id === overId);
-        if (childIdx !== -1) {
-          newParentId = parent.id;
-          overIndex = childIdx;
-          break;
-        }
-      }
-    }
-
-    if (overIndex === -1) return;
-
-    const previousData = queryClient.getQueryData<Subtask[]>(queryKey);
-
-    queryClient.setQueryData<Subtask[]>(queryKey, (old) => {
-      if (!old) return old;
-      const cloned: Subtask[] = old.map((p) => ({
-        ...p,
-        children: p.children ? [...p.children] : []
-      }));
-
-      const activeFromRoot = activeParentId === null;
-      const overAtRoot = newParentId === null;
-
-      if (activeFromRoot) {
-        const [removed] = cloned.splice(activeIndex, 1);
-        const normalized = { ...removed, children: removed.children || [] };
-        if (overAtRoot) {
-          const adjustedIndex = activeIndex < overIndex ? overIndex - 1 : overIndex;
-          cloned.splice(adjustedIndex, 0, normalized);
-        } else {
-          const targetParent = cloned.find((p) => p.id === newParentId);
-          if (targetParent) {
-            targetParent.children = targetParent.children || [];
-            targetParent.children.splice(overIndex, 0, normalized);
-          }
-        }
-      } else {
-        const sourceParent = cloned.find((p) => p.id === activeParentId);
-        if (!sourceParent) return old;
-        const [removed] = sourceParent.children!.splice(activeIndex, 1);
-        if (overAtRoot) {
-          cloned.splice(overIndex, 0, removed);
-        } else {
-          const targetParent = cloned.find((p) => p.id === newParentId);
-          if (targetParent) {
-            targetParent.children = targetParent.children || [];
-            targetParent.children.splice(overIndex, 0, removed);
+          if (activeLoc?.parentId === null && event.delta.x > 30) {
+            depth = 1;
+          } else {
+            depth = 0;
           }
         }
       }
+      setProjectedDepth(depth);
+    },
+    [subtasks, findSubtaskLocation]
+  );
 
-      return cloned;
-    });
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const currentDepth = projectedDepth;
+      setDragActiveId(null);
+      setDragOverId(null);
+      setProjectedDepth(0);
 
-    reorderSubtask(
-      {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      if (!taskId || !tenantId || !workspaceId || !boardId) return;
+
+      const queryKey = taskSubtasksQueryKey(
         tenantId,
         workspaceId,
         boardId,
-        taskId,
-        subtaskId: activeId,
-        newPosition: overIndex,
-        newParentId
-      },
-      {
-        onError: () => {
-          if (previousData) {
-            queryClient.setQueryData(queryKey, previousData);
-          } else {
-            queryClient.invalidateQueries({ queryKey });
+        taskId
+      );
+      const currentData = queryClient.getQueryData<Subtask[]>(queryKey);
+      if (!currentData) return;
+
+      const activeId = String(active.id);
+      const overId = String(over.id);
+
+      let activeItem: Subtask | undefined;
+      let activeParentId: string | null = null;
+      let activeIndex = -1;
+
+      for (let i = 0; i < currentData.length; i++) {
+        const parent = currentData[i];
+        if (parent.id === activeId) {
+          activeItem = parent;
+          activeParentId = null;
+          activeIndex = i;
+          break;
+        }
+        if (parent.children) {
+          const childIdx = parent.children.findIndex((c) => c.id === activeId);
+          if (childIdx !== -1) {
+            activeItem = parent.children[childIdx];
+            activeParentId = parent.id;
+            activeIndex = childIdx;
+            break;
           }
         }
       }
-    );
-  }, [taskId, tenantId, workspaceId, boardId, queryClient, reorderSubtask, projectedDepth]);
+
+      if (!activeItem) return;
+
+      let newParentId: string | null = null;
+      let overIndex = -1;
+
+      for (let i = 0; i < currentData.length; i++) {
+        const parent = currentData[i];
+        if (parent.id === overId) {
+          // If hovering a root parent with depth=1 intent, become child of that parent
+          if (currentDepth === 1) {
+            newParentId = overId;
+            overIndex = parent.children?.length ?? 0;
+          } else {
+            newParentId = null;
+            overIndex = i;
+          }
+          break;
+        }
+        if (parent.children) {
+          const childIdx = parent.children.findIndex((c) => c.id === overId);
+          if (childIdx !== -1) {
+            newParentId = parent.id;
+            overIndex = childIdx;
+            break;
+          }
+        }
+      }
+
+      if (overIndex === -1) return;
+
+      const previousData = queryClient.getQueryData<Subtask[]>(queryKey);
+
+      queryClient.setQueryData<Subtask[]>(queryKey, (old) => {
+        if (!old) return old;
+        const cloned: Subtask[] = old.map((p) => ({
+          ...p,
+          children: p.children ? [...p.children] : []
+        }));
+
+        const activeFromRoot = activeParentId === null;
+        const overAtRoot = newParentId === null;
+
+        if (activeFromRoot) {
+          const [removed] = cloned.splice(activeIndex, 1);
+          const normalized = { ...removed, children: removed.children || [] };
+          if (overAtRoot) {
+            const adjustedIndex =
+              activeIndex < overIndex ? overIndex - 1 : overIndex;
+            cloned.splice(adjustedIndex, 0, normalized);
+          } else {
+            const targetParent = cloned.find((p) => p.id === newParentId);
+            if (targetParent) {
+              targetParent.children = targetParent.children || [];
+              targetParent.children.splice(overIndex, 0, normalized);
+            }
+          }
+        } else {
+          const sourceParent = cloned.find((p) => p.id === activeParentId);
+          if (!sourceParent) return old;
+          const [removed] = sourceParent.children!.splice(activeIndex, 1);
+          if (overAtRoot) {
+            cloned.splice(overIndex, 0, removed);
+          } else {
+            const targetParent = cloned.find((p) => p.id === newParentId);
+            if (targetParent) {
+              targetParent.children = targetParent.children || [];
+              targetParent.children.splice(overIndex, 0, removed);
+            }
+          }
+        }
+
+        return cloned;
+      });
+
+      reorderSubtask(
+        {
+          tenantId,
+          workspaceId,
+          boardId,
+          taskId,
+          subtaskId: activeId,
+          newPosition: overIndex,
+          newParentId
+        },
+        {
+          onError: () => {
+            if (previousData) {
+              queryClient.setQueryData(queryKey, previousData);
+            } else {
+              queryClient.invalidateQueries({ queryKey });
+            }
+          }
+        }
+      );
+    },
+    [
+      taskId,
+      tenantId,
+      workspaceId,
+      boardId,
+      queryClient,
+      reorderSubtask,
+      projectedDepth
+    ]
+  );
 
   const handleToggleParent = async (parent: Subtask) => {
     if (!taskId || !tenantId || !workspaceId || !boardId) return;
     const newDone = !parent.isDone;
-    const queryKey = taskSubtasksQueryKey(tenantId, workspaceId, boardId, taskId);
+    const queryKey = taskSubtasksQueryKey(
+      tenantId,
+      workspaceId,
+      boardId,
+      taskId
+    );
 
     queryClient.setQueryData<Subtask[]>(queryKey, (old) => {
       if (!old) return old;
@@ -939,7 +1083,12 @@ export function TaskDetailSheet({
     const shouldCheckParent = newDone && !parent.isDone && allSiblingsDone;
     const shouldUncheckParent = !newDone && parent.isDone;
 
-    const queryKey = taskSubtasksQueryKey(tenantId, workspaceId, boardId, taskId);
+    const queryKey = taskSubtasksQueryKey(
+      tenantId,
+      workspaceId,
+      boardId,
+      taskId
+    );
 
     queryClient.setQueryData<Subtask[]>(queryKey, (old) => {
       if (!old) return old;
@@ -994,15 +1143,54 @@ export function TaskDetailSheet({
   const completedSubtasks = subtasks.filter((st) => st.isDone).length;
 
   const progressPct =
-    subtasks.length > 0
-      ? (completedSubtasks / subtasks.length) * 100
-      : 0;
+    subtasks.length > 0 ? (completedSubtasks / subtasks.length) * 100 : 0;
 
   // Extract assignees correctly based on the API response structure
 
   const assigneesList = (task?.assignees || []).map((a: any) => a.user || a);
 
   const tagList = (task?.tags || []).map((t: any) => t.tag || t);
+
+  // Current assignee/tag IDs from task data (for inline editing in view mode)
+  const currentAssigneeIds = useMemo(() => {
+    if (!task) return [];
+    return task.assigneeIds?.length
+      ? task.assigneeIds
+      : (task.assignees || []).map((a: any) => a.userId || a.user?.id || a.id);
+  }, [task]);
+
+  const currentTagIds = useMemo(() => {
+    if (!task) return [];
+    return (task.tags || []).map((t: any) => t.tag?.id || t.id || t);
+  }, [task]);
+
+  const handleInlineAssigneeToggle = (memberId: string) => {
+    if (!taskId) return;
+    const newIds = currentAssigneeIds.includes(memberId)
+      ? currentAssigneeIds.filter((id) => id !== memberId)
+      : [...currentAssigneeIds, memberId];
+    updateTask({
+      tenantId,
+      workspaceId,
+      boardId,
+      taskId,
+      dto: { assigneeIds: newIds }
+    });
+  };
+
+  const handleInlineTagToggle = (tagId: string) => {
+    if (!taskId) return;
+    const newIds = currentTagIds.includes(tagId)
+      ? currentTagIds.filter((id) => id !== tagId)
+      : [...currentTagIds, tagId];
+    updateTask({
+      tenantId,
+      workspaceId,
+      boardId,
+      taskId,
+      dto: { tagIds: newIds }
+    });
+  };
 
   // Group activities by date
 
@@ -1436,9 +1624,311 @@ export function TaskDetailSheet({
     return tags.filter((t: TagType) => editTagIds.includes(t.id));
   }, [tags, editTagIds]);
 
-  const unselectedTags = useMemo(() => {
-    return tags.filter((t: TagType) => !editTagIds.includes(t.id));
-  }, [tags, editTagIds]);
+  const tagColors = [
+    "#6366f1",
+    "#3b82f6",
+    "#06b6d4",
+    "#10b981",
+    "#84cc16",
+    "#eab308",
+    "#f59e0b",
+    "#f97316",
+    "#ef4444",
+    "#ec4899",
+    "#a855f7",
+    "#6b7280"
+  ];
+
+  const createTag = useCreateTag();
+  const updateTag = useUpdateTag();
+  const deleteTag = useDeleteTag();
+
+  const canCreateNewTag =
+    tagSearch.trim() &&
+    !tags.some(
+      (t: TagType) => t.name.toLowerCase() === tagSearch.trim().toLowerCase()
+    );
+
+  const handleCreateTag = async (nameOverride?: string) => {
+    const name = nameOverride?.trim() || editTagName.trim() || tagSearch.trim();
+    if (!name) return;
+    try {
+      const newTag = await createTag.mutateAsync({
+        tenantId,
+        workspaceId,
+        dto: { name, color: editTagColor }
+      });
+      if (isEditing) {
+        setEditTagIds((prev) => [...prev, newTag.id]);
+      } else {
+        handleInlineTagToggle(newTag.id);
+      }
+      setTagSearch("");
+      setEditTagName("");
+      setIsCreatingTag(false);
+    } catch {
+      // Error handled by mutation meta
+    }
+  };
+
+  const handleTagSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (canCreateNewTag && !isCreatingTag) {
+        setEditTagColor(tagColors[0]);
+        handleCreateTag(tagSearch);
+      }
+    }
+  };
+
+  const handleUpdateTag = async (tagId: string) => {
+    try {
+      await updateTag.mutateAsync({
+        tenantId,
+        workspaceId,
+        tagId,
+        dto: { name: editTagName.trim(), color: editTagColor }
+      });
+      setEditingTagId(null);
+    } catch {
+      // Error handled by mutation meta
+    }
+  };
+
+  const handleDeleteTag = async (tagId: string) => {
+    try {
+      await deleteTag.mutateAsync({ tenantId, workspaceId, tagId });
+      setEditTagIds((prev) => prev.filter((id) => id !== tagId));
+      if (!isEditing && currentTagIds.includes(tagId)) {
+        handleInlineTagToggle(tagId);
+      }
+      setEditingTagId(null);
+    } catch {
+      // Error handled by mutation meta
+    }
+  };
+
+  const startEditingTag = (tag: TagType) => {
+    setEditingTagId(tag.id);
+    setEditTagName(tag.name);
+    setEditTagColor(tag.color);
+  };
+
+  const startCreatingTag = () => {
+    setIsCreatingTag(true);
+    setEditTagColor(tagColors[0]);
+    if (tagSearch.trim()) {
+      setEditTagName(tagSearch.trim());
+    } else {
+      setEditTagName("");
+    }
+  };
+
+  const renderTagPopoverContent = (
+    selectedIds: string[],
+    onToggle: (tagId: string) => void
+  ) => {
+    const selectedTagObjects = tags.filter((t: TagType) =>
+      selectedIds.includes(t.id)
+    );
+    const filteredUnselected = tags.filter(
+      (t: TagType) =>
+        !selectedIds.includes(t.id) &&
+        t.name.toLowerCase().includes(tagSearch.toLowerCase())
+    );
+
+    return (
+      <PopoverContent className="w-[320px] p-0" align="start">
+        <div className="flex flex-col max-h-[350px]">
+          {selectedTagObjects.length > 0 && (
+            <div className="p-2 border-b">
+              <div className="flex flex-wrap gap-1.5">
+                {selectedTagObjects.map((tag: TagType) => (
+                  <Badge
+                    key={tag.id}
+                    style={{ backgroundColor: tag.color }}
+                    className="flex items-center gap-1 text-white text-xs pr-1"
+                  >
+                    {tag.name}
+                    <button
+                      onClick={() => onToggle(tag.id)}
+                      className="hover:text-white/80"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="p-2 border-b">
+            <Input
+              placeholder="Search or create tag..."
+              value={tagSearch}
+              onChange={(e) => setTagSearch(e.target.value)}
+              onKeyDown={handleTagSearchKeyDown}
+              className="h-8"
+            />
+          </div>
+
+          <div className="flex-1 overflow-auto">
+            {canCreateNewTag && (
+              <button
+                onClick={startCreatingTag}
+                className="flex items-center gap-2 w-full px-2 py-2 rounded hover:bg-muted text-left text-sm"
+              >
+                <Plus className="h-4 w-4 text-muted-foreground" />
+                <span>Create "{tagSearch.trim()}"</span>
+              </button>
+            )}
+
+            {filteredUnselected.length > 0 && (
+              <>
+                <div className="px-2 py-0.5 text-xs text-muted-foreground">
+                  Select an option
+                </div>
+                {filteredUnselected.map((tag: TagType) => (
+                  <div
+                    key={tag.id}
+                    className="group flex items-center gap-1.5 px-2 h-6 rounded hover:bg-muted cursor-pointer"
+                  >
+                    <div
+                      onClick={() => onToggle(tag.id)}
+                      className="flex items-center gap-1.5 flex-1 text-left"
+                    >
+                      <div
+                        className="w-2.5 h-2.5 rounded-full"
+                        style={{ backgroundColor: tag.color }}
+                      />
+                      <span className="text-sm truncate leading-none">
+                        {tag.name}
+                      </span>
+                    </div>
+                    <Popover
+                      open={editingTagId === tag.id}
+                      onOpenChange={(open) => {
+                        if (open) {
+                          startEditingTag(tag);
+                        } else {
+                          setEditingTagId(null);
+                        }
+                      }}
+                    >
+                      <PopoverTrigger>
+                        <span className="opacity-0 group-hover:opacity-100 rounded hover:bg-muted-foreground/10 transition-opacity cursor-pointer flex items-center justify-center w-5 h-5">
+                          <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+                        </span>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[220px] p-3" align="end">
+                        <div className="grid gap-3">
+                          <Input
+                            value={editTagName}
+                            onChange={(e) => setEditTagName(e.target.value)}
+                            className="h-8"
+                            placeholder="Tag name"
+                          />
+                          <div className="flex flex-wrap gap-1.5">
+                            {tagColors.map((color) => (
+                              <button
+                                key={color}
+                                onClick={() => setEditTagColor(color)}
+                                className={`w-6 h-6 rounded-full transition-all ${editTagColor === color ? "ring-2 ring-offset-1 ring-primary" : ""}`}
+                                style={{ backgroundColor: color }}
+                              />
+                            ))}
+                          </div>
+                          <div className="flex items-center gap-2 pt-1 border-t">
+                            <button
+                              onClick={() => handleDeleteTag(tag.id)}
+                              className="flex items-center gap-1.5 text-sm text-destructive hover:text-destructive/80 px-2 py-1.5 rounded hover:bg-destructive/10 transition-colors"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete
+                            </button>
+                            <div className="flex-1" />
+                            <Button
+                              size="sm"
+                              className="h-8"
+                              onClick={() => handleUpdateTag(tag.id)}
+                              disabled={
+                                !editTagName.trim() || updateTag.isPending
+                              }
+                            >
+                              Save
+                            </Button>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {filteredUnselected.length === 0 &&
+              !canCreateNewTag &&
+              tags.length > 0 && (
+                <p className="text-sm text-muted-foreground p-3 text-center">
+                  No matching tags
+                </p>
+              )}
+
+            {tags.length === 0 && !canCreateNewTag && (
+              <p className="text-sm text-muted-foreground p-3 text-center">
+                No tags available. Type to create one.
+              </p>
+            )}
+          </div>
+
+          {isCreatingTag && (
+            <div className="p-3 border-t bg-muted/50">
+              <div className="grid gap-3">
+                <Input
+                  value={editTagName}
+                  onChange={(e) => setEditTagName(e.target.value)}
+                  className="h-8"
+                  placeholder="Tag name"
+                  autoFocus
+                />
+                <div className="flex flex-wrap gap-1.5">
+                  {tagColors.map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => setEditTagColor(color)}
+                      className={`w-6 h-6 rounded-full transition-all ${editTagColor === color ? "ring-2 ring-offset-1 ring-primary" : ""}`}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+                <div className="flex items-center justify-end gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => {
+                      setIsCreatingTag(false);
+                      setEditTagName("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="h-8"
+                    onClick={() => handleCreateTag()}
+                    disabled={!editTagName.trim() || createTag.isPending}
+                  >
+                    Create
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </PopoverContent>
+    );
+  };
 
   const dueDateLabel = useMemo(() => {
     if (!editDueDate) return null;
@@ -1818,7 +2308,12 @@ export function TaskDetailSheet({
                         </label>
                         <Popover
                           open={tagPopoverOpen}
-                          onOpenChange={setTagPopoverOpen}
+                          onOpenChange={(open) => {
+                            if (!open && (editingTagId || isCreatingTag))
+                              return;
+                            setTagPopoverOpen(open);
+                            if (!open) setTagSearch("");
+                          }}
                         >
                           <PopoverTrigger>
                             <Button
@@ -1845,48 +2340,8 @@ export function TaskDetailSheet({
                               <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50 ml-2" />
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-[280px] p-2">
-                            <div className="flex flex-col gap-1 max-h-[200px] overflow-auto">
-                              {tags.length === 0 && (
-                                <p className="text-sm text-muted-foreground p-2">
-                                  No tags available
-                                </p>
-                              )}
-                              {unselectedTags.map((tag: TagType) => (
-                                <button
-                                  key={tag.id}
-                                  onClick={() => toggleTag(tag.id)}
-                                  className="flex items-center gap-2 w-full px-2 py-2 rounded hover:bg-muted text-left"
-                                >
-                                  <div
-                                    className="w-2.5 h-2.5 rounded-full"
-                                    style={{ backgroundColor: tag.color }}
-                                  />
-                                  <span className="text-sm">{tag.name}</span>
-                                </button>
-                              ))}
-                            </div>
-                          </PopoverContent>
+                          {renderTagPopoverContent(editTagIds, toggleTag)}
                         </Popover>
-                        {selectedTags.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 mt-1">
-                            {selectedTags.map((tag: TagType) => (
-                              <Badge
-                                key={tag.id}
-                                style={{ backgroundColor: tag.color }}
-                                className="text-white text-xs pr-1"
-                              >
-                                {tag.name}
-                                <button
-                                  onClick={() => toggleTag(tag.id)}
-                                  className="ml-1 hover:text-white/80"
-                                >
-                                  <X className="h-3 w-3" />
-                                </button>
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
                       </div>
                     </div>
 
@@ -2024,7 +2479,9 @@ export function TaskDetailSheet({
 
                           <span>
                             {(() => {
-                              const estTime = task?.estTime as { days?: number; hours?: number } | undefined;
+                              const estTime = task?.estTime as
+                                | { days?: number; hours?: number }
+                                | undefined;
                               if (!estTime) return "N/A";
                               const days = estTime.days ?? 0;
                               const hours = estTime.hours ?? 0;
@@ -2067,64 +2524,147 @@ export function TaskDetailSheet({
                   </div>
                 )}
 
-                {/* Assignees & Tags */}
+                {/* Assignees & Tags — inline editable in view mode */}
 
-                <div className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-2">
-                    <span className="text-sm font-medium">Assignee</span>
-
-                    <div className="flex gap-2">
-                      {assigneesList.length > 0 ? (
-                        assigneesList.map((user: any) => (
-                          <Avatar
-                            key={user.id || Math.random()}
-                            className="h-8 w-8"
-                          >
-                            <AvatarImage src={user.avatarUrl} />
-
-                            <AvatarFallback>
-                              {user.fullName?.charAt(0) || "U"}
-                            </AvatarFallback>
-                          </Avatar>
-                        ))
-                      ) : (
-                        <span className="text-sm text-muted-foreground">
-                          Unassigned
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <span className="text-sm font-medium">Tags</span>
-
-                    <div className="flex flex-wrap gap-2">
-                      {tagList.length > 0 ? (
-                        tagList.map((tag: any) => (
-                          <span
-                            key={tag.id || tag}
-                            className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700"
-                            style={
-                              tag.color
-                                ? {
-                                    backgroundColor: `${tag.color}20`,
-
-                                    color: tag.color
+                {!isEditing && (
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-2">
+                      <span className="text-sm font-medium">Assignee</span>
+                      <Popover
+                        open={assigneePopoverOpen}
+                        onOpenChange={setAssigneePopoverOpen}
+                      >
+                        <PopoverTrigger>
+                          <div className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded-lg p-1 -m-1 transition-colors w-fit">
+                            {assigneesList.length > 0 ? (
+                              <>
+                                {assigneesList.map((user: any) => (
+                                  <Avatar
+                                    key={user.id || Math.random()}
+                                    className="h-8 w-8"
+                                  >
+                                    <AvatarImage src={user.avatarUrl} />
+                                    <AvatarFallback>
+                                      {user.fullName?.charAt(0) || "U"}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                ))}
+                                <div className="h-8 w-8 rounded-full border border-dashed border-muted-foreground/40 flex items-center justify-center text-muted-foreground hover:border-foreground transition-colors">
+                                  <Plus className="h-4 w-4" />
+                                </div>
+                              </>
+                            ) : (
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <div className="h-8 w-8 rounded-full border border-dashed border-muted-foreground/40 flex items-center justify-center">
+                                  <Plus className="h-4 w-4" />
+                                </div>
+                                Unassigned
+                              </div>
+                            )}
+                          </div>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[280px] p-2">
+                          <div className="flex flex-col gap-1 max-h-[200px] overflow-auto">
+                            {uniqueMembers.length === 0 && (
+                              <p className="text-sm text-muted-foreground p-2">
+                                No members available
+                              </p>
+                            )}
+                            {uniqueMembers.map((member) => {
+                              const isSelected = currentAssigneeIds.includes(
+                                member.id
+                              );
+                              return (
+                                <button
+                                  key={member.id}
+                                  onClick={() =>
+                                    handleInlineAssigneeToggle(member.id)
                                   }
-                                : {}
-                            }
-                          >
-                            {tag.name || tag}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-sm text-muted-foreground">
-                          No tags
-                        </span>
-                      )}
+                                  className="flex items-center gap-2 w-full px-2 py-2 rounded hover:bg-muted text-left"
+                                >
+                                  <Avatar className="h-6 w-6">
+                                    <AvatarImage src={member.avatarUrl || ""} />
+                                    <AvatarFallback className="text-xs">
+                                      {(
+                                        member.fullName ||
+                                        member.username ||
+                                        "U"
+                                      )
+                                        .split(" ")
+                                        .map((n) => n[0])
+                                        .join("")
+                                        .slice(0, 2)
+                                        .toUpperCase()}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="text-sm truncate flex-1">
+                                    {member.fullName ||
+                                      member.username ||
+                                      member.email}
+                                  </span>
+                                  {isSelected && (
+                                    <Check className="h-4 w-4 text-primary" />
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <span className="text-sm font-medium">Tags</span>
+                      <Popover
+                        open={tagPopoverOpen}
+                        onOpenChange={(open) => {
+                          if (!open && (editingTagId || isCreatingTag)) return;
+                          setTagPopoverOpen(open);
+                          if (!open) setTagSearch("");
+                        }}
+                      >
+                        <PopoverTrigger>
+                          <div className="flex flex-wrap gap-2 items-center cursor-pointer hover:bg-muted/50 rounded-lg p-1 -m-1 transition-colors w-fit">
+                            {tagList.length > 0 ? (
+                              <>
+                                {tagList.map((tag: any) => (
+                                  <span
+                                    key={tag.id || tag}
+                                    className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700"
+                                    style={
+                                      tag.color
+                                        ? {
+                                            backgroundColor: `${tag.color}20`,
+                                            color: tag.color
+                                          }
+                                        : {}
+                                    }
+                                  >
+                                    {tag.name || tag}
+                                  </span>
+                                ))}
+                                <div className="h-6 w-6 rounded-full border border-dashed border-muted-foreground/40 flex items-center justify-center text-muted-foreground hover:border-foreground transition-colors">
+                                  <Plus className="h-3.5 w-3.5" />
+                                </div>
+                              </>
+                            ) : (
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <div className="h-6 w-6 rounded-full border border-dashed border-muted-foreground/40 flex items-center justify-center">
+                                  <Plus className="h-3.5 w-3.5" />
+                                </div>
+                                No tags
+                              </div>
+                            )}
+                          </div>
+                        </PopoverTrigger>
+                        {renderTagPopoverContent(
+                          currentTagIds,
+                          handleInlineTagToggle
+                        )}
+                      </Popover>
                     </div>
                   </div>
-                </div>
+                )}
 
                 <Separator />
 
@@ -2156,132 +2696,160 @@ export function TaskDetailSheet({
                       onDragOver={handleDragOver}
                       onDragEnd={handleDragEnd}
                     >
-                      <SortableContext items={subtasks.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+                      <SortableContext
+                        items={subtasks.map((p) => p.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
                         {subtasks.map((parent) => (
-                      <div key={parent.id} className="flex flex-col">
-                        <SubtaskItem
-                          subtask={parent}
-                          tenantId={tenantId}
-                          workspaceId={workspaceId}
-                          boardId={boardId}
-                          taskId={taskId || ""}
-                          onToggle={() => handleToggleParent(parent)}
-                          onAddChild={() => setAddingChildForParentId(parent.id)}
-                          dropIndicatorDepth={dragOverId === parent.id ? projectedDepth : null}
-                        />
+                          <div key={parent.id} className="flex flex-col">
+                            <SubtaskItem
+                              subtask={parent}
+                              tenantId={tenantId}
+                              workspaceId={workspaceId}
+                              boardId={boardId}
+                              taskId={taskId || ""}
+                              onToggle={() => handleToggleParent(parent)}
+                              onAddChild={() =>
+                                setAddingChildForParentId(parent.id)
+                              }
+                              dropIndicatorDepth={
+                                dragOverId === parent.id ? projectedDepth : null
+                              }
+                            />
 
-                        {parent.children && parent.children.length > 0 && (
-                          <SortableContext items={parent.children.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-                            <div className="relative pl-7">
-                              {parent.children.map((child, idx, arr) => (
-                              <div
-                                key={child.id}
-                                className="relative flex items-center"
+                            {parent.children && parent.children.length > 0 && (
+                              <SortableContext
+                                items={parent.children.map((c) => c.id)}
+                                strategy={verticalListSortingStrategy}
                               >
-                                {/* Vertical tree segment */}
-                                <div
-                                  className={cn(
-                                    "absolute -left-[16px] top-0 w-[1px] bg-border/50",
-                                    idx === arr.length - 1
-                                      ? "h-1/2"
-                                      : "bottom-0"
-                                  )}
-                                />
-                                {/* Horizontal tree connector */}
-                                <div className="absolute -left-[16px] top-1/2 w-[16px] h-[1px] -translate-y-1/2 bg-border/50" />
+                                <div className="relative pl-7">
+                                  {parent.children.map((child, idx, arr) => (
+                                    <div
+                                      key={child.id}
+                                      className="relative flex items-center"
+                                    >
+                                      {/* Vertical tree segment */}
+                                      <div
+                                        className={cn(
+                                          "absolute -left-[16px] top-0 w-[1px] bg-border/50",
+                                          idx === arr.length - 1
+                                            ? "h-1/2"
+                                            : "bottom-0"
+                                        )}
+                                      />
+                                      {/* Horizontal tree connector */}
+                                      <div className="absolute -left-[16px] top-1/2 w-[16px] h-[1px] -translate-y-1/2 bg-border/50" />
 
-                                <SubtaskItem
-                                  isChild
-                                  subtask={child}
-                                  tenantId={tenantId}
-                                  workspaceId={workspaceId}
-                                  boardId={boardId}
-                                  taskId={taskId || ""}
-                                  onToggle={() => handleToggleChild(child, parent)}
-                                  dropIndicatorDepth={dragOverId === child.id ? projectedDepth : null}
-                                />
+                                      <SubtaskItem
+                                        isChild
+                                        subtask={child}
+                                        tenantId={tenantId}
+                                        workspaceId={workspaceId}
+                                        boardId={boardId}
+                                        taskId={taskId || ""}
+                                        onToggle={() =>
+                                          handleToggleChild(child, parent)
+                                        }
+                                        dropIndicatorDepth={
+                                          dragOverId === child.id
+                                            ? projectedDepth
+                                            : null
+                                        }
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              </SortableContext>
+                            )}
+
+                            {addingChildForParentId === parent.id && (
+                              <div className="pl-7 flex items-center gap-2 py-1">
+                                <div className="flex flex-1 items-center gap-2">
+                                  <Input
+                                    placeholder="Add child subtask"
+                                    value={newChildTitle}
+                                    onChange={(e) =>
+                                      setNewChildTitle(e.target.value)
+                                    }
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter")
+                                        handleAddChildSubtask(parent.id);
+                                      if (e.key === "Escape")
+                                        setAddingChildForParentId(null);
+                                    }}
+                                    className="h-8"
+                                    autoFocus
+                                  />
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() =>
+                                      handleAddChildSubtask(parent.id)
+                                    }
+                                    className="shrink-0 text-muted-foreground hover:text-foreground"
+                                  >
+                                    <Plus className="mr-1 h-3.5 w-3.5" /> Add
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() =>
+                                      setAddingChildForParentId(null)
+                                    }
+                                    className="shrink-0 text-muted-foreground hover:text-foreground"
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
                               </div>
-                            ))}
+                            )}
                           </div>
-                          </SortableContext>
-                        )}
-
-                        {addingChildForParentId === parent.id && (
-                          <div className="pl-7 flex items-center gap-2 py-1">
-                            <div className="flex flex-1 items-center gap-2">
-                              <Input
-                                placeholder="Add child subtask"
-                                value={newChildTitle}
-                                onChange={(e) => setNewChildTitle(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") handleAddChildSubtask(parent.id);
-                                  if (e.key === "Escape") setAddingChildForParentId(null);
-                                }}
-                                className="h-8"
-                                autoFocus
-                              />
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleAddChildSubtask(parent.id)}
-                                className="shrink-0 text-muted-foreground hover:text-foreground"
-                              >
-                                <Plus className="mr-1 h-3.5 w-3.5" /> Add
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setAddingChildForParentId(null)}
-                                className="shrink-0 text-muted-foreground hover:text-foreground"
-                              >
-                                <X className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                        ))}
                       </SortableContext>
                       <DragOverlay>
-                        {dragActiveId ? (() => {
-                          for (const parent of subtasks) {
-                            if (parent.id === dragActiveId) {
-                              return (
-                                <div className="opacity-90 rotate-1 shadow-lg">
-                                  <SubtaskItem
-                                    isOverlay
-                                    subtask={parent}
-                                    tenantId={tenantId}
-                                    workspaceId={workspaceId}
-                                    boardId={boardId}
-                                    taskId={taskId || ""}
-                                    onToggle={() => {}}
-                                  />
-                                </div>
-                              );
-                            }
-                            if (parent.children) {
-                              const child = parent.children.find((c) => c.id === dragActiveId);
-                              if (child) {
-                                return (
-                                  <div className="opacity-90 rotate-1 shadow-lg">
-                                    <SubtaskItem
-                                      isOverlay
-                                      isChild
-                                      subtask={child}
-                                      tenantId={tenantId}
-                                      workspaceId={workspaceId}
-                                      boardId={boardId}
-                                      taskId={taskId || ""}
-                                      onToggle={() => {}}
-                                    />
-                                  </div>
-                                );
+                        {dragActiveId
+                          ? (() => {
+                              for (const parent of subtasks) {
+                                if (parent.id === dragActiveId) {
+                                  return (
+                                    <div className="opacity-90 rotate-1 shadow-lg">
+                                      <SubtaskItem
+                                        isOverlay
+                                        subtask={parent}
+                                        tenantId={tenantId}
+                                        workspaceId={workspaceId}
+                                        boardId={boardId}
+                                        taskId={taskId || ""}
+                                        onToggle={() => {}}
+                                      />
+                                    </div>
+                                  );
+                                }
+                                if (parent.children) {
+                                  const child = parent.children.find(
+                                    (c) => c.id === dragActiveId
+                                  );
+                                  if (child) {
+                                    return (
+                                      <div className="opacity-90 rotate-1 shadow-lg">
+                                        <SubtaskItem
+                                          isOverlay
+                                          isChild
+                                          subtask={child}
+                                          tenantId={tenantId}
+                                          workspaceId={workspaceId}
+                                          boardId={boardId}
+                                          taskId={taskId || ""}
+                                          onToggle={() => {}}
+                                        />
+                                      </div>
+                                    );
+                                  }
+                                }
                               }
-                            }
-                          }
-                          return null;
-                        })() : null}
+                              return null;
+                            })()
+                          : null}
                       </DragOverlay>
                     </DndContext>
 

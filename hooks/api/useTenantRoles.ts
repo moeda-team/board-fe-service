@@ -7,7 +7,8 @@ import {
   Role,
   RoleEnvelope,
   RolesEnvelope,
-  UpdateRoleParams
+  UpdateRoleParams,
+  UpdateRolePermissionsParams
 } from "@/types/type-tenant-roles";
 
 export const useRoles = (tenantId: string) => useQuery({
@@ -49,6 +50,21 @@ export const useUpdateRole = () => {
     meta: { successMessage: "Role updated", errorMessage: "Failed to update role" },
     mutationFn: async ({ tenantId, roleId, dto }: UpdateRoleParams): Promise<Role> => {
       const { data } = await apiClient.patch<RoleEnvelope>(`/api/tenants/${tenantId}/roles/${roleId}`, dto);
+      return unwrapApiData(data);
+    },
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: ["roles", variables.tenantId] });
+      await queryClient.invalidateQueries({ queryKey: ["roles", variables.tenantId, variables.roleId] });
+    }
+  });
+};
+
+export const useUpdateRolePermissions = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    meta: { successMessage: "Permissions updated", errorMessage: "Failed to update permissions" },
+    mutationFn: async ({ tenantId, roleId, permissions }: UpdateRolePermissionsParams): Promise<Role> => {
+      const { data } = await apiClient.put<RoleEnvelope>(`/api/tenants/${tenantId}/roles/${roleId}/permissions`, { permissions });
       return unwrapApiData(data);
     },
     onSuccess: async (_data, variables) => {

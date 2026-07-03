@@ -36,8 +36,13 @@ const NAV_LABELS: Record<Locale, Record<string, string>> = {
     testimonials: "Testimonials",
     pricing: "Pricing",
     faq: "FAQ",
+    changelog: "Changelog",
     login: "Login",
-    cta: "Start Free"
+    cta: "Start Free",
+    privacy: "Privacy",
+    about: "About",
+    contact: "Contact",
+    terms: "Terms"
   },
   id: {
     product: "Produk",
@@ -46,8 +51,13 @@ const NAV_LABELS: Record<Locale, Record<string, string>> = {
     testimonials: "Testimoni",
     pricing: "Harga",
     faq: "FAQ",
+    changelog: "Changelog",
     login: "Masuk",
-    cta: "Coba Gratis"
+    cta: "Coba Gratis",
+    privacy: "Privasi",
+    about: "Tentang",
+    contact: "Kontak",
+    terms: "Ketentuan"
   }
 };
 
@@ -80,7 +90,11 @@ export function Navbar({ locale = "en" }: NavbarProps) {
     { label: t.resources, href: `${home}#resources` },
     { label: t.testimonials, href: `${home}#testimonials` },
     { label: t.pricing, href: localizedPath(locale, "/pricing") },
-    { label: t.faq, href: localizedPath(locale, "/faq") }
+    { label: t.about, href: localizedPath(locale, "/about") },
+    { label: t.contact, href: localizedPath(locale, "/contact") },
+    { label: t.faq, href: localizedPath(locale, "/faq") },
+    { label: t.changelog, href: localizedPath(locale, "/changelog") },
+    { label: t.privacy, href: localizedPath(locale, "/privacy") }
   ];
   // Resolve the current page in each locale (strip any leading "/id").
   const basePath = (pathname || home).replace(/^\/id(?=\/|$)/, "") || "/";

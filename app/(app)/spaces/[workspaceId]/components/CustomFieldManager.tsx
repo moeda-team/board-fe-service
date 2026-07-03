@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Trash2, SlidersHorizontal, X, Loader2, Plus, Pencil } from "lucide-react";
+import {
+  Trash2,
+  SlidersHorizontal,
+  X,
+  Loader2,
+  Plus,
+  Pencil
+} from "lucide-react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -58,23 +65,9 @@ const hexColorSchema = z
   .trim()
   .regex(/^#[0-9a-fA-F]{6}$/, "Invalid color");
 
-const optionalNumberSchema = z.preprocess(
-  (v) => {
-    if (v === "" || v == null) return undefined;
-    if (typeof v === "number") return v;
-    return Number(v);
-  },
-  z.number().finite().optional()
-);
+const optionalNumberSchema = z.number().finite().optional();
 
-const optionalTrimmedStringSchema = z.preprocess(
-  (v) => {
-    if (typeof v !== "string") return undefined;
-    const trimmed = v.trim();
-    return trimmed ? trimmed : undefined;
-  },
-  z.string().optional()
-);
+const optionalTrimmedStringSchema = z.string().trim().optional();
 
 const dropdownOptionSchema = z.object({
   label: z.string().trim().min(1, "Label is required"),
@@ -136,7 +129,7 @@ const createCustomFieldSchema = z
     }
   });
 
-type CreateCustomFieldFormValues = z.infer<typeof createCustomFieldSchema>;
+type CreateCustomFieldFormValues = z.input<typeof createCustomFieldSchema>;
 
 interface CustomFieldManagerProps {
   tenantId: string;
@@ -162,9 +155,9 @@ export function CustomFieldManager({
   const updateCustomField = useUpdateCustomField();
   const deleteCustomField = useDeleteCustomField();
 
-  const [editingCustomFieldId, setEditingCustomFieldId] = useState<string | null>(
-    null
-  );
+  const [editingCustomFieldId, setEditingCustomFieldId] = useState<
+    string | null
+  >(null);
 
   const form = useForm<CreateCustomFieldFormValues>({
     resolver: zodResolver(createCustomFieldSchema),
@@ -209,7 +202,10 @@ export function CustomFieldManager({
     }
 
     if (type !== "text") {
-      form.setValue("textOptions", { placeholder: undefined, maxLength: undefined });
+      form.setValue("textOptions", {
+        placeholder: undefined,
+        maxLength: undefined
+      });
       form.clearErrors("textOptions");
     }
 
@@ -230,7 +226,9 @@ export function CustomFieldManager({
     const numberOptions: { min?: number; max?: number } = {};
 
     if (field.type === "dropdown" && Array.isArray(field.options)) {
-      dropdownOptions = (field.options as (string | CustomFieldDropdownOption)[])
+      dropdownOptions = (
+        field.options as (string | CustomFieldDropdownOption)[]
+      )
         .map((o) => {
           if (typeof o === "string") {
             const label = o;
@@ -334,7 +332,8 @@ export function CustomFieldManager({
 
     if (values.type === "text") {
       const opt: Record<string, unknown> = {};
-      if (values.textOptions.placeholder) opt.placeholder = values.textOptions.placeholder;
+      if (values.textOptions.placeholder)
+        opt.placeholder = values.textOptions.placeholder;
       if (typeof values.textOptions.maxLength === "number") {
         opt.maxLength = values.textOptions.maxLength;
       }
@@ -392,7 +391,10 @@ export function CustomFieldManager({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="sm:max-w-md w-full flex flex-col p-0 gap-0">
+      <SheetContent
+        side="right"
+        className="sm:max-w-md w-full flex flex-col p-0 gap-0"
+      >
         <SheetHeader className="px-6 py-5 border-b">
           <div className="flex items-center gap-2">
             <SlidersHorizontal className="h-5 w-5 text-muted-foreground" />
@@ -420,16 +422,24 @@ export function CustomFieldManager({
             <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-10 text-center text-muted-foreground text-sm">
               <SlidersHorizontal className="h-8 w-8 mb-2 opacity-30" />
               No custom fields yet.
-              <span className="mt-1 text-xs">Use the form below to create one.</span>
+              <span className="mt-1 text-xs">
+                Use the form below to create one.
+              </span>
             </div>
           ) : (
             <div className="rounded-lg border overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40 hover:bg-muted/40">
-                    <TableHead className="text-xs h-9 font-medium">Name</TableHead>
-                    <TableHead className="text-xs h-9 font-medium">Type</TableHead>
-                    <TableHead className="text-xs h-9 font-medium">Color</TableHead>
+                    <TableHead className="text-xs h-9 font-medium">
+                      Name
+                    </TableHead>
+                    <TableHead className="text-xs h-9 font-medium">
+                      Type
+                    </TableHead>
+                    <TableHead className="text-xs h-9 font-medium">
+                      Color
+                    </TableHead>
                     <TableHead className="text-xs h-9 w-10" />
                   </TableRow>
                 </TableHeader>
@@ -448,7 +458,10 @@ export function CustomFieldManager({
                         <div className="flex items-center gap-2">
                           <span
                             className="inline-flex h-4 w-4 rounded-full border"
-                            style={{ backgroundColor: field.color || DEFAULT_FIELD_COLOR }}
+                            style={{
+                              backgroundColor:
+                                field.color || DEFAULT_FIELD_COLOR
+                            }}
                           />
                           <span className="text-xs text-muted-foreground font-mono">
                             {field.color || DEFAULT_FIELD_COLOR}
@@ -707,7 +720,10 @@ export function CustomFieldManager({
                     />
                     {form.formState.errors.textOptions?.maxLength?.message && (
                       <p className="text-xs text-destructive">
-                        {form.formState.errors.textOptions.maxLength.message as string}
+                        {
+                          form.formState.errors.textOptions.maxLength
+                            .message as string
+                        }
                       </p>
                     )}
                   </div>
@@ -730,7 +746,10 @@ export function CustomFieldManager({
                     />
                     {form.formState.errors.numberOptions?.min?.message && (
                       <p className="text-xs text-destructive">
-                        {form.formState.errors.numberOptions.min.message as string}
+                        {
+                          form.formState.errors.numberOptions.min
+                            .message as string
+                        }
                       </p>
                     )}
                   </div>
@@ -743,7 +762,10 @@ export function CustomFieldManager({
                     />
                     {form.formState.errors.numberOptions?.max?.message && (
                       <p className="text-xs text-destructive">
-                        {form.formState.errors.numberOptions.max.message as string}
+                        {
+                          form.formState.errors.numberOptions.max
+                            .message as string
+                        }
                       </p>
                     )}
                   </div>
@@ -754,7 +776,9 @@ export function CustomFieldManager({
             <Button
               type="submit"
               className="w-full mt-1"
-              disabled={createCustomField.isPending || updateCustomField.isPending}
+              disabled={
+                createCustomField.isPending || updateCustomField.isPending
+              }
             >
               {createCustomField.isPending || updateCustomField.isPending ? (
                 <span className="inline-flex items-center">
@@ -764,7 +788,9 @@ export function CustomFieldManager({
                   </span>
                 </span>
               ) : (
-                <span>{editingCustomFieldId ? "Save Changes" : "Add Field"}</span>
+                <span>
+                  {editingCustomFieldId ? "Save Changes" : "Add Field"}
+                </span>
               )}
             </Button>
 

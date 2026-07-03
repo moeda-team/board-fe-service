@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { toast } from "sonner";
+import { gooeyToast } from "goey-toast";
 import {
   KeyRound,
   Copy,
@@ -51,7 +51,7 @@ function formatDate(dateStr: string) {
 
 function copyToClipboard(text: string) {
   navigator.clipboard.writeText(text).then(() => {
-    toast.success("Copied to clipboard");
+    gooeyToast.success("Copied to clipboard");
   });
 }
 
@@ -99,11 +99,7 @@ function RevealKey({ activeKey, plainKey }: RevealKeyProps) {
           onClick={() => setVisible((v) => !v)}
           title={visible ? "Hide key" : "Reveal key"}
         >
-          {visible ? (
-            <EyeOff className="size-4" />
-          ) : (
-            <Eye className="size-4" />
-          )}
+          {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
         </Button>
       )}
 
@@ -340,8 +336,11 @@ function AuthSnippet() {
 // ── main page ─────────────────────────────────────────────────────────────────
 
 export default function ApiKeysPage() {
-  const { data: authMe, isLoading: isAuthLoading, isFetched: isAuthFetched } =
-    useAuthMe();
+  const {
+    data: authMe,
+    isLoading: isAuthLoading,
+    isFetched: isAuthFetched
+  } = useAuthMe();
 
   const tenantId = getActiveTenantId(authMe);
 
@@ -370,7 +369,7 @@ export default function ApiKeysPage() {
       });
       if (created.plainKey) setPlainKey(created.plainKey);
     } catch {
-      toast.error("Failed to generate API key");
+      gooeyToast.error("Failed to generate API key");
     }
   };
 
@@ -380,9 +379,9 @@ export default function ApiKeysPage() {
       await revokeMutation.mutateAsync({ tenantId, apiKeyId: activeKey.id });
       setPlainKey(null);
       setShowRevoke(false);
-      toast.success("API key revoked");
+      gooeyToast.success("API key revoked");
     } catch {
-      toast.error("Failed to revoke API key");
+      gooeyToast.error("Failed to revoke API key");
     }
   };
 
@@ -397,7 +396,7 @@ export default function ApiKeysPage() {
       if (created.plainKey) setPlainKey(created.plainKey);
       setShowRegenerate(false);
     } catch {
-      toast.error("Failed to regenerate API key");
+      gooeyToast.error("Failed to regenerate API key");
     }
   };
 
@@ -418,8 +417,7 @@ export default function ApiKeysPage() {
 
   // ── render ─────────────────────────────────────────────────────────────────
 
-  const isMutating =
-    generateMutation.isPending || revokeMutation.isPending;
+  const isMutating = generateMutation.isPending || revokeMutation.isPending;
 
   return (
     <>
@@ -547,7 +545,9 @@ export default function ApiKeysPage() {
 
           {/* Usage guide */}
           <div className="rounded-xl border bg-white shadow-sm px-5 py-4 space-y-3">
-            <p className="text-sm font-semibold text-slate-700">Authentication</p>
+            <p className="text-sm font-semibold text-slate-700">
+              Authentication
+            </p>
             <p className="text-xs text-slate-500">
               Pass your API key in the{" "}
               <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-slate-700">

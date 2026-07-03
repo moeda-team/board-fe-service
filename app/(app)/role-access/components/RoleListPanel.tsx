@@ -69,11 +69,7 @@ export function RoleListPanel({
             ) : (
               roleList.map((role: any) => {
                 const isActive = selectedRoleId === role.id;
-                const isSystem =
-                  role.isDefault ||
-                  ["admin", "manager", "developer", "stakeholder"].includes(
-                    role.name?.toLowerCase()
-                  );
+                const isSystem = role.isDefault;
 
                 return (
                   <div

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { toast } from "sonner";
+import { gooeyToast } from "goey-toast";
 import apiClient from "@/lib/apiClient";
 import { unwrapApiArrayData, unwrapApiData } from "@/types/api";
 import type {
@@ -100,7 +100,7 @@ export const useCreateCustomField = () => {
     },
     onError: (error) => {
       const msg = extractApiErrorMessage(error);
-      toast.error(msg || "Failed to create custom field");
+      gooeyToast.error(msg || "Failed to create custom field");
     }
   });
 };
@@ -124,7 +124,7 @@ export const useUpdateCustomField = () => {
     },
     onError: (error) => {
       const msg = extractApiErrorMessage(error);
-      toast.error(msg || "Failed to update custom field");
+      gooeyToast.error(msg || "Failed to update custom field");
     }
   });
 };
@@ -146,7 +146,7 @@ export const useDeleteCustomField = () => {
     },
     onError: (error) => {
       const msg = extractApiErrorMessage(error);
-      toast.error(msg || "Failed to delete custom field");
+      gooeyToast.error(msg || "Failed to delete custom field");
     }
   });
 };

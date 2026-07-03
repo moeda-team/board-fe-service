@@ -15,7 +15,8 @@ import {
   Check,
   Loader2,
   Pencil,
-  Settings
+  Settings,
+  Megaphone
 } from "lucide-react";
 import {
   Sidebar,
@@ -57,6 +58,10 @@ const securityNavItems = [
   { title: "Members", href: "/members", icon: Users },
   { title: "API Key", href: "/api-keys", icon: KeyRound },
   { title: "Settings", href: "/settings", icon: Settings }
+];
+
+const superAdminNavItems = [
+  { title: "Changelogs", href: "/admin/changelogs", icon: Megaphone }
 ];
 
 export function AppSidebar() {
@@ -231,6 +236,28 @@ export function AppSidebar() {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
+
+          {/* Super Admin */}
+          {user?.isSuperAdmin && (
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {superAdminNavItems.map((item) => (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        isActive={!isWorkspaceDetail && pathname === item.href}
+                        tooltip={item.title}
+                        render={<Link href={item.href} />}
+                      >
+                        <item.icon className="size-4" />
+                        <span>{item.title}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )}
         </SidebarContent>
 
         {/* Footer — User */}

@@ -24,13 +24,15 @@ interface CreateSpaceDrawerProps {
   onOpenChange: (open: boolean) => void;
   editingWorkspace: Workspace | null;
   tenantId: string;
+  isAtQuota?: boolean;
 }
 
 export default function CreateSpaceDrawer({
   open,
   onOpenChange,
   editingWorkspace,
-  tenantId
+  tenantId,
+  isAtQuota = false
 }: CreateSpaceDrawerProps) {
   const { mutate: createWorkspace, isPending: isCreating } =
     useCreateWorkspace();
@@ -204,7 +206,7 @@ export default function CreateSpaceDrawer({
             </div>
           </div>
           <SheetFooter>
-            <Button type="submit" disabled={isMutating || !name.trim()}>
+            <Button type="submit" disabled={isMutating || !name.trim() || (!editingWorkspace && isAtQuota)}>
               {isMutating ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : editingWorkspace ? (

@@ -103,6 +103,7 @@ export interface AuthMeUser {
     username: string;
     fullName: string;
     avatarUrl: string | null;
+    isSuperAdmin?: boolean;
 }
 
 export interface AuthMeTenantRole {
@@ -132,6 +133,7 @@ export interface Tenant {
     name: string;
     domain: string | null;
     logoUrl: string | null;
+    maxWorkspaces: number; // 0 = unlimited
     [key: string]: unknown;
 }
 

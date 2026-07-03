@@ -1,7 +1,16 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { Plus, Building2, ChevronDown, Check, GripVertical, Folder as FolderIcon, FolderOpen, FileText } from "lucide-react";
+import {
+  Plus,
+  Building2,
+  ChevronDown,
+  Check,
+  GripVertical,
+  Folder as FolderIcon,
+  FolderOpen,
+  FileText
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -130,7 +139,9 @@ export function WorkspaceSidebar({
   const folderDropId = (folderId: string) => `folder-drop-${folderId}`;
   const rootDropId = "root-drop";
 
-  const customCollisionDetection = (args: Parameters<typeof pointerWithin>[0]) => {
+  const customCollisionDetection = (
+    args: Parameters<typeof pointerWithin>[0]
+  ) => {
     const pointerCollisions = pointerWithin(args);
     if (pointerCollisions && pointerCollisions.length > 0) {
       return pointerCollisions;
@@ -275,7 +286,10 @@ export function WorkspaceSidebar({
       }
     }
 
-    if (activeId.startsWith("folder-") && resolvedOverId.startsWith("folder-")) {
+    if (
+      activeId.startsWith("folder-") &&
+      resolvedOverId.startsWith("folder-")
+    ) {
       const previousFolders =
         queryClient.getQueryData<Folder[]>(
           foldersQueryKey(tenantId, workspaceId)
@@ -461,21 +475,27 @@ export function WorkspaceSidebar({
         <div className="border-b border-sidebar-border px-2 py-2">
           <DropdownMenu>
             <Tooltip>
-              <TooltipTrigger>
-                <DropdownMenuTrigger>
-                  <button
-                    type="button"
-                    className="flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-md px-2 py-2 text-left hover:bg-sidebar-accent focus:outline-none"
-                  >
-                    <Building2 className="size-4 shrink-0 text-muted-foreground" />
-                    <span className="truncate text-sm font-medium max-w-[180px]">
-                      {workspaceName}
-                    </span>
-                    <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
-                  </button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" align="start">{workspaceName}</TooltipContent>
+              <TooltipTrigger
+                render={
+                  <DropdownMenuTrigger
+                    render={
+                      <button
+                        type="button"
+                        className="flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-md px-2 py-2 text-left hover:bg-sidebar-accent focus:outline-none"
+                      >
+                        <Building2 className="size-4 shrink-0 text-muted-foreground" />
+                        <span className="truncate text-sm font-medium max-w-45">
+                          {workspaceName}
+                        </span>
+                        <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+                      </button>
+                    }
+                  />
+                }
+              />
+              <TooltipContent side="bottom" align="start">
+                {workspaceName}
+              </TooltipContent>
             </Tooltip>
             <DropdownMenuContent align="start" className="w-56">
               {workspaces.map((ws) => (
@@ -578,45 +598,52 @@ export function WorkspaceSidebar({
               </Button>
             </div>
 
-            <DragOverlay dropAnimation={{ duration: 200, easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)" }}>
-              {dragActiveId ? (() => {
-                if (dragActiveId.startsWith("folder-")) {
-                  const fid = dragActiveId.slice("folder-".length);
-                  const folder = folders.find((f) => f.id === fid);
-                  if (!folder) return null;
-                  return (
-                    <div
-                      className="flex items-center gap-1 rounded-md border bg-background px-1 py-1 shadow-lg opacity-90"
-                      style={{ width: 240 }}
-                    >
-                      <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground opacity-50" />
-                      <FolderOpen className="h-4 w-4 shrink-0 text-amber-500" />
-                      <span className="flex-1 truncate text-sm font-medium">
-                        {folder.name || "Untitled"}
-                      </span>
-                    </div>
-                  );
-                }
-                if (dragActiveId.startsWith("board-")) {
-                  const bid = dragActiveId.slice("board-".length);
-                  const allBoards = Object.values(boardsByFolder).flat();
-                  const board = allBoards.find((b) => b.id === bid);
-                  if (!board) return null;
-                  return (
-                    <div
-                      className="flex items-center gap-2 rounded-md border bg-background px-2 py-1.5 shadow-lg opacity-90"
-                      style={{ width: 240 }}
-                    >
-                      <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground opacity-50" />
-                      <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                      <span className="truncate text-sm">
-                        {board.name || "Untitled"}
-                      </span>
-                    </div>
-                  );
-                }
-                return null;
-              })() : null}
+            <DragOverlay
+              dropAnimation={{
+                duration: 200,
+                easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)"
+              }}
+            >
+              {dragActiveId
+                ? (() => {
+                    if (dragActiveId.startsWith("folder-")) {
+                      const fid = dragActiveId.slice("folder-".length);
+                      const folder = folders.find((f) => f.id === fid);
+                      if (!folder) return null;
+                      return (
+                        <div
+                          className="flex items-center gap-1 rounded-md border bg-background px-1 py-1 shadow-lg opacity-90"
+                          style={{ width: 240 }}
+                        >
+                          <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground opacity-50" />
+                          <FolderOpen className="h-4 w-4 shrink-0 text-amber-500" />
+                          <span className="flex-1 truncate text-sm font-medium">
+                            {folder.name || "Untitled"}
+                          </span>
+                        </div>
+                      );
+                    }
+                    if (dragActiveId.startsWith("board-")) {
+                      const bid = dragActiveId.slice("board-".length);
+                      const allBoards = Object.values(boardsByFolder).flat();
+                      const board = allBoards.find((b) => b.id === bid);
+                      if (!board) return null;
+                      return (
+                        <div
+                          className="flex items-center gap-2 rounded-md border bg-background px-2 py-1.5 shadow-lg opacity-90"
+                          style={{ width: 240 }}
+                        >
+                          <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground opacity-50" />
+                          <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          <span className="truncate text-sm">
+                            {board.name || "Untitled"}
+                          </span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()
+                : null}
             </DragOverlay>
           </DndContext>
         )}

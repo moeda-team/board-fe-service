@@ -17,7 +17,13 @@ export default function robots(): MetadataRoute.Robots {
         "/members",
         "/role-access",
         "/api-keys",
-        "/developers-kpi"
+        "/developers-kpi",
+        "/payment",
+        "/settings",
+        "/admin",
+        "/admin/",
+        "/search",
+        "/search?q="
       ]
     },
     sitemap: `${siteUrl}/sitemap.xml`,

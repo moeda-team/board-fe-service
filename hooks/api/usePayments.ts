@@ -12,7 +12,12 @@ import {
   PaymentHistoryEnvelope,
   PendingPaymentEnvelope,
   CancelPaymentEnvelope,
-  PlansEnvelope
+  PlansEnvelope,
+  CurrentPlanEnvelope,
+  CurrentPlanResponse,
+  CustomInvoiceRequest,
+  CustomInvoiceResponse,
+  CustomInvoiceEnvelope
 } from "@/types/payments";
 
 // Query keys
@@ -47,6 +52,20 @@ export const useCreateCheckout = () => {
   });
 };
 
+// Create a custom (enterprise) invoice / proposal request
+export const useCreateCustomInvoice = () => {
+  return useMutation({
+    meta: {
+      successMessage: "Enterprise request submitted",
+      errorMessage: "Failed to submit enterprise request"
+    },
+    mutationFn: async (request: CustomInvoiceRequest): Promise<CustomInvoiceResponse> => {
+      const { data } = await apiClient.post<CustomInvoiceEnvelope>("/api/admin/invoices/custom", request);
+      return unwrapApiData(data);
+    }
+  });
+};
+
 // Get payment history
 export const usePaymentHistory = (params: PaymentHistoryParams) => useQuery({
   queryKey: paymentsQueryKey(params.tenantId),
@@ -68,6 +87,18 @@ export const usePendingPayment = (tenantId: string) => useQuery({
   queryKey: pendingPaymentQueryKey(tenantId),
   queryFn: async (): Promise<PaymentTransaction | null> => {
     const { data } = await apiClient.get<PendingPaymentEnvelope>("/api/payments/pending", {
+      params: { tenantId }
+    });
+    return unwrapApiData(data);
+  },
+  enabled: !!tenantId && tenantId !== "undefined" && tenantId !== "null"
+});
+
+// Fetch current plan for a tenant
+export const useCurrentPlan = (tenantId: string) => useQuery({
+  queryKey: ["payments", "current-plan", tenantId],
+  queryFn: async (): Promise<CurrentPlanResponse> => {
+    const { data } = await apiClient.get<CurrentPlanEnvelope>("/api/payments/current-plan", {
       params: { tenantId }
     });
     return unwrapApiData(data);

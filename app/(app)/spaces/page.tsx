@@ -7,9 +7,18 @@ function useImageFallback() {
   const [error, setError] = useState(false);
   return { error, onError: () => setError(true) };
 }
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+  }
+  return name.charAt(0).toUpperCase();
+}
 import { Loader2, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { useAuthMe } from "@/hooks/api/useAuth";
 import { useWorkspaces, useDeleteWorkspace } from "@/hooks/api/useWorkspaces";
+import { useCurrentPlan } from "@/hooks/api/usePayments";
 import { getActiveTenantId, setActiveTenantId } from "@/lib/tenant";
 import type { Workspace } from "@/types/type-workspaces";
 import { Button } from "@/components/ui/button";
@@ -60,23 +69,34 @@ function WorkspaceCard({
           />
         ) : (
           <div
-            className="flex h-full w-full items-center justify-center"
+            className="relative flex h-full w-full items-center justify-center overflow-hidden"
             style={{
               background: workspace.color
-                ? `linear-gradient(135deg, ${workspace.color} 0%, ${workspace.color}dd 40%, ${workspace.color}bb 100%)`
-                : "linear-gradient(135deg, #227bfe 0%, #662ef8 100%)"
+                ? `radial-gradient(circle at 40% 40%, ${workspace.color}ee, ${workspace.color})`
+                : "radial-gradient(circle at 40% 40%, #ff6b6b, #ee5a5a)"
             }}
           >
-            <div className="flex flex-col items-center gap-2">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm shadow-lg">
-                <span className="text-3xl font-bold text-white">
-                  {workspace.name?.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <span className="max-w-[80%] truncate text-xs font-medium text-white/90">
-                {workspace.name}
-              </span>
-            </div>
+            <div
+              className="absolute inset-0 opacity-30"
+              style={{
+                background: `radial-gradient(circle, transparent 30%, rgba(0,0,0,0.15) 100%)`
+              }}
+            />
+            <div
+              className="absolute h-36 w-36 bg-white/10"
+              style={{ borderRadius: "60% 40% 55% 45% / 45% 55% 40% 60%" }}
+            />
+            <div
+              className="absolute h-28 w-28 bg-white/10"
+              style={{ borderRadius: "45% 55% 60% 40% / 55% 45% 60% 40%" }}
+            />
+            <div
+              className="absolute h-20 w-20 bg-white/15"
+              style={{ borderRadius: "55% 45% 40% 60% / 40% 60% 55% 45%" }}
+            />
+            <span className="relative z-10 text-5xl font-bold text-white/90">
+              {getInitials(workspace.name ?? "")}
+            </span>
           </div>
         )}
       </div>
@@ -148,6 +168,11 @@ export default function SpacesPage() {
   const { data: workspaces = [], isLoading: isWorkspacesLoading } =
     useWorkspaces(tenantId);
 
+  const { data: currentPlan } = useCurrentPlan(tenantId || "");
+
+  const maxWorkspaces = currentPlan?.maxWorkspaces ?? 0; // 0 = unlimited
+  const isAtQuota = maxWorkspaces > 0 && workspaces.length >= maxWorkspaces;
+
   const { mutate: deleteWorkspace, isPending: isDeleting } =
     useDeleteWorkspace();
 
@@ -187,7 +212,14 @@ export default function SpacesPage() {
       open: true,
       title: "Delete Workspace",
       description: `Are you sure you want to delete "${workspace.name}"? This action cannot be undone.`,
-      onConfirm: () => deleteWorkspace({ tenantId, workspaceId: workspace.id })
+      onConfirm: () =>
+        deleteWorkspace(
+          { tenantId, workspaceId: workspace.id },
+          {
+            onSuccess: () =>
+              setConfirmDialog((prev) => ({ ...prev, open: false }))
+          }
+        )
     });
   };
 
@@ -228,13 +260,24 @@ export default function SpacesPage() {
       description="Manage workspaces for better projects"
       actions={
         <div className="flex items-center gap-2">
+          {maxWorkspaces > 0 && (
+            <span
+              className={`text-xs ${isAtQuota ? "text-amber-600 font-medium" : "text-muted-foreground"}`}
+            >
+              {workspaces.length} / {maxWorkspaces} workspaces
+            </span>
+          )}
           <SearchBox
             value={search}
             onChange={setSearch}
             placeholder="Search"
             resultCount={filteredWorkspaces.length}
           />
-          <Button type="button" onClick={openCreate} disabled={isDeleting}>
+          <Button
+            type="button"
+            onClick={openCreate}
+            disabled={isDeleting || isAtQuota}
+          >
             <Plus className="h-4 w-4" />
             Create New Space
           </Button>
@@ -252,12 +295,22 @@ export default function SpacesPage() {
           <p className="text-slate-500">
             {search.trim()
               ? "No workspaces match your search."
-              : "No workspaces yet. Create your first space to get started."}
+              : isAtQuota
+                ? `Workspace limit reached (${workspaces.length}/${maxWorkspaces}). Upgrade your plan to create more.`
+                : "No workspaces yet. Create your first space to get started."}
           </p>
-          {!search.trim() && (
+          {!search.trim() && !isAtQuota && (
             <Button type="button" onClick={openCreate}>
               <Plus className="h-4 w-4" />
               Create New Space
+            </Button>
+          )}
+          {isAtQuota && (
+            <Button
+              variant="outline"
+              onClick={() => (window.location.href = "/pricing")}
+            >
+              Upgrade Plan
             </Button>
           )}
         </div>
@@ -280,6 +333,7 @@ export default function SpacesPage() {
         onOpenChange={setIsSheetOpen}
         editingWorkspace={editingWorkspace}
         tenantId={tenantId}
+        isAtQuota={isAtQuota}
       />
       <ConfirmDialog
         open={confirmDialog.open}

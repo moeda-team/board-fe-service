@@ -24,6 +24,42 @@ export const useCreateSubtask = () => {
       const { data } = await apiClient.post<SubtaskEnvelope>(`/api/tenants/${tenantId}/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/subtasks`, dto);
       return unwrapApiData(data);
     },
+    onMutate: async (variables) => {
+      const key = taskSubtasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<Subtask[]>(key);
+      if (previous) {
+        const tempId = `temp-${Date.now()}`;
+        const newSubtask: Subtask = {
+          id: tempId,
+          taskId: variables.taskId,
+          title: variables.dto.title,
+          isDone: false,
+          position: previous.length,
+          parentId: variables.dto.parentId ?? null,
+        };
+        queryClient.setQueryData<Subtask[]>(key, (old) => {
+          if (!old) return old;
+          if (variables.dto.parentId) {
+            return old.map((st) =>
+              st.id === variables.dto.parentId
+                ? { ...st, children: [...(st.children || []), newSubtask] }
+                : st
+            );
+          }
+          return [...old, newSubtask];
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(
+          taskSubtasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId),
+          context.previous
+        );
+      }
+    },
     onSuccess: async (_data, variables) => {
       await queryClient.invalidateQueries({ queryKey: taskSubtasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId) });
       await queryClient.invalidateQueries({ queryKey: tasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId) });
@@ -39,6 +75,36 @@ export const useUpdateSubtask = () => {
       const { data } = await apiClient.patch<SubtaskEnvelope>(`/api/tenants/${tenantId}/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/subtasks/${subtaskId}`, dto);
       return unwrapApiData(data);
     },
+    onMutate: async (variables) => {
+      const key = taskSubtasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<Subtask[]>(key);
+      if (previous) {
+        queryClient.setQueryData<Subtask[]>(key, (old) => {
+          if (!old) return old;
+          const updateSubtaskRecursive = (subs: Subtask[]): Subtask[] =>
+            subs.map((st) => {
+              if (st.id === variables.subtaskId) {
+                return { ...st, ...variables.dto };
+              }
+              if (st.children) {
+                return { ...st, children: updateSubtaskRecursive(st.children) };
+              }
+              return st;
+            });
+          return updateSubtaskRecursive(old);
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(
+          taskSubtasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId),
+          context.previous
+        );
+      }
+    },
     onSuccess: async (_data, variables) => {
       await queryClient.invalidateQueries({ queryKey: taskSubtasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId) });
       await queryClient.invalidateQueries({ queryKey: tasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId) });
@@ -52,6 +118,34 @@ export const useDeleteSubtask = () => {
     meta: { successMessage: "Subtask deleted" },
     mutationFn: async ({ tenantId, workspaceId, boardId, taskId, subtaskId }: { tenantId: string, workspaceId: string, boardId: string, taskId: string, subtaskId: string }) => {
       await apiClient.delete(`/api/tenants/${tenantId}/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/subtasks/${subtaskId}`);
+    },
+    onMutate: async (variables) => {
+      const key = taskSubtasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<Subtask[]>(key);
+      if (previous) {
+        queryClient.setQueryData<Subtask[]>(key, (old) => {
+          if (!old) return old;
+          const removeRecursive = (subs: Subtask[]): Subtask[] =>
+            subs
+              .filter((st) => st.id !== variables.subtaskId)
+              .map((st) =>
+                st.children
+                  ? { ...st, children: removeRecursive(st.children) }
+                  : st
+              );
+          return removeRecursive(old);
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(
+          taskSubtasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId),
+          context.previous
+        );
+      }
     },
     onSuccess: async (_data, variables) => {
       await queryClient.invalidateQueries({ queryKey: taskSubtasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId) });

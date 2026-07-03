@@ -44,6 +44,25 @@ export const useDeleteAttachment = () => {
     mutationFn: async ({ tenantId, workspaceId, boardId, taskId, attachmentId }: { tenantId: string, workspaceId: string, boardId: string, taskId: string, attachmentId: string }) => {
       await apiClient.delete(`/api/tenants/${tenantId}/workspaces/${workspaceId}/boards/${boardId}/tasks/${taskId}/attachments/${attachmentId}`);
     },
+    onMutate: async (variables) => {
+      const key = taskAttachmentsQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<Attachment[]>(key);
+      if (previous) {
+        queryClient.setQueryData<Attachment[]>(key, (old) =>
+          old ? old.filter((a) => a.id !== variables.attachmentId) : old
+        );
+      }
+      return { previous };
+    },
+    onError: (_err, variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(
+          taskAttachmentsQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId),
+          context.previous
+        );
+      }
+    },
     onSuccess: async (_data, variables) => {
       await queryClient.invalidateQueries({ queryKey: taskAttachmentsQueryKey(variables.tenantId, variables.workspaceId, variables.boardId, variables.taskId) });
       await queryClient.invalidateQueries({ queryKey: tasksQueryKey(variables.tenantId, variables.workspaceId, variables.boardId) });

@@ -6,60 +6,38 @@ const siteUrl =
 export default function sitemap(): MetadataRoute.Sitemap {
   const lastModified = new Date();
 
+  const pages = [
+    { path: "", priority: 1, changeFrequency: "weekly" as const },
+    { path: "/pricing", priority: 0.8, changeFrequency: "monthly" as const },
+    { path: "/faq", priority: 0.6, changeFrequency: "monthly" as const },
+    { path: "/changelog", priority: 0.6, changeFrequency: "monthly" as const },
+    { path: "/about", priority: 0.7, changeFrequency: "monthly" as const },
+    { path: "/contact", priority: 0.7, changeFrequency: "monthly" as const },
+    { path: "/privacy", priority: 0.5, changeFrequency: "yearly" as const },
+    { path: "/terms-of-service", priority: 0.5, changeFrequency: "yearly" as const },
+  ];
+
   return [
-    {
-      url: siteUrl,
+    ...pages.map((page) => ({
+      url: `${siteUrl}${page.path}`,
       lastModified,
-      changeFrequency: "weekly",
-      priority: 1,
+      changeFrequency: page.changeFrequency,
+      priority: page.priority,
       alternates: {
         languages: {
-          en: siteUrl,
-          id: `${siteUrl}/id`
+          en: `${siteUrl}${page.path}`,
+          id: `${siteUrl}/id${page.path}`,
+          "x-default": `${siteUrl}${page.path}`
         }
       }
-    },
-    {
-      url: `${siteUrl}/pricing`,
-      lastModified,
-      changeFrequency: "monthly",
-      priority: 0.8,
-      alternates: {
-        languages: {
-          en: `${siteUrl}/pricing`,
-          id: `${siteUrl}/id/pricing`
-        }
-      }
-    },
-    {
-      url: `${siteUrl}/faq`,
-      lastModified,
-      changeFrequency: "monthly",
-      priority: 0.6,
-      alternates: {
-        languages: {
-          en: `${siteUrl}/faq`,
-          id: `${siteUrl}/id/faq`
-        }
-      }
-    },
-    {
-      url: `${siteUrl}/id`,
-      lastModified,
-      changeFrequency: "weekly",
-      priority: 0.9
-    },
-    {
-      url: `${siteUrl}/id/pricing`,
-      lastModified,
-      changeFrequency: "monthly",
-      priority: 0.7
-    },
-    {
-      url: `${siteUrl}/id/faq`,
-      lastModified,
-      changeFrequency: "monthly",
-      priority: 0.5
-    }
+    })),
+    ...pages
+      .filter((p) => p.path)
+      .map((page) => ({
+        url: `${siteUrl}/id${page.path}`,
+        lastModified,
+        changeFrequency: page.changeFrequency,
+        priority: page.priority - 0.1
+      }))
   ];
 }

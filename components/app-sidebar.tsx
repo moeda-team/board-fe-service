@@ -61,7 +61,12 @@ const securityNavItems = [
 ];
 
 const superAdminNavItems = [
-  { title: "Changelogs", href: "/admin/changelogs", icon: Megaphone }
+  { title: "Changelogs", href: "/admin/changelogs", icon: Megaphone },
+  {
+    title: "Enterprise Requests",
+    href: "/admin/enterprise-requests",
+    icon: Building2
+  }
 ];
 
 export function AppSidebar() {

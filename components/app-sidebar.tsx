@@ -11,12 +11,17 @@ import {
   ChevronsUpDown,
   Building2,
   ChevronRight,
+  ChevronDown,
   KeyRound,
   Check,
   Loader2,
   Pencil,
   Settings,
-  Megaphone
+  Megaphone,
+  FileText,
+  MessageSquare,
+  CreditCard,
+  Settings2,
 } from "lucide-react";
 import {
   Sidebar,
@@ -29,7 +34,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-  useSidebar
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -39,29 +44,40 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-  DropdownMenuLabel
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { useAuthMe } from "@/hooks/api/useAuth";
 import { useMyTenants } from "@/hooks/api/useMyTenants";
+import { useCurrentPlan } from "@/hooks/api/usePayments";
 import { authService } from "@/lib/auth";
-import { getActiveTenantEntry, setActiveTenantId } from "@/lib/tenant";
+import { getActiveTenantEntry, getActiveTenantId, setActiveTenantId } from "@/lib/tenant";
 import { RenameTenantModal } from "@/components/RenameTenantModal";
+import type { PaymentTier } from "@/types/payments";
+
+const TIER_LABELS: Record<PaymentTier, string> = {
+  FREE: "Free",
+  BASIC: "Basic",
+  PRO: "Pro",
+  CUSTOM: "Enterprise",
+};
 
 const mainNavItems = [
-  // { title: "Home", href: "/dashboard", icon: Home },
-  // { title: "Dev KPI", href: "/developers-kpi", icon: BarChart3 },
-  { title: "Spaces", href: "/spaces", icon: Layers }
+  { title: "Spaces", href: "/spaces", icon: Layers },
 ];
 
 const securityNavItems = [
   { title: "Access", href: "/role-access", icon: ShieldCheck },
   { title: "Members", href: "/members", icon: Users },
   { title: "API Key", href: "/api-keys", icon: KeyRound },
-  { title: "Settings", href: "/settings", icon: Settings }
+  { title: "Settings", href: "/settings", icon: Settings },
 ];
 
-const superAdminNavItems = [
-  { title: "Changelogs", href: "/admin/changelogs", icon: Megaphone }
+const adminNavItems = [
+  { title: "Changelogs", href: "/admin/changelogs", icon: Megaphone },
+  { title: "Enterprise Requests", href: "/admin/enterprise-requests", icon: FileText },
+  { title: "Feedback", href: "/admin/feedback", icon: MessageSquare },
+  { title: "Plans", href: "/admin/plans", icon: CreditCard },
 ];
 
 export function AppSidebar() {
@@ -71,13 +87,20 @@ export function AppSidebar() {
   const lastPathnameRef = useRef(pathname);
   const hasInitializedRef = useRef(false);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [adminExpanded, setAdminExpanded] = useState(false);
 
+  const isAdminRoute = pathname.startsWith("/admin/");
   const router = useRouter();
   const [switchingTenantId, setSwitchingTenantId] = useState<string | null>(
     null
   );
   const [isRenameOpen, setIsRenameOpen] = useState(false);
   const { data: myTenants = [] } = useMyTenants();
+
+  // Auto-expand admin section when navigating to an admin route
+  useEffect(() => {
+    if (isAdminRoute) setAdminExpanded(true);
+  }, [isAdminRoute]);
 
   const isWorkspaceDetail =
     pathname.startsWith("/spaces/") && pathname !== "/spaces";
@@ -143,6 +166,11 @@ export function AppSidebar() {
   const activeTenant = activeTenantEntry?.tenant;
   const tenantName = activeTenant?.name ?? "Tenant 1";
   const userRole = activeTenantEntry?.role?.name ?? "Member";
+  const activeTenantId = getActiveTenantId(authMe) ?? "";
+  const { data: currentPlan } = useCurrentPlan(activeTenantId);
+  const tierLabel = currentPlan?.tier
+    ? TIER_LABELS[currentPlan.tier] ?? currentPlan.tier
+    : "Free";
 
   const handleSwitchTenant = (tenantId: string) => {
     if (tenantId === activeTenant?.id) return;
@@ -160,7 +188,7 @@ export function AppSidebar() {
       <Sidebar
         collapsible="icon"
         variant="floating"
-        className="**:data-[sidebar=sidebar]:bg-[#3B82F6] **:data-[sidebar=sidebar]:text-white **:data-[sidebar=sidebar]:border-none **:data-[sidebar=sidebar]:shadow-lg
+        className="p-0 **:data-[sidebar=sidebar]:bg-[#3B82F6] **:data-[sidebar=sidebar]:text-white **:data-[sidebar=sidebar]:border-none **:data-[sidebar=sidebar]:shadow-lg
         **:data-[sidebar=menu-button]:text-white **:data-[sidebar=menu-button]:hover:bg-white/20 **:data-[sidebar=menu-button]:hover:text-white
         [&_[data-sidebar=menu-button][data-active]]:bg-white [&_[data-sidebar=menu-button][data-active]]:text-[#3B82F6]!
         [&_[data-sidebar=menu-button][data-active]]:hover:bg-white [&_[data-sidebar=menu-button][data-active]]:hover:text-[#3B82F6]!
@@ -186,7 +214,7 @@ export function AppSidebar() {
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="text-xs text-white/70">Subscription</span>
                 <span className="px-1.5 py-0.5 rounded-sm bg-white/20 text-[10px] font-medium text-white tracking-wide">
-                  Free
+                  {tierLabel}
                 </span>
               </div>
             </div>
@@ -242,18 +270,41 @@ export function AppSidebar() {
             <SidebarGroup>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {superAdminNavItems.map((item) => (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton
-                        isActive={!isWorkspaceDetail && pathname === item.href}
-                        tooltip={item.title}
-                        render={<Link href={item.href} />}
-                      >
-                        <item.icon className="size-4" />
-                        <span>{item.title}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
+                  {/* Admin section header — toggles expand/collapse */}
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      isActive={isAdminRoute}
+                      tooltip="Admin"
+                      className="w-full justify-between"
+                      onClick={() => setAdminExpanded((v) => !v)}
+                    >
+                      <span className="flex items-center gap-2">
+                        <Settings2 className="size-4" />
+                        <span>Admin</span>
+                      </span>
+                      {adminExpanded ? (
+                        <ChevronDown className="size-3.5 opacity-70" />
+                      ) : (
+                        <ChevronRight className="size-3.5 opacity-70" />
+                      )}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+
+                  {/* Admin sub-items — only visible when expanded */}
+                  {adminExpanded &&
+                    adminNavItems.map((item) => (
+                      <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton
+                          isActive={pathname === item.href}
+                          tooltip={item.title}
+                          render={<Link href={item.href} />}
+                          className="pl-8"
+                        >
+                          <item.icon className="size-4" />
+                          <span>{item.title}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>

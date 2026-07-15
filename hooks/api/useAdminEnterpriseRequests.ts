@@ -17,6 +17,7 @@ export const adminEnterpriseRequestsQueryKey = (params?: {
   search?: string;
   status?: EnterpriseRequestStatus;
   industry?: string;
+  budget?: string;
   startDate?: string;
   endDate?: string;
 }) => [QUERY_KEY, params] as const;
@@ -35,6 +36,7 @@ export const useAdminEnterpriseRequests = (
     search?: string;
     status?: EnterpriseRequestStatus;
     industry?: string;
+    budget?: string;
     startDate?: string;
     endDate?: string;
   } = {},

@@ -185,6 +185,37 @@ export const useGetEnterpriseRequestForInvoice = (enterpriseRequestId: string | 
     enabled: !!enterpriseRequestId,
   });
 
+/**
+ * PATCH /api/admin/enterprise-requests/:id/assign-manager
+ * Assign an account manager to an enterprise request.
+ */
+export const useAssignEnterpriseRequestManager = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    meta: {
+      successMessage: "Account manager assigned",
+      errorMessage: "Failed to assign account manager",
+    },
+    mutationFn: async ({
+      id,
+      managerId,
+    }: {
+      id: string;
+      managerId: string;
+    }) => {
+      const { data } = await apiClient.patch<any>(
+        `/api/admin/enterprise-requests/${id}/assign-manager`,
+        { managerId }
+      );
+      return unwrapApiData(data);
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: [QUERY_KEY] });
+      qc.invalidateQueries({ queryKey: adminEnterpriseRequestQueryKey(vars.id) });
+    },
+  });
+};
+
 export const useUpdateEnterpriseRequestStatus = () => {
   const qc = useQueryClient();
   return useMutation({

@@ -234,7 +234,7 @@ export default function AdminEnterpriseRequestDetail({ id }: { id: string }) {
     const newStatus = value as EnterpriseRequestStatus;
     setSelectedStatus(newStatus);
     updateStatus.mutate(
-      { id, status: newStatus },
+      { id, dto: { status: newStatus } },
       {
         onSuccess: () => {
           gooeyToast.success(`Status updated to ${STATUS_LABELS[newStatus]}`);

@@ -27,6 +27,7 @@ export interface AdminEnterpriseRequest {
   meetingLink: string | null;
   createdAt: string;
   updatedAt: string;
+  assignedAccountManager?: { id: string; fullName: string; avatarUrl: string | null } | null;
   user?: {
     id: string;
     fullName: string;

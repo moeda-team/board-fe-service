@@ -1,5 +1,5 @@
-import AdminEnterpriseRequests from "./AdminEnterpriseRequests";
+import EnterpriseRequestsClient from "./EnterpriseRequestsClient";
 
-export default function AdminEnterpriseRequestsPage() {
-  return <AdminEnterpriseRequests />;
+export default function Page() {
+  return <EnterpriseRequestsClient />;
 }

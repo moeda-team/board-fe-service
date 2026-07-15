@@ -20,7 +20,7 @@ export default async function proxy(req: NextRequest) {
   // Proxy API requests to backend
   if (isApiRoute && !isNextAuthRoute) {
     const backendUrl = new URL(
-      nextUrl.pathname + nextUrl.search,
+      nextUrl.pathname.replace(/^\//, "") + nextUrl.search,
       process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080",
     );
     return NextResponse.rewrite(backendUrl);

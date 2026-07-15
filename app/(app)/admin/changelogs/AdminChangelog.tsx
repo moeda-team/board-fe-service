@@ -339,84 +339,69 @@ export default function AdminChangelog() {
 
   // ── List view ─────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-full bg-slate-50">
-      {/* Top header (content row, not a navbar) */}
-      <div className="flex flex-wrap items-center justify-end gap-3 border-b bg-white px-6 py-3">
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-          <Input
-            className="pl-9"
-            placeholder="Search update..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-          />
+    <div className="flex flex-col min-h-screen bg-slate-50">
+      {/* Header */}
+      <div className="bg-white border-b px-6 py-4 shrink-0">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-bold text-slate-900">Changelog</h1>
+            <p className="text-sm text-slate-500 mt-0.5">
+              Kelola semua update dan perubahan pada produk PapanClip.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="relative w-64">
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <Input
+                className="pl-9 h-9"
+                placeholder="Search update..."
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              />
+            </div>
+            <Button className="bg-blue-600 hover:bg-blue-700 h-9" onClick={openCreate}>
+              <Plus className="size-4" />
+              Buat Changelog
+            </Button>
+          </div>
         </div>
-        <Button variant="outline">
-          <Filter className="size-4" />
-          Filter
-        </Button>
-        <Button className="bg-blue-600 hover:bg-blue-700" onClick={openCreate}>
-          <Plus className="size-4" />
-          Buat Changelog
-        </Button>
-        <button
-          type="button"
-          className="relative flex size-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
-        >
-          <Bell className="size-5" />
-          <span className="absolute right-2 top-2 size-1.5 rounded-full bg-red-500" />
-        </button>
       </div>
 
-      <div className="px-6 py-6">
-        {/* Title */}
-        <h1 className="text-2xl font-bold text-slate-900">Changelog</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Kelola semua update dan perubahan pada produk PapanClip.
-        </p>
-
-        {/* Tabs */}
-        <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 border-b">
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.key;
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => {
-                  setActiveTab(tab.key);
-                  setPage(1);
-                }}
-                className={`relative flex items-center gap-2 pb-3 text-sm transition-colors ${
-                  isActive
-                    ? "font-semibold text-blue-600"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                {tab.key === "all" && <ListFilter className="size-4" />}
-                {tab.label}
-                <span
-                  className={`rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${
-                    isActive
-                      ? "bg-blue-100 text-blue-600"
-                      : "bg-slate-100 text-slate-500"
+      <div className="flex-1 overflow-y-auto">
+        <div className="px-6 py-6 space-y-5">
+          {/* Tabs */}
+          <div className="flex items-center gap-1 border-b">
+            {tabs.map((tab) => {
+              const isActive = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => { setActiveTab(tab.key); setPage(1); }}
+                  className={`relative flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
+                    isActive ? "font-semibold text-blue-600" : "text-slate-500 hover:text-slate-800"
                   }`}
                 >
-                  {tab.count}
-                </span>
-                {isActive && (
-                  <span className="absolute -bottom-px left-0 h-0.5 w-full rounded-full bg-blue-600" />
-                )}
-              </button>
-            );
-          })}
-        </div>
+                  {tab.key === "all" && <ListFilter className="size-4" />}
+                  {tab.label}
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${
+                      isActive ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                  {isActive && (
+                    <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-blue-600" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          </div>
 
         {/* Card */}
-        <div className="mt-5 rounded-2xl border bg-white shadow-sm">
+        <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
           {/* Toolbar */}
           <div className="flex flex-wrap items-center justify-between gap-3 p-4">
             <div className="flex flex-wrap items-center gap-2">

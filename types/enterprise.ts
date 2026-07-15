@@ -36,6 +36,15 @@ export interface EnterpriseRequest {
   billingType: EnterpriseBillingType;
   additionalNotes: string;
   status?: EnterpriseRequestStatus;
+  meetingDate?: string | null;
+  meetingPlatform?: string | null;
+  meetingLink?: string | null;
+  tenantId?: string | null;
+  tenant?: {
+    id: string;
+    name: string;
+    tier: string;
+  } | null;
   createdAt?: string;
   updatedAt?: string;
 }

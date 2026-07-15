@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -44,23 +45,16 @@ import {
 import { useAuthMe } from "@/hooks/api/useAuth";
 import {
   useCreateEnterpriseRequest,
-  useEnterpriseRequests
+  useGetMyActiveEnterpriseRequest
 } from "@/hooks/api/useEnterpriseRequests";
 import type {
   CreateEnterpriseRequest,
-  EnterpriseBillingType,
-  EnterpriseRequestStatus
+  EnterpriseBillingType
 } from "@/types/enterprise";
 import { PhoneInput } from "react-international-phone";
 import "react-international-phone/style.css";
 
 /* ── Helpers ───────────────────────────────────────────── */
-
-const ACTIVE_ENTERPRISE_STATUSES: EnterpriseRequestStatus[] = [
-  "REQUIREMENT_REVIEW",
-  "DISCOVERY_MEETING",
-  "CONTRACT_ONBOARDING"
-];
 
 const INDUSTRIES = [
   "Technology",
@@ -292,6 +286,7 @@ type Step = "company" | "review" | "submit";
 export default function EnterpriseClient() {
   const router = useRouter();
   const { data: authMe } = useAuthMe();
+  const { data: session } = useSession();
   const { mutateAsync: createEnterpriseRequest, isPending } =
     useCreateEnterpriseRequest();
 
@@ -325,23 +320,21 @@ export default function EnterpriseClient() {
     }
   }, [authMe]);
 
-  // Redirect existing active enterprise requests to the submitted page
-  const { data: existingRequests, isLoading: isCheckingExisting } =
-    useEnterpriseRequests({ limit: 50 });
+  // Redirect if user already has any enterprise request (including COMPLETED).
+  // If user has COMPLETED/CANCELED request, still show the submitted page with completed UI.
+  const { data: existingRequest, isLoading: isCheckingExisting } =
+    useGetMyActiveEnterpriseRequest(session);
   const [checkedExisting, setCheckedExisting] = useState(false);
   useEffect(() => {
     if (isCheckingExisting) return;
     setCheckedExisting(true);
-    if (!existingRequests?.items) return;
-    const active = existingRequests.items.find(
-      (r) => r.status && ACTIVE_ENTERPRISE_STATUSES.includes(r.status)
-    );
-    if (active) {
+    // Redirect to /submitted if ANY request exists (including COMPLETED/CANCELED)
+    if (existingRequest) {
       router.push("/enterprise/submitted");
     }
-  }, [existingRequests, isCheckingExisting, router]);
+  }, [existingRequest, isCheckingExisting, router]);
 
-  const isUnlimited = (key: SliderKey) => sliders[key] >= SLIDER_MAP[key].max;
+  const isUnlimited = (key: SliderKey) => sliders[key] >= SLIDER_MAP[key].max - SLIDER_MAP[key].step;
 
   const sliderSummary = (key: SliderKey): string => {
     if (isUnlimited(key)) return "Unlimited";
@@ -1170,7 +1163,7 @@ function SliderRow({
   readOnly: boolean;
   onChange: (value: number) => void;
 }) {
-  const unlimited = value >= cfg.max;
+  const unlimited = value >= cfg.max - cfg.step;
   const pct = Math.min(
     100,
     Math.max(0, ((value - cfg.min) / (cfg.max - cfg.min)) * 100)
@@ -1228,12 +1221,24 @@ function SliderRow({
             type="text"
             inputMode="numeric"
             disabled={readOnly}
-            value={unlimited ? "Unlimited" : formatNumberID(value)}
+            value={unlimited ? "" : formatNumberID(value)}
+            placeholder={unlimited ? "Unlimited" : ""}
             onChange={(e) => {
-              const digits = e.target.value.replace(/\D/g, "");
-              onChange(digits ? Number(digits) : cfg.min);
+              const raw = e.target.value.replace(/\D/g, "");
+              if (!raw) {
+                // User cleared the box — stay at unlimited (max)
+                onChange(cfg.max);
+                return;
+              }
+              const num = Number(raw);
+              if (num >= cfg.max - cfg.step) {
+                // Typed value >= max → go unlimited
+                onChange(cfg.max);
+              } else {
+                onChange(num);
+              }
             }}
-            className="w-full min-w-0 px-2.5 py-2 text-sm text-gray-800 outline-none disabled:bg-gray-50 disabled:text-gray-700"
+            className="w-full min-w-0 px-2.5 py-2 text-sm text-gray-800 outline-none disabled:bg-gray-50 disabled:text-gray-700 placeholder:text-gray-400"
           />
           <span className="px-2 py-2 text-xs text-gray-400 bg-gray-50 border-l border-gray-200">
             {cfg.unit}

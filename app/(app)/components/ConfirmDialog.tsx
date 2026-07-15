@@ -20,6 +20,7 @@ interface ConfirmDialogProps {
   onConfirm: () => void;
   isLoading?: boolean;
   variant?: "default" | "destructive";
+  extra?: React.ReactNode;
 }
 
 export function ConfirmDialog({
@@ -31,7 +32,8 @@ export function ConfirmDialog({
   cancelLabel = "Cancel",
   onConfirm,
   isLoading = false,
-  variant = "destructive"
+  variant = "destructive",
+  extra,
 }: ConfirmDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -40,6 +42,7 @@ export function ConfirmDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
+        {extra}
         <DialogFooter>
           <Button
             variant="outline"

@@ -21,7 +21,7 @@ import {
   FileText,
   MessageSquare,
   CreditCard,
-  Settings2,
+  Settings2
 } from "lucide-react";
 import {
   Sidebar,
@@ -34,7 +34,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-  useSidebar,
+  useSidebar
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -44,14 +44,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-  DropdownMenuLabel,
+  DropdownMenuLabel
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { useAuthMe } from "@/hooks/api/useAuth";
 import { useMyTenants } from "@/hooks/api/useMyTenants";
 import { useCurrentPlan } from "@/hooks/api/usePayments";
 import { authService } from "@/lib/auth";
-import { getActiveTenantEntry, getActiveTenantId, setActiveTenantId } from "@/lib/tenant";
+import {
+  getActiveTenantEntry,
+  getActiveTenantId,
+  setActiveTenantId
+} from "@/lib/tenant";
 import { RenameTenantModal } from "@/components/RenameTenantModal";
 import type { PaymentTier } from "@/types/payments";
 
@@ -59,25 +63,27 @@ const TIER_LABELS: Record<PaymentTier, string> = {
   FREE: "Free",
   BASIC: "Basic",
   PRO: "Pro",
-  CUSTOM: "Enterprise",
+  CUSTOM: "Enterprise"
 };
 
-const mainNavItems = [
-  { title: "Spaces", href: "/spaces", icon: Layers },
-];
+const mainNavItems = [{ title: "Spaces", href: "/spaces", icon: Layers }];
 
 const securityNavItems = [
   { title: "Access", href: "/role-access", icon: ShieldCheck },
   { title: "Members", href: "/members", icon: Users },
   { title: "API Key", href: "/api-keys", icon: KeyRound },
-  { title: "Settings", href: "/settings", icon: Settings },
+  { title: "Settings", href: "/settings", icon: Settings }
 ];
 
 const adminNavItems = [
   { title: "Changelogs", href: "/admin/changelogs", icon: Megaphone },
-  { title: "Enterprise Requests", href: "/admin/enterprise-requests", icon: FileText },
+  {
+    title: "Enterprise Requests",
+    href: "/admin/enterprise-requests",
+    icon: FileText
+  },
   { title: "Feedback", href: "/admin/feedback", icon: MessageSquare },
-  { title: "Plans", href: "/admin/plans", icon: CreditCard },
+  { title: "Plans", href: "/admin/plans", icon: CreditCard }
 ];
 
 export function AppSidebar() {
@@ -169,7 +175,7 @@ export function AppSidebar() {
   const activeTenantId = getActiveTenantId(authMe) ?? "";
   const { data: currentPlan } = useCurrentPlan(activeTenantId);
   const tierLabel = currentPlan?.tier
-    ? TIER_LABELS[currentPlan.tier] ?? currentPlan.tier
+    ? (TIER_LABELS[currentPlan.tier] ?? currentPlan.tier)
     : "Free";
 
   const handleSwitchTenant = (tenantId: string) => {
@@ -188,7 +194,7 @@ export function AppSidebar() {
       <Sidebar
         collapsible="icon"
         variant="floating"
-        className="p-0 **:data-[sidebar=sidebar]:bg-[#3B82F6] **:data-[sidebar=sidebar]:text-white **:data-[sidebar=sidebar]:border-none **:data-[sidebar=sidebar]:shadow-lg
+        className="p-2 **:data-[sidebar=sidebar]:bg-[#3B82F6] **:data-[sidebar=sidebar]:text-white **:data-[sidebar=sidebar]:border-none **:data-[sidebar=sidebar]:shadow-lg
         **:data-[sidebar=menu-button]:text-white **:data-[sidebar=menu-button]:hover:bg-white/20 **:data-[sidebar=menu-button]:hover:text-white
         [&_[data-sidebar=menu-button][data-active]]:bg-white [&_[data-sidebar=menu-button][data-active]]:text-[#3B82F6]!
         [&_[data-sidebar=menu-button][data-active]]:hover:bg-white [&_[data-sidebar=menu-button][data-active]]:hover:text-[#3B82F6]!

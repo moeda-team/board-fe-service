@@ -38,8 +38,8 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuthMe } from "@/hooks/api/useAuth";
 import { useAdminEnterpriseRequests } from "@/hooks/api/useAdminEnterpriseRequests";
+import type { AdminEnterpriseRequest } from "@/types/admin-enterprise";
 import type {
-  AdminEnterpriseRequest,
   EnterpriseRequestStatus,
   EnterpriseRequestStatusLabel
 } from "@/types/enterprise";

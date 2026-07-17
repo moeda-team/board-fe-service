@@ -58,7 +58,7 @@ export const useAdminEnterpriseRequests = (
  * GET /api/admin/enterprise-requests/:id
  * Get single enterprise request detail (Super Admin).
  */
-export const useAdminEnterpriseRequest = (id: string | null) =>
+export const useAdminEnterpriseRequest = (id: string | null, enabled = true) =>
   useQuery<AdminEnterpriseRequest>({
     queryKey: adminEnterpriseRequestQueryKey(id ?? ""),
     queryFn: async () => {
@@ -67,7 +67,7 @@ export const useAdminEnterpriseRequest = (id: string | null) =>
       );
       return unwrapApiData(data);
     },
-    enabled: !!id,
+    enabled: !!id && enabled,
   });
 
 /**

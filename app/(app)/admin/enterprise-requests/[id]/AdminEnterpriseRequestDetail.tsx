@@ -37,8 +37,8 @@ import {
   useAssignEnterpriseRequestManager
 } from "@/hooks/api/useAdminEnterpriseRequests";
 import { gooeyToast } from "goey-toast";
+import type { AdminEnterpriseRequest } from "@/types/admin-enterprise";
 import type {
-  AdminEnterpriseRequest,
   EnterpriseRequestStatus,
   EnterpriseRequestStatusLabel
 } from "@/types/enterprise";
@@ -342,7 +342,7 @@ export default function AdminEnterpriseRequestDetail({ id }: { id: string }) {
                 <InfoRow label="Industry" value={request.industry} />
                 <InfoRow
                   label="Website"
-                  value={request.companyWebsite}
+                  value={request.companyWebsite ?? ""}
                   isLink
                 />
                 <InfoRow
@@ -604,7 +604,7 @@ function InfoRow({
   isLink
 }: {
   label: string;
-  value: string;
+  value: string | null;
   isLink?: boolean;
 }) {
   const displayValue = value || "-";

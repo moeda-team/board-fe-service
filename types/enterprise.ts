@@ -68,26 +68,6 @@ export interface CreateEnterpriseRequest {
   additionalNotes: string;
 }
 
-export interface EnterpriseRequestManager {
-  id: string;
-  fullName: string;
-  avatarUrl: string | null;
-}
-
-export interface AdminEnterpriseRequest extends EnterpriseRequest {
-  assignedAccountManager?: EnterpriseRequestManager | null;
-  estimatedValue?: number | null;
-}
-
-export interface AdminEnterpriseRequestListParams {
-  page?: number;
-  limit?: number;
-  search?: string;
-  status?: EnterpriseRequestStatus;
-  industry?: string;
-  budget?: string;
-}
-
 export interface EnterpriseRequestListParams {
   page?: number;
   limit?: number;
@@ -103,22 +83,10 @@ export interface EnterpriseRequestListMeta {
   totalPages: number;
 }
 
-export interface AdminEnterpriseRequestListResponse {
-  items: AdminEnterpriseRequest[];
-  meta: EnterpriseRequestListMeta;
-}
-
 export interface EnterpriseRequestListResponse {
   items: EnterpriseRequest[];
   meta: EnterpriseRequestListMeta;
 }
 
-export interface UpdateEnterpriseRequestParams {
-  id: string;
-  status: EnterpriseRequestStatus;
-}
-
-export type AdminEnterpriseRequestListEnvelope = ApiEnvelope<AdminEnterpriseRequestListResponse>;
-export type AdminEnterpriseRequestEnvelope = ApiEnvelope<AdminEnterpriseRequest>;
 export type EnterpriseRequestListEnvelope = ApiEnvelope<EnterpriseRequestListResponse>;
 export type EnterpriseRequestEnvelope = ApiEnvelope<EnterpriseRequest>;
